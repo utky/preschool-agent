@@ -1,0 +1,26 @@
+{
+  "name": "TypeScript + Google Cloud DevContainer",
+  "build": { "dockerfile": "Dockerfile", "context": ".." },
+  "mounts": [
+    "source=devcontainer-config,target=/opt/vscode/config,type=volume"
+  ],
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "ms-vscode.vscode-typescript-next",
+        "eg2.vscode-npm-script",
+        "christian-kohler.npm-intellisense"
+      ],
+      "settings": {
+        "typescript.tsdk": "node_modules/typescript/lib"
+      }
+    }
+  },
+  "containerEnv": {
+    "GOOGLE_CLOUD_PROJECT": "lofilab",
+    "GOOGLE_CLOUD_LOCATION": "global"
+  },
+  "postCreateCommand": "ln -s /opt/vscode/config/gcloud /home/node/.config/gcloud && /bin/sh .devcontainer/install-dependencies.sh"
+}
