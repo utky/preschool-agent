@@ -1,4 +1,8 @@
-FROM mcr.microsoft.com/devcontainers/typescript-node
+FROM mcr.microsoft.com/vscode/devcontainers/base:ubuntu
+
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
+# gcloud CLI をインストール
 RUN sudo apt-get update && \
   sudo apt-get install -y apt-transport-https ca-certificates gnupg curl && \
   curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg && \
