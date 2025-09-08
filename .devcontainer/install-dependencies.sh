@@ -1,4 +1,4 @@
 #!/bin/sh
-uv add langchain langgraph fastapi pydantic ruff
+uv sync
 npm install -g '@google/gemini-cli'
 

@@ -13,7 +13,9 @@
         "ms-python.python",
         "ms-python.vscode-pylance",
         "astral-sh.ty",
-        "charliermarsh.ruff"
+        "charliermarsh.ruff",
+        "github.vscode-pull-request-github",
+        "googlecloudtools.cloudcode"
       ],
       "settings": {
         "[python]": {
