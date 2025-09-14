@@ -56,12 +56,12 @@ jobs:
 
       - name: Tofu Init
         run: tofu init
-        working-directory: ./infra
+        working-directory: ./tf
 
       - name: Tofu Plan
         id: plan
         run: tofu plan -no-color
-        working-directory: ./infra
+        working-directory: ./tf
         continue-on-error: true
 
       - name: Comment on PR
