@@ -10,23 +10,23 @@
 
 ---
 
-### フェーズ 1: パイプラインの確立 (Health-Checkスライス)
+### フェーズ 1: パイプラインの確立 (Health-Checkスライス) - DONE
 
 **目標:** 最小限のアプリケーションを本番環境にデプロイし、CI/CDパイプラインを完全に確立する。
 
-- [ ] **環境構築:**
-    - [ ] devcontainer の設定整備
-    - [ ] Python 3.12, `uv`, `ty`, `ruff` の導入
-    - [ ] `backend`, `frontend` のディレクトリ構造を作成
-- [ ] **インフラ (IaC):**
-    - [ ] OpenTofuで最小限のリソースを定義 (Cloud Run, IAP, Artifact Registry, GCS for Tofu state)
-- [ ] **バックエンド (FastAPI):**
-    - [ ] `GET /api/health` エンドポイントを1つ作成
-- [ ] **フロントエンド (React):**
-    - [ ] `/api/health` を呼び出し、結果を表示するだけのシンプルなページを作成
-- [ ] **CI/CD (GitHub Actions):**
-    - [ ] **CI:** `tofu plan` と最小限のテストを実行するPRワークフローを構築
-    - [ ] **CD:** アプリをビルド・コンテナ化し、Cloud Runへ自動デプロイするワークフローを構築
+- [x] **環境構築:**
+    - [x] devcontainer の設定整備
+    - [x] Python 3.12, `uv`, `ty`, `ruff` の導入
+    - [x] `backend`, `frontend` のディレクトリ構造を作成
+- [x] **インフラ (IaC):**
+    - [x] OpenTofuで最小限のリソースを定義 (Cloud Run, IAP, Artifact Registry, GCS for Tofu state)
+- [x] **バックエンド (FastAPI):**
+    - [x] `GET /api/health` エンドポイントを1つ作成
+- [x] **フロントエンド (React):**
+    - [x] `/api/health` を呼び出し、結果を表示するだけのシンプルなページを作成
+- [x] **CI/CD (GitHub Actions):**
+    - [x] **CI:** `tofu plan` と最小限のテストを実行するPRワークフローを構築
+    - [x] **CD:** アプリをビルド・コンテナ化し、Cloud Runへ自動デプロイするワークフローを構築
 
 ---
 

@@ -1,0 +1,31 @@
+# --- Builder Stage ---
+FROM node:20-slim as frontend-builder
+
+WORKDIR /app/frontend
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm install
+COPY frontend/ ./
+RUN npm run build
+
+# --- Final Stage ---
+FROM python:3.12-slim
+
+ENV PYTHONDONTWRITEBYTECODE 1
+ENV PYTHONUNBUFFERED 1
+
+WORKDIR /app
+
+# Install uv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
+
+# Install backend dependencies
+COPY backend/pyproject.toml .
+RUN uv pip install --system --no-cache -r pyproject.toml
+
+# Copy source code and built frontend
+COPY backend/src ./src
+COPY --from=frontend-builder /app/frontend/dist ./src/static
+
+# Expose port and run application
+EXPOSE 8080
+CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8080"]
