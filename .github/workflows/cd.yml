@@ -17,9 +17,8 @@ jobs:
       - name: Configure Google Cloud credentials
         uses: google-github-actions/auth@v2
         with:
-          # Add your Workload Identity Federation configuration here
-          workload_identity_provider: ''
-          service_account: ''
+          workload_identity_provider: 'projects/YOUR_GCP_PROJECT_NUMBER/locations/global/workloadIdentityPools/gh-actions-pool/providers/gh-actions-provider' # TODO: Replace with your WIF provider
+          service_account: 'gh-actions-sa@YOUR_GCP_PROJECT_ID.iam.gserviceaccount.com' # TODO: Replace with your SA email
 
       - name: Set up Docker
         uses: docker/setup-buildx-action@v3
@@ -55,14 +54,13 @@ jobs:
       - name: Configure Google Cloud credentials
         uses: google-github-actions/auth@v2
         with:
-          # Add your Workload Identity Federation configuration here
-          workload_identity_provider: ''
-          service_account: ''
+          workload_identity_provider: 'projects/YOUR_GCP_PROJECT_NUMBER/locations/global/workloadIdentityPools/gh-actions-pool/providers/gh-actions-provider' # TODO: Replace with your WIF provider
+          service_account: 'gh-actions-sa@YOUR_GCP_PROJECT_ID.iam.gserviceaccount.com' # TODO: Replace with your SA email
 
       - name: Tofu Init
         run: tofu init
-        working-directory: ./tf
+        working-directory: ./tf/environments/production
 
       - name: Tofu Apply
         run: tofu apply -auto-approve
-        working-directory: ./tf
+        working-directory: ./tf/environments/production
