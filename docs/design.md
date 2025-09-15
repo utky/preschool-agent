@@ -176,16 +176,101 @@ APIはIAPによって保護されます。
 ### 7.3. フレームワーク選定の経緯
 本プロジェクトの要件（認証下の内部アプリ、バックエンド分離）と、開発・メンテナンスの安定性を考慮し、Next.jsではなくVite + React構成を採用します。
 
-## 8. インフラストラクチャとCI/CD
+## 8. インフラストラクチャ (IaC)
+
+OpenTofuを用いてGoogle Cloudリソースをコードとして管理します。
+
+### 8.1. Terraformの構成
+
+Terraformのコードは、再利用性と保守性を高めるため、一般的なベストプラクティスである `environments` と `modules` を用いたディレクトリ構成を採用します。
+
+- **`environments`**: `production` や `staging` といった環境ごとの構成を定義します。各環境の `.tf` ファイルは、`modules` を組み合わせてリソースを定義し、環境固有の変数を渡します。
+- **`modules`**: Cloud Run、GCS、BigQueryといった、再利用可能なリソースのまとまりを機能単位で定義します。
+
+```
+tf/
+├── environments/
+│   └── production/
+│       ├── main.tf         # ルートモジュール: production環境のリソースを定義
+│       ├── variables.tf    # production環境用の変数を定義
+│       └── outputs.tf      # production環境の出力を定義
+└── modules/
+    ├── app/              # アプリケーション全体を構成するモジュール
+    │   ├── main.tf
+    │   ├── variables.tf
+    │   └── outputs.tf
+    ├── cloud_run/        # Cloud Runサービスを定義するモジュール
+    │   └── ...
+    ├── gcs/              # GCSバケットを定義するモジュール
+    │   └── ...
+    └── workload_identity/ # Workload Identity連携を定義するモジュール
+        └── ...
+```
+
+### 8.2. 主要なリソース
 
 - **コンピューティング/配信**: Cloud Run, Cloud Functions
 - **スケジューリング**: Cloud Scheduler
 - **AI / ML**: Document AI
 - **ストレージ**: Google Drive, Cloud Storage, BigQuery
 - **認証**: Identity-Aware Proxy (IAP)
-- **CI/CD**: GitHub Actions
 
-## 9. 認証・認可設計
+## 9. CI/CD
+
+CI/CDパイプラインにはGitHub Actionsを利用します。
+
+### 9.1. 認証 (Workload Identity)
+
+GitHub ActionsのワークフローからGoogle Cloudへ安全にアクセスするため、Workload Identity連携を利用します。これにより、有効期間の長いサービスアカウントキーをGitHub Secretsに保存する必要がなくなり、セキュリティが向上します。
+
+```mermaid
+graph TD
+    subgraph GitHub
+        A[GitHub Actions Runner] -- "1. OIDCトークンをリクエスト" --> B{GitHub OIDC Provider}
+        B -- "2. OIDCトークンを発行" --> A
+    end
+
+    subgraph "Google Cloud"
+        C[Workload Identity Pool]
+        D[Workload Identity Provider]
+        E[Service Account]
+    end
+
+    A -- "3. OIDCトークンを提示して<br>短期的なGCPアクセストークンを要求" --> C
+    C -- "4. トークンの検証を依頼" --> D
+    D -- "5. トークンを検証" --> C
+    C -- "6. Service Accountの権限を借用" --> E
+    E -- "7. 短期的なGCPアクセストークンを発行" --> C
+    C -- "8. 短期的なGCPアクセストークンを返却" --> A
+
+    A -- "9. GCPアクセストークンを使って<br>Tofuコマンドなどを実行" --> F[Google Cloud APIs<br>(e.g., GCS, Cloud Run)]
+
+    linkStyle 0,1,2,3,4,5,6,7,8 stroke-width:2px,fill:none,stroke:blue;
+```
+
+### 9.2. デプロイフロー
+
+個人プロジェクトとして、ステージング環境を介さずに本番環境へ直接デプロイするシンプルな運用を前提とします。ただし、安全性を確保するため、本番環境への変更適用前には必ず手動での承認プロセスを挟みます。
+
+#### Pull Requestでの変更内容の確認 (CI)
+`feature`ブランチから`main`ブランチへのPull Requestを作成した際に、以下のジョブを自動実行します。
+
+- **ユニットテスト:** バックエンドとフロントエンドのユニットテストを実行します。
+- **`tofu plan`:** 本番環境に対する`tofu plan`を実行し、インフラの変更計画をPull Request上にコメントとして投稿します。
+
+これにより、マージ前にコードの品質とインフラの変更内容をレビューできます。
+
+#### mainブランチへのマージと手動承認による本番デプロイ (CD)
+Pull Requestを`main`ブランチにマージすると、デプロイワークフローが開始されます。
+
+- **トリガー:** `main`ブランチへのPush
+- **実行ジョブ:**
+    1. **イメージビルド:** アプリケーションのDockerイメージをビルドし、Google Artifact Registryにプッシュします。
+    2. **`tofu plan`:** `apply`直前の最終的な変更計画を生成します。
+    3. **手動承認:** パイプラインを一時停止し、手動での承認クリックを要求します。これにより、意図しないデプロイを防ぎます。
+    4. **`tofu apply`:** 承認が行われた場合にのみ、`tofu apply`を実行して本番環境に変更を適用します。
+
+## 10. 認証・認可設計
 
 本システムは、Google Cloud IAP (Identity-Aware Proxy) を用いて認証と認可を一元的に管理する。個人的なツールであり、アクセスが許可された利用者は全員が同等の権限を持つため、アプリケーションレベルでのロールベースアクセス制御（RBAC）は実装しない。
 
