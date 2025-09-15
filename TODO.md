@@ -30,12 +30,34 @@
 
 ---
 
+### フェーズ 1.5: インフラ構成のリファクタリング - DONE
+
+**目標:** Terraformの構成をベストプラクティスに準拠させ、保守性とセキュリティを向上させる。
+
+- [x] **インフラ (IaC):**
+    - [x] OpenTofuのディレクトリ構造を `environments` と `modules` を使う構成に再編成する
+    - [x] CI/CDからGoogle Cloudへの認証をWorkload Identity連携に移行する
+    - [x] 既存リソース（Cloud Run, IAP, GCSなど）を機能ごとのモジュールに分割する
+
+---
+
+### フェーズ 1.6: 開発環境の改善 - DONE
+
+**目標:** devcontainerにOpenTofuの実行環境を構築する。
+
+- [x] **環境構築:**
+    - [x] `docs/requirements.md` にOpenTofuの要件を追記する
+    - [x] `.devcontainer/Dockerfile` を更新し、OpenTofuのバージョン管理ツール `tenv` をインストールする
+    - [x] `.devcontainer/devcontainer.json` を更新し、コンテナ作成時に `tenv` を使ってOpenTofuをインストールする
+
+---
+
 ### フェーズ 2: PDFメタデータ登録スライス
 
 **目標:** PDFを処理し、その記録をDBに保存・表示する、データ処理の基本フローを完成させる。
 
 - [ ] **インフラ (IaC):**
-    - [ ] リソースを追加: Cloud Storage (PDF格納用), Cloud Function, Document AI, BigQuery (`documents`テーブル)
+    - [ ] `gcs`, `cloud_function`, `document_ai`, `bigquery` の各モジュールを更新・作成し、リソースを追加する
 - [ ] **バックエンド (TDD):**
     - [ ] 手動トリガーでPDFを解析し、メタデータをBigQueryに保存するCloud Functionを実装
     - [ ] 処理済みドキュメント一覧を返す `GET /api/documents` エンドポイントを実装
@@ -49,7 +71,7 @@
 **目標:** Google Driveを監視し、新規ファイルを自動的に検出・処理する仕組みを構築する。
 
 - [ ] **インフラ (IaC):**
-    - [ ] Cloud Schedulerを追加し、Google Drive APIの権限を設定
+    - [ ] `cloud_scheduler` モジュールを作成し、Cloud FunctionのIAM権限を更新する
 - [ ] **バックエンド (TDD):**
     - [ ] Cloud Functionを拡張し、Schedulerによる定期実行に対応
     - [ ] Google Driveの特定フォルダをポーリングし、未処理の新規ファイルを検出して処理パイプラインに連携するロジックを実装
@@ -74,7 +96,7 @@
 **目標:** PDFからカレンダー登録候補となるイベントを抽出し、ユーザーに提示する。
 
 - [ ] **インフラ (IaC):**
-    - [ ] BigQueryに `calendar_events` テーブルを追加
+    - [ ] `bigquery` モジュールを更新し、`calendar_events` テーブルを追加する
 - [ ] **バックエンド (TDD):**
     - [ ] PDF解析ロジックを拡張し、「予定」に関する情報を抽出して `calendar_events` テーブルに保存する機能を追加
     - [ ] `GET /api/calendar/events` エンドポイントを実装
@@ -88,7 +110,7 @@
 **目標:** ユーザーが承認したイベントを実際にGoogle Calendarに登録する。
 
 - [ ] **インフラ (IaC):**
-    - [ ] Google Calendar APIの権限を設定
+    - [ ] `app` モジュールのサービスアカウントにGoogle Calendar APIの権限を追加する
 - [ ] **バックエンド (TDD):**
     - [ ] `POST /api/calendar/events/{event_id}/approve` エンドポイントを実装
     - [ ] Google Calendar APIを呼び出してカレンダーにイベントを作成するロジックを実装
@@ -102,7 +124,7 @@
 **目標:** PDFから抽出した写真をWeb UI上で閲覧できるようにする。
 
 - [ ] **インフラ (IaC):**
-    - [ ] BigQueryに `images` テーブルを追加
+    - [ ] `bigquery` モジュールを更新し、`images` テーブルを追加する
 - [ ] **バックエンド (TDD):**
     - [ ] PDF解析ロジックを拡張し、画像を抽出してCloud Storageに保存する機能を追加
     - [ ] 画像のメタデータを `images` テーブルに保存する機能を追加
