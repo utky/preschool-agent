@@ -3,16 +3,17 @@ variable "project_id" {
   description = "Google CloudのプロジェクトID"
 }
 
-variable "region" {
+variable "cloud_run_service_name" {
   type        = string
-  description = "リソースを作成するリージョン"
-  default     = "asia-northeast1"
+  description = "The name of the Cloud Run service to protect with IAP."
 }
 
-variable "iap_support_email" {
+variable "region" {
   type        = string
-  description = "IAPの同意画面に表示されるサポートメールアドレス"
+  description = "The region where the Cloud Run service is deployed."
 }
+
+
 
 variable "iap_allowed_users" {
   type        = list(string)

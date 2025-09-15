@@ -1,0 +1,4 @@
+project_id        = "YOUR_GCP_PROJECT_ID"
+github_repo       = "YOUR_GITHUB_OWNER/YOUR_GITHUB_REPO"
+iap_support_email = "YOUR_EMAIL_ADDRESS"
+iap_allowed_users = ["user:YOUR_EMAIL_ADDRESS"]
