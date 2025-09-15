@@ -8,7 +8,7 @@ on:
 jobs:
   build_and_push:
     runs-on: ubuntu-latest
-    environments: prod
+    environment: prod
     permissions:
       contents: read
       id-token: write
@@ -38,13 +38,10 @@ jobs:
   deploy:
     needs: build_and_push
     runs-on: ubuntu-latest
-    environments: prod
+    environment: prod
     permissions:
       contents: read
       id-token: write
-    environment:
-      name: production
-      url: '' # Add your app URL here
     steps:
       - uses: actions/checkout@v4
 

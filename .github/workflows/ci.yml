@@ -40,7 +40,7 @@ jobs:
 
   tofu_plan:
     runs-on: ubuntu-latest
-    environments: prod
+    environment: prod
     permissions:
       contents: read
       pull-requests: write
