@@ -40,6 +40,7 @@ jobs:
 
   tofu_plan:
     runs-on: ubuntu-latest
+    environments: prod
     permissions:
       contents: read
       pull-requests: write
@@ -53,8 +54,8 @@ jobs:
       - name: Configure Google Cloud credentials
         uses: google-github-actions/auth@v2
         with:
-          workload_identity_provider: 'projects/YOUR_GCP_PROJECT_NUMBER/locations/global/workloadIdentityPools/gh-actions-pool/providers/gh-actions-provider' # TODO: Replace with your WIF provider
-          service_account: 'gh-actions-sa@YOUR_GCP_PROJECT_ID.iam.gserviceaccount.com' # TODO: Replace with your SA email
+          workload_identity_provider: ${{ secrets.WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.SERVICE_ACCOUNT }}
 
       - name: Tofu Init
         run: tofu init

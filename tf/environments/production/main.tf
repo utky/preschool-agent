@@ -32,9 +32,3 @@ module "iap" {
   cloud_run_service_name = module.app.service_name
   iap_allowed_users      = var.iap_allowed_users
 }
-
-module "wif" {
-  source      = "../../modules/wif"
-  project_id  = var.project_id
-  github_repo = var.github_repo
-}
