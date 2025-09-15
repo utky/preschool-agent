@@ -65,17 +65,3 @@ jobs:
         run: tofu plan -no-color
         working-directory: ./tf/environments/production
         continue-on-error: true
-
-      - name: Comment on PR
-        uses: actions/github-script@v6
-        with:
-          script: |
-            const output = `#### Terraform Plan 📖` + '`' + '`' + 'hcl
-${{ steps.plan.outputs.stdout }}
-`' + '`' + '`';
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: output
-            })
