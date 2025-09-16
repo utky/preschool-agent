@@ -1,35 +1,22 @@
 {
-  "name": "Python + Google Cloud DevContainer",
+  "name": "TypeScript + Google Cloud DevContainer",
   "build": { "dockerfile": "Dockerfile", "context": ".." },
-  "features": {
-    "ghcr.io/devcontainers/features/node:1": {}
-  },
   "mounts": [
     "source=devcontainer-config,target=/opt/vscode/config,type=volume"
   ],
   "customizations": {
     "vscode": {
       "extensions": [
-        "ms-python.python",
-        "ms-python.vscode-pylance",
-        "astral-sh.ty",
-        "charliermarsh.ruff",
+        "ms-vscode.vscode-typescript-next",
         "github.vscode-pull-request-github",
-        "googlecloudtools.cloudcode"
+        "googlecloudtools.cloudcode",
+        "Google.gemini-cli-vscode-ide-companion"
       ],
-      "settings": {
-        "[python]": {
-          "editor.formatOnSave": true,
-          "editor.defaultFormatter": "charliermarsh.ruff",
-          "python.languageServer": "None"
-        }
-      }
     }
   },
   "containerEnv": {
     "GOOGLE_CLOUD_PROJECT": "lofilab",
     "GOOGLE_CLOUD_LOCATION": "global"
   },
-  "postCreateCommand": "ln -s /opt/vscode/config/gcloud /home/vscode/.config/gcloud && /bin/sh .devcontainer/install-dependencies.sh",
-  "remoteUser": "vscode"
+  "postCreateCommand": "ln -s /opt/vscode/config/gcloud /home/node/.config/gcloud && /bin/sh .devcontainer/install-dependencies.sh",
 }
