@@ -1,6 +1,28 @@
+"use client";
+import { useState, useEffect } from "react";
 import { CalculatorChat } from "./components/calculator-chat";
 
 export default function Home() {
+  const [healthStatus, setHealthStatus] = useState<string | null>(null);
+
+  useEffect(() => {
+    const checkHealth = async () => {
+      try {
+        const response = await fetch("/api/health");
+        if (!response.ok) {
+          throw new Error("Network response was not ok");
+        }
+        const data = await response.json();
+        setHealthStatus(data.status);
+      } catch (error) {
+        console.error("Failed to fetch health status:", error);
+        setHealthStatus("error");
+      }
+    };
+
+    checkHealth();
+  }, []);
+
   return (
     <div className="relative min-h-screen bg-[#1b1b1b] flex flex-col items-center justify-center p-4 overflow-hidden">
       {/* Dot pattern background */}
@@ -17,7 +39,9 @@ export default function Home() {
       <main className="relative w-full z-10 max-w-4xl mx-auto">
         <div className="mb-8 text-center">
           <h1 className="text-4xl font-bold text-[#00d992] mb-2">VoltAgent</h1>
-          <p className="text-gray-400 text-lg">Supervisor Agent with Sub-Agents</p>
+          <p className="text-gray-400 text-lg">
+            Supervisor Agent with Sub-Agents
+          </p>
           <p className="text-gray-500 text-sm mt-2">
             Watch how the supervisor delegates tasks to specialized agents
           </p>
@@ -28,9 +52,13 @@ export default function Home() {
         <div className="mt-8 text-center text-sm text-gray-500">
           <p>Built with Next.js and VoltAgent</p>
           <p className="mt-2 text-xs text-gray-600">
-            The supervisor agent delegates mathematical tasks to MathExpert and general queries to
-            GeneralAssistant
+            The supervisor agent delegates mathematical tasks to MathExpert and
+            general queries to GeneralAssistant
           </p>
+        </div>
+
+        <div className="mt-4 text-center text-sm text-gray-400">
+          <p>API Health: {healthStatus ? healthStatus : "loading..."}</p>
         </div>
       </main>
     </div>

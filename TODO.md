@@ -6,7 +6,7 @@
 
 ### フェーズ 0: 開発プロセスの定義
 
-- [ ] 開発フローを `GEMINI.md` に記載する
+- [x] 開発フローを `GEMINI.md` に記載する
 
 ---
 
@@ -16,11 +16,9 @@
 
 - [x] **環境構築:**
     - [x] devcontainer の設定整備
-    - [x] Python 3.12, `uv`, `ty`, `ruff` の導入
-    - [x] `backend`, `frontend` のディレクトリ構造を作成
 - [x] **インフラ (IaC):**
     - [x] OpenTofuで最小限のリソースを定義 (Cloud Run, IAP, Artifact Registry, GCS for Tofu state)
-- [ ] **バックエンド (Next.js):**
+- [x] **バックエンド (Next.js):**
     - [x] `GET /api/health` エンドポイントを1つ作成
 - [x] **フロントエンド (React):**
     - [x] `/api/health` を呼び出し、結果を表示するだけのシンプルなページを作成
