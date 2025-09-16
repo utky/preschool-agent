@@ -20,7 +20,7 @@
     - [x] `backend`, `frontend` のディレクトリ構造を作成
 - [x] **インフラ (IaC):**
     - [x] OpenTofuで最小限のリソースを定義 (Cloud Run, IAP, Artifact Registry, GCS for Tofu state)
-- [x] **バックエンド (FastAPI):**
+- [ ] **バックエンド (Next.js):**
     - [x] `GET /api/health` エンドポイントを1つ作成
 - [x] **フロントエンド (React):**
     - [x] `/api/health` を呼び出し、結果を表示するだけのシンプルなページを作成
@@ -83,7 +83,7 @@
 **目標:** 蓄積されたデータに対する自然言語での問い合わせに応答するAIエージェントを実装する。
 
 - [ ] **バックエンド (TDD):**
-    - [ ] ADK (Agent Development Kit) をセットアップ
+    - [ ] VoltAgent をセットアップ
     - [ ] BigQueryのテーブルを横断検索する `BigQuery Retriever Tool` を実装
     - [ ] `POST /api/chat` エンドポイントとセッション管理を実装
 - [ ] **フロントエンド (TDD):**
@@ -131,3 +131,4 @@
     - [ ] 署名付きURLを返す `GET /api/photos` エンドポイントを実装
 - [ ] **フロントエンド (TDD):**
     - [ ] 写真を一覧表示するギャラリーページを作成
+�

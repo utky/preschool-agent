@@ -4,7 +4,7 @@
 
 ## 1. アーキテクチャ概要
 
-本システムは、Google Cloud上に構築されたサーバーレスアーキテクチャを採用します。Cloud Run上で稼働するFastAPIアプリケーションが、Reactで構築されたフロントエンドとバックエンドAPIの両方を提供し、システム全体がIAPによって保護されます。データ処理は、Cloud Schedulerに定期実行されるCloud Functionが担い、Document AIでの解析結果をBigQueryに蓄積します。
+本システムは、Google Cloud上に構築されたサーバーレスアーキテクチャを採用します。Cloud Run上で稼働するNext.jsアプリケーションが、フロントエンドとバックエンドAPIの両方を提供し、システム全体がIAPによって保護されます。データ処理は、Cloud Schedulerに定期実行されるCloud Functionが担い、Document AIでの解析結果をBigQueryに蓄積します。
 
 ### 1.1. コンポーネント構成図
 
@@ -16,7 +16,7 @@ graph TD
 
     subgraph "Google Cloud"
         subgraph "Cloud Run (IAP保護)"
-            B[FastAPIサーバー: API + フロントエンド配信]
+            B[Next.jsサーバー: API + フロントエンド配信]
         end
         subgraph "Data Processing"
             C[ポーリング処理 / Cloud Function]
@@ -47,7 +47,7 @@ graph TD
 1.  **定期的実行**: Cloud Schedulerが設定されたスケジュールで、ポーリング用のCloud FunctionをHTTPトリガーします。
 2.  **新規ファイル検出**: Cloud Functionは、Google Drive APIで指定フォルダ内のファイルリストを取得し、BigQueryの処理済み記録と照合して未処理の新規ファイルを特定します。
 3.  **解析依頼**: 特定したPDFをCloud Storageにアップロードし、Document AIのプロセッサを呼び出して非同期解析を依頼します。
-4.  **データ格納**: 解析結果のJSONをCloud Storageから取得し、`core`モジュールのマッパーを通じてPydanticモデルに変換後、BigQueryの各テーブルに格納します。
+4.  **データ格納**: 解析結果のJSONをCloud Storageから取得し、`core`モジュールのマッパーを通じてデータモデルに変換後、BigQueryの各テーブルに格納します。
 
 ## 2. PDF解析アプローチ
 
@@ -55,37 +55,41 @@ graph TD
 
 ## 3. プロジェクト構成
 
-バックエンドとフロントエンドは、開発時は明確に分離したモノレポ構成とします。本番デプロイ時は、`frontend` ディレクトリでビルドされた静的ファイル群 (`dist` ディレクトリ) が `backend` のコンテナイメージに含まれ、FastAPIによって配信されます。
+本プロジェクトはNext.js (App Router) の標準的なディレクトリ構造を採用します。フロントエンドのUIコンポーネントとサーバーサイドのAPIエンドポイントが `app/` ディレクトリ内に共存するモノリシックな構成です。
 
 ```
 / (project root)
-├── backend/
-│   ├── src/
-│   └── functions/
-├── frontend/
-│   └── src/
-├── tf/
-├── docs/
-└── .gitignore
+├── app/
+│   ├── api/              # API Routes (バックエンドロジック)
+│   │   └── chat/
+│   │       └── route.ts  # チャットAPIのエンドポイント
+│   ├── components/       # Reactコンポーネント
+│   ├── layout.tsx        # ルートレイアウト
+│   └── page.tsx          # ルートページ
+├── public/               # 静的ファイル (画像など)
+├── docs/                 # ドキュメント
+├── tf/                   # OpenTofu (IaC)
+├── next.config.ts        # Next.js設定ファイル
+└── package.json          # プロジェクト依存関係
 ```
 
-## 4. バックエンド モジュール設計
+## 4. サーバーサイド設計
 
-- `backend/src/`
-    - `main.py`: FastAPIアプリケーションのエントリーポイント。
-    - `config.py`: 環境変数など、アプリケーション全体の設定を管理します。
-    - `api/`: APIエンドポイント（ルーター）を配置します。
-    - `schemas/`: Pydanticスキーマ（データ構造）を定義します。
-    - `core/`: フレームワーク等に依存しない、純粋なビジネスロジック（ドメインロジック）を配置します。
-    - `services/`: 具体的なユースケースを実現する層です。横断的な関心事もここに配置します。
-    - `clients/`: Google Cloudなど、外部サービスのAPIを呼び出すクライアントを配置します。
+サーバーサイドのロジックは、Next.jsのApp Routerの機能を用いて実装します。
 
-- `backend/functions/`:
-    - `main.py`: Cloud Functionのデプロイ用エントリーポイント。`backend/src/` 内のコンポーネントを呼び出します。
+- **API Routes**:
+  - `app/api/` ディレクトリ以下に配置されます。
+  - 各APIエンドポイントは `route.ts` (または `.js`) ファイルとして実装され、HTTPリクエストを処理します。例えば、`app/api/chat/route.ts` は `/api/chat` へのリクエストを処理します。
+- **サーバーコンポーネント**:
+  - デフォルトでサーバーサイドでレンダリングされるReactコンポーネントです。データベースアクセスや外部API呼び出しなどのサーバーサイドロジックをコンポーネント内に直接記述できます。
+- **ビジネスロジック・外部連携**:
+  - `voltagent/` や `lib/` といったディレクトリに、特定のフレームワークに依存しない純粋なビジネスロジックや、Google Cloud SDKなどの外部サービスと連携するクライアントコードを配置します。
+- **Cloud Functions**:
+  - 定期実行や非同期処理など、Next.jsのアプリケーションサーバーとは別のライフサイクルで実行する必要がある処理は、Cloud Functionsとして実装し、`functions/` ディレクトリ（別途作成）で管理します。
 
-## 5. データモデル設計 (Pydantic & BigQuery)
+## 5. データモデル設計 (BigQuery)
 
-Pydanticモデルをスキーマ定義の原本とし、BigQueryのテーブルスキーマもこれに準拠します。
+TypeScriptの型定義（またはZodスキーマ）をスキーマ定義の原本とし、BigQueryのテーブルスキーマもこれに準拠します。
 
 - **`documents` テーブル**: アップロードされたPDFのメタ情報。
     - `id` (STRING, REQUIRED)
@@ -145,14 +149,14 @@ Pydanticモデルをスキーマ定義の原本とし、BigQueryのテーブル�
     - `preface` (STRING)
     - `sections` (RECORD, REPEATED)
 
-## 6. APIエンドポイント設計 (FastAPI)
+## 6. APIエンドポイント設計 (Next.js API Routes)
 
 APIはIAPによって保護されます。
 
-- `POST /chat`: 自然言語での問い合わせに応答するRAGエージェントのエンドポイント。
-- `GET /calendar/events`: カレンダー登録候補のリストを取得する。
-- `POST /calendar/events/{event_id}/approve`: 指定されたイベント候補を承認し、Google Calendarに登録する。
-- `GET /photos`: 抽出された写真の署名付きURLリストを返す。
+- `POST /api/chat`: 自然言語での問い合わせに応答するRAGエージェントのエンドポイント。
+- `GET /api/calendar/events`: カレンダー登録候補のリストを取得する。
+- `POST /api/calendar/events/{event_id}/approve`: 指定されたイベント候補を承認し、Google Calendarに登録する。
+- `GET /api/photos`: 抽出された写真の署名付きURLリストを返す。
     - **Query Parameters**:
         - `document_id: Optional[str]`: 掲載ドキュメントID
         - `start_date: Optional[date]`: 掲載日の範囲指定 (開始)
@@ -167,14 +171,14 @@ APIはIAPによって保護されます。
 - **写真ギャラリー**: 写真の閲覧。
 
 ### 7.2. 技術選定
-- **フレームワーク**: React (Vite)
+- **フレームワーク**: Next.js
 - **UIライブラリ**: Material-UI (MUI)
-- **ルーティング**: React Router
+- **ルーティング**: Next.js App Router
 - **データフェッチング**: TanStack Query
-- **配信**: FastAPI on Cloud Run
+- **配信**: Next.js on Cloud Run
 
 ### 7.3. フレームワーク選定の経緯
-本プロジェクトの要件（認証下の内部アプリ、バックエンド分離）と、開発・メンテナンスの安定性を考慮し、Next.jsではなくVite + React構成を採用します。
+本プロジェクトの要件と技術的制約に基づき、Next.js構成を採用します。
 
 ## 8. インフラストラクチャ (IaC)
 
@@ -280,11 +284,11 @@ Pull Requestを`main`ブランチにマージすると、デプロイワーク�
 
 ```mermaid
 sequenceDiagram
-    participant Browser as ブラウザ (React)
+    participant Browser as ブラウザ (Next.js)
     participant IAP as Google Cloud IAP
-    participant FastAPI as FastAPI on Cloud Run
+    participant Next.js as Next.js on Cloud Run
 
-    Note over Browser, FastAPI: 事前準備: ユーザーはGoogleにログイン済み
+    Note over Browser, Next.js: 事前準備: ユーザーはGoogleにログイン済み
 
     Browser->>IAP: 1. APIリクエスト (例: GET /api/photos)
     Note right of Browser: ブラウザがIAPの<br>セッションCookieを自動で添付
@@ -293,11 +297,11 @@ sequenceDiagram
     Note left of IAP: 許可されたGoogleアカウントか<br>IAMポリシーで確認
 
     alt 許可されたユーザーの場合
-        IAP->>FastAPI: 3. リクエストをバックエンドに転送
+        IAP->>Next.js: 3. リクエストをバックエンドに転送
         Note right of IAP: ヘッダーにユーザー情報を付与<br>X-Goog-Authenticated-User-Email
-        FastAPI->>FastAPI: 4. API処理を実行
-        Note left of FastAPI: IAPを通過したので<br>全てのユーザーを信頼する
-        FastAPI-->>IAP: 5. APIレスポンス
+        Next.js->>Next.js: 4. API処理を実行
+        Note left of Next.js: IAPを通過したので<br>全てのユーザーを信頼する
+        Next.js-->>IAP: 5. APIレスポンス
         IAP-->>Browser: 6. APIレスポンスを転送
     else 許可されていないユーザーの場合
         IAP-->>Browser: 403 Forbidden エラー
@@ -316,14 +320,14 @@ sequenceDiagram
     -   認証されたユーザーのGoogleアカウントが、IAMで許可されたプリンシパルに含まれているかを確認し、 **認可** する。
     -   許可されたリクエストのみをバックエンドに転送する。その際、`X-Goog-Authenticated-User-Email` ヘッダーにユーザーのメールアドレスを付与する。
 
--   **FastAPI (バックエンド)**
+-   **Next.js (バックエンド)**
     -   IAPを通過したリクエストは全て「認証・認可済み」であると信頼する。
     -   アプリケーションレベルでの追加の認可チェックは行わない。
     -   操作ログの記録などの目的で、必要に応じて `X-Goog-Authenticated-User-Email` ヘッダーを参照することができる。
 
-## 10. RAGエージェント設計 (ADK)
+## 10. RAGエージェント設計 (VoltAgent)
 
-`POST /chat` エンドポイントは、ユーザーからの自然言語での問い合わせに応答するRAG (Retrieval-Augmented Generation) エージェントとして機能する。このエージェントはGoogleのAgent Development Kit (ADK) を用いて構築し、FastAPIアプリケーションに組み込む。
+`POST /chat` エンドポイントは、ユーザーからの自然言語での問い合わせに応答するRAG (Retrieval-Augmented Generation) エージェントとして機能する。このエージェントはVoltAgentを用いて構築し、Next.jsアプリケーションに組み込む。
 
 ### 10.1. アーキテクチャと状態管理
 
@@ -331,7 +335,7 @@ sequenceDiagram
 
 ```mermaid
 graph TD
-    subgraph "FastAPI Application Scope"
+    subgraph "Next.js Application Scope"
         AgentCore["ステートレスなAgentコア<br>(LLM, Tools, Prompt)"]
         Sessions["セッション管理<br>(例: Dict[session_id, Memory])"]
     end
@@ -351,12 +355,12 @@ graph TD
 
 #### 10.2.1. LLM (大規模言語モデル)
 
--   **実装**: ADKが提供するLLMラッパーを介して、Googleの **Gemini** モデルを利用する。
+-   **実装**: VoltAgentが提供するLLMラッパーを介して、Googleの **Gemini** モデルを利用する。
 -   **役割**: `BigQuery Retriever Tool` によって検索されたコンテキスト情報、プロンプトテンプレート、および会話履歴に基づき、自然で適切な回答を生成する。
 
 #### 10.2.2. BigQuery Retriever Tool
 
--   **実装**: ADKの `Tool` クラスを継承したカスタムツールとして実装する。このツールは、内部でPython用の `google-cloud-bigquery` ライブラリを使用する。
+-   **実装**: VoltAgentの`Tool`クラスを継承したカスタムツールとして実装する。このツールは、内部でTypeScript用の `@google-cloud/bigquery` ライブラリを使用する。
 -   **役割**: RAGの「Retriever」としての責務を担う。
 -   **処理フロー**:
     1.  エージェントからユーザーの質問文字列を受け取る。
@@ -366,7 +370,7 @@ graph TD
 
 #### 10.2.3. Memory (会話履歴)
 
--   **実装**: ADKが提供する標準のインメモリ会話バッファ（例: `ConversationBufferMemory`）を利用する。
+-   **実装**: VoltAgentが提供する標準のインメモリ会話バッファ（例: `ConversationBufferMemory`）を利用する。
 -   **役割**: ユーザーセッションごとの短期的な会話の文脈を維持する。このインスタンスはステートフルであり、セッションごとに独立して生成・管理される。
 
 #### 10.2.4. Agent Core (エージェントコア)
@@ -374,12 +378,12 @@ graph TD
 -   **実装**: LLM、ツール群 (`BigQuery Retriever Tool`など)、プロンプトテンプレートから構成される、**ステートレス**なコンポーネント。
 -   **役割**: リクエストごとに、外部から渡される `Memory` インスタンスとユーザーの質問に基づき、応答生成のオーケストレーションを行う。このコア部分は状態を持たないため、アプリケーション全体でシングルトンとして安全に共有できる。
 
-### 10.3. FastAPIとの連携
+### 10.3. Next.jsとの連携
 
 -   **起動時**:
     -   ステートレスな `Agent Core` を一度だけ初期化する。
     -   セッションごとの `Memory` インスタンスを保持するためのグローバルな辞書 (`sessions: Dict[str, Memory] = {}`) を準備する。
--   **リクエスト処理 (`/chat`)**:
+-   **リクエスト処理 (`/api/chat`)**:
     1.  リクエスト（ヘッダーやボディ）からセッションIDを取得する。セッションIDがない場合は新規に発行する。
     2.  セッションIDをキーに、グローバルな辞書から対応する `Memory` インスタンスを取得する。存在しない場合は新しい `Memory` インスタンスを作成し、辞書に格納する。
     3.  `Agent Core` の実行メソッドに、ユーザーの質問と取得した `Memory` インスタンスを渡して呼び出す。
