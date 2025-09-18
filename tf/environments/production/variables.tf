@@ -9,8 +9,6 @@ variable "region" {
   default     = "asia-northeast1"
 }
 
-
-
 variable "iap_allowed_users" {
   type        = list(string)
   description = "IAPでアクセスを許可するユーザーのメールアドレスのリスト"

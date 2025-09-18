@@ -17,6 +17,11 @@ terraform {
 provider "google" {
   project = var.project_id
   region  = var.region
+
+  default_labels = {
+    "environment" = "production",
+    "managed-by"  = "terraform"
+  }
 }
 
 module "app" {

@@ -33,7 +33,7 @@ jobs:
           context: .
           file: ./Dockerfile.prod
           push: true
-          tags: asia-northeast1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/app-images/preschool-agent:latest
+          tags: asia-northeast1-docker.pkg.dev/lofilab/app-images/preschool-agent:latest
 
   deploy:
     needs: build_and_push
@@ -59,6 +59,13 @@ jobs:
       - name: Tofu Init
         run: tofu init
         working-directory: ./tf/environments/production
+
+      - name: Write secret to secrets.auto.tfvars
+        run: |
+          cat <<EOF > tf/environments/production/secrets.auto.tfvars
+          iap_allowed_users = ${{ secrets.TOFU__IAP_ALLOWED_USERS }}
+          EOF
+        shell: bash
 
       - name: Tofu Apply
         run: tofu apply -auto-approve
