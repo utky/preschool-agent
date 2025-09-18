@@ -13,30 +13,27 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          python-version: '3.12'
+          node-version: '20'
       - name: Install dependencies
-        run: |
-          pip install ruff
-      - name: Run ruff
-        run: ruff check .
+        run: npm install
+      - name: Run lint
+        run: npm run lint
 
   test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          python-version: '3.12'
+          node-version: '20'
       - name: Install dependencies
-        run: |
-          pip install pytest
-          # TODO: Install backend dependencies
+        run: npm install
       - name: Run tests
-        run: pytest
+        run: npm test
 
   tofu_plan:
     runs-on: ubuntu-latest
