@@ -12,6 +12,13 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
+# ビルド引数としてVertex AIの接続情報を受け取る
+ARG GOOGLE_VERTEX_LOCATION
+ARG GOOGLE_VERTEX_PROJECT
+# 環境変数として設定する
+ENV GOOGLE_VERTEX_LOCATION=${GOOGLE_VERTEX_LOCATION}
+ENV GOOGLE_VERTEX_PROJECT=${GOOGLE_VERTEX_PROJECT}
+
 # Next.js アプリケーションをビルドする
 # 日本語でコメントを追記
 RUN npm run build
