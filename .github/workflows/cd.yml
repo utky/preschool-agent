@@ -74,10 +74,6 @@ jobs:
           EOF
         shell: bash
 
-      - name: Tofu Untaint
-        run: tofu untaint module.iap.google_project_service.iap
-        working-directory: ./tf/environments/production
-
       - name: Tofu Apply
         run: tofu apply -auto-approve -var="container_image=asia-northeast1-docker.pkg.dev/lofilab/utky-applications/school-agent@${{ needs.build_and_push.outputs.digest }}"
         working-directory: ./tf/environments/production
