@@ -12,6 +12,9 @@ jobs:
     permissions:
       contents: read
       id-token: write
+      packages: write
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
     steps:
       - uses: actions/checkout@v4
 
@@ -28,12 +31,13 @@ jobs:
         run: gcloud auth configure-docker asia-northeast1-docker.pkg.dev
 
       - name: Build and push Docker image
+        id: build
         uses: docker/build-push-action@v5
         with:
           context: .
           file: ./Dockerfile.prod
           push: true
-          tags: asia-northeast1-docker.pkg.dev/lofilab/utky-applications/school-agent:latest
+          tags: asia-northeast1-docker.pkg.dev/lofilab/utky-applications/school-agent:${{ github.sha }}
           build-args: |
             GOOGLE_VERTEX_LOCATION=${{ secrets.GOOGLE_VERTEX_LOCATION }}
             GOOGLE_VERTEX_PROJECT=${{ secrets.GOOGLE_VERTEX_PROJECT }}
@@ -75,5 +79,5 @@ jobs:
         working-directory: ./tf/environments/production
 
       - name: Tofu Apply
-        run: tofu apply -auto-approve
+        run: tofu apply -auto-approve -var="container_image=asia-northeast1-docker.pkg.dev/lofilab/utky-applications/school-agent@${{ needs.build_and_push.outputs.digest }}"
         working-directory: ./tf/environments/production

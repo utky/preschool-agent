@@ -11,7 +11,7 @@ resource "google_cloud_run_v2_service" "default" {
 
   template {
     containers {
-      image = "${data.google_artifact_registry_repository.docker_repo.location}-docker.pkg.dev/${data.google_artifact_registry_repository.docker_repo.project}/${data.google_artifact_registry_repository.docker_repo.repository_id}/school-agent:latest" 
+      image = var.container_image 
     }
   }
 }

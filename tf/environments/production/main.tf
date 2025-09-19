@@ -25,9 +25,10 @@ provider "google" {
 }
 
 module "app" {
-  source     = "../../modules/app"
-  project_id = var.project_id
-  region     = var.region
+  source            = "../../modules/app"
+  project_id        = var.project_id
+  region            = var.region
+  container_image   = var.container_image
 }
 
 module "iap" {

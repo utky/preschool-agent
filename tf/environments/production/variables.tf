@@ -19,3 +19,9 @@ variable "github_repo" {
   type        = string
   description = "The GitHub repository in the format 'owner/repo'."
 }
+
+variable "container_image" {
+  type        = string
+  description = "デプロイするコンテナイメージ"
+  default     = "asia-northeast1-docker.pkg.dev/lofilab/utky-applications/school-agent:latest"
+}
