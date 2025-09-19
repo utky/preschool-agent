@@ -5,6 +5,9 @@ terraform {
     google = {
       source  = "hashicorp/google"
     }
+    google-beta = {
+      source  = "hashicorp/google-beta"
+    }
   }
 
   backend "gcs" {
@@ -15,6 +18,16 @@ terraform {
 }
 
 provider "google" {
+  project = var.project_id
+  region  = var.region
+
+  default_labels = {
+    "environment" = "production",
+    "managed-by"  = "terraform"
+  }
+}
+
+provider "google-beta" {
   project = var.project_id
   region  = var.region
 
