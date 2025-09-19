@@ -33,7 +33,7 @@ jobs:
           context: .
           file: ./Dockerfile.prod
           push: true
-          tags: asia-northeast1-docker.pkg.dev/lofilab/app-images/preschool-agent:latest
+          tags: asia-northeast1-docker.pkg.dev/lofilab/utky-applications/school-agent:latest
           build-args: |
             GOOGLE_VERTEX_LOCATION=${{ secrets.GOOGLE_VERTEX_LOCATION }}
             GOOGLE_VERTEX_PROJECT=${{ secrets.GOOGLE_VERTEX_PROJECT }}
