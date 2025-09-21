@@ -70,7 +70,7 @@ jobs:
       - name: Write secret to secrets.auto.tfvars
         run: |
           cat <<EOF > tf/environments/production/secrets.auto.tfvars
-          iap_allowed_users = ${{ secrets.TOFU__IAP_ALLOWED_USERS }}
+          ${{ secrets.TOFU__SECRETS_TF_VARS }}
           EOF
         shell: bash
 
