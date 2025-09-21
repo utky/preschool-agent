@@ -44,3 +44,5 @@
 - Google Cloud: `gcloud` コマンド
 - Google Cloud Storage: `gsutil` コマンド
 - BigQury: `bq` コマンド
+- OpenTofu: `tofu` コマンド
+    - plan: `tofu -chdir=tf/environments/production/ plan`

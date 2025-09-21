@@ -8,6 +8,10 @@ terraform {
     google-beta = {
       source  = "hashicorp/google-beta"
     }
+    random = {
+      source = "hashicorp/random"
+      version = "3.6.2"
+    }
   }
 
   backend "gcs" {
@@ -37,17 +41,17 @@ provider "google-beta" {
   }
 }
 
-module "app" {
-  source            = "../../modules/app"
-  project_id        = var.project_id
-  region            = var.region
-  container_image   = var.container_image
+resource "random_string" "auth_secret" {
+  length  = 32
+  special = false
 }
 
-module "iap" {
-  source                 = "../../modules/iap"
-  project_id             = var.project_id
-  region                 = var.region
-  cloud_run_service_name = module.app.service_name
-  iap_allowed_users      = var.iap_allowed_users
+module "app" {
+  source                      = "../../modules/app"
+  project_id                  = var.project_id
+  region                      = var.region
+  container_image             = var.container_image
+  user_email                  = var.user_email
+  auth_secret_value           = random_string.auth_secret.result
+  allowed_user_emails_value   = var.allowed_user_emails_value
 }
