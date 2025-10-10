@@ -1,53 +1,28 @@
 {
-  "name": "preschool-agent",
-  "version": "1.0.0",
-  "description": "<div align=\"center\"> <a href=\"https://voltagent.dev/\"> <img width=\"1800\" alt=\"435380213-b6253409-8741-462b-a346-834cd18565a9\" src=\"https://github.com/user-attachments/assets/452a03e7-eeda-4394-9ee7-0ffbcf37245c\" /> </a>",
-  "main": "index.js",
-  "directories": {
-    "doc": "docs"
-  },
+  "name": "school-agent",
+  "version": "0.1.0",
+  "private": true,
   "scripts": {
-    "test": "jest",
-    "build": "next build",
+    "dev": "next dev --turbopack",
+    "build": "next build --turbopack",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "eslint"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/utky/preschool-agent.git"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "module",
-  "bugs": {
-    "url": "https://github.com/utky/preschool-agent/issues"
-  },
-  "homepage": "https://github.com/utky/preschool-agent#readme",
   "dependencies": {
-    "@google/generative-ai": "^0.24.1",
-    "@tailwindcss/postcss": "^4.1.14",
-    "next": "^15.5.4",
+    "next": "15.5.4",
     "next-auth": "^4.24.11",
-    "react": "^19.2.0",
-    "react-dom": "^19.2.0"
+    "react": "19.1.0",
+    "react-dom": "19.1.0"
   },
   "devDependencies": {
-    "@testing-library/jest-dom": "^6.9.1",
-    "@testing-library/react": "^16.3.0",
-    "@types/jest": "^30.0.0",
-    "@types/node": "^24.7.1",
-    "@types/react": "^19.2.2",
-    "@types/react-dom": "^19.2.1",
-    "autoprefixer": "^10.4.21",
-    "eslint": "^9.37.0",
-    "eslint-config-next": "^15.5.4",
-    "jest": "^30.2.0",
-    "jest-environment-jsdom": "^30.2.0",
-    "postcss": "^8.5.6",
-    "tailwindcss": "^4.1.14",
-    "ts-jest": "^29.4.5",
-    "typescript": "^5.9.3",
-    "undici": "^7.16.0"
+    "@eslint/eslintrc": "^3",
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "15.5.4",
+    "tailwindcss": "^4",
+    "typescript": "^5"
   }
 }

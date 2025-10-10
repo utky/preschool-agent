@@ -4,20 +4,15 @@ import { useState, useEffect } from 'react';
 
 export default function Home() {
   const [healthStatus, setHealthStatus] = useState('');
-  const [error, setError] = useState('');
 
   useEffect(() => {
     const fetchHealth = async () => {
-      try {
-        const response = await fetch('/api/health');
-        if (!response.ok) {
-          throw new Error('Network response was not ok');
-        }
-        const data = await response.json();
-        setHealthStatus(data.status);
-      } catch (error: any) {
-        setError(error.message);
+      const response = await fetch('/api/health');
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
       }
+      const data = await response.json();
+      setHealthStatus(data.status);
     };
 
     fetchHealth();
@@ -29,8 +24,6 @@ export default function Home() {
       <div className="text-lg">
         <p>API Health Check Status:</p>
         {healthStatus && <p className="text-green-500 font-bold">{healthStatus}</p>}
-        {error && <p className="text-red-500 font-bold">Error: {error}</p>}
-        {!healthStatus && !error && <p>Loading...</p>}
       </div>
     </main>
   );
