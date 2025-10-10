@@ -1,12 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  output: "standalone",
-  serverExternalPackages: [
-    // Externalize only what’s needed at runtime.
-    // LibSQL client is safe to externalize; native platform packages are optional.
-    "@libsql/client",
-  ],
+  /* config options here */
 };
 
 export default nextConfig;
