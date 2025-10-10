@@ -14,4 +14,4 @@
 - [8. インフラストラクチャ (IaC)](./design/08_infrastructure.md)
 - [9. CI/CD](./design/09_ci_cd.md)
 - [10. 認証・認可](./design/10_authentication.md)
-- [11. RAGエージェント設計 (VoltAgent)](./design/11_rag_agent.md)
+- [11. RAGエージェント設計 (Mastra)](./design/11_rag_agent.md)

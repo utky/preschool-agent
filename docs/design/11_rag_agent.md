@@ -1,6 +1,6 @@
-## 11. RAGエージェント設計 (VoltAgent)
+## 11. RAGエージェント設計 (Mastra)
 
-`POST /chat` エンドポイントは、ユーザーからの自然言語での問い合わせに応答するRAG (Retrieval-Augmented Generation) エージェントとして機能する。このエージェントはVoltAgentを用いて構築し、Next.jsアプリケーションに組み込む。
+`POST /chat` エンドポイントは、ユーザーからの自然言語での問い合わせに応答するRAG (Retrieval-Augmented Generation) エージェントとして機能する。このエージェントはMastraを用いて構築し、Next.jsアプリケーションに組み込む。
 
 ### 11.1. アーキテクチャと状態管理
 
@@ -28,12 +28,12 @@ graph TD
 
 #### 11.2.1. LLM (大規模言語モデル)
 
--   **実装**: VoltAgentが提供するLLMラッパーを介して、Googleの **Gemini** モデルを利用する。
+-   **実装**: Mastraが提供するLLMラッパーを介して、Googleの **Gemini** モデルを利用する。
 -   **役割**: `BigQuery Retriever Tool` によって検索されたコンテキスト情報、プロンプトテンプレート、および会話履歴に基づき、自然で適切な回答を生成する。
 
 #### 11.2.2. BigQuery Retriever Tool
 
--   **実装**: VoltAgentの`Tool`クラスを継承したカスタムツールとして実装する。このツールは、内部でTypeScript用の `@google-cloud/bigquery` ライブラリを使用する。
+-   **実装**: Mastraのツールとして実装する。このツールは、内部でTypeScript用の `@google-cloud/bigquery` ライブラリを使用する。
 -   **役割**: RAGの「Retriever」としての責務を担う。
 -   **処理フロー**:
     1.  エージェントからユーザーの質問文字列を受け取る。
@@ -43,7 +43,7 @@ graph TD
 
 #### 11.2.3. Memory (会話履歴)
 
--   **実装**: VoltAgentが提供する標準のインメモリ会話バッファ（例: `ConversationBufferMemory`）を利用する。
+-   **実装**: Mastraが提供する標準のインメモリ会話バッファを利用する。
 -   **役割**: ユーザーセッションごとの短期的な会話の文脈を維持する。このインスタンスはステートフルであり、セッションごとに独立して生成・管理される。
 
 #### 11.2.4. Agent Core (エージェントコア)

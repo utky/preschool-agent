@@ -150,7 +150,7 @@ Pull Requestを`main`ブランチにマージすると、デプロイワーク�
 
 ## 技術的制約
 - TypeScript で実装すること
-- AIエージェントフレームワーク: VoltAgentを利用すること
+- AIエージェントフレームワーク: Mastraを利用すること
 - Web UI フレームワーク: Next.jsを利用すること
 - 開発ツール: npm, tenv, opentofu を利用すること
 - エディタはVSCodeを前提とした設定ファイルにすること
