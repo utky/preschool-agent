@@ -33,7 +33,7 @@ resource "google_iap_brand" "default" {
 
 # OAuthクライアントIDの作成
 resource "google_iap_client" "default" {
-  display_name = "${app_name}-client"
+  display_name = "${var.app_name}-client"
   brand        = google_iap_brand.default.name
 }
 
