@@ -1,5 +1,3 @@
 project_id                = "YOUR_GCP_PROJECT_ID"
-github_repo               = "YOUR_GITHUB_OWNER/YOUR_GITHUB_REPO"
-user_email                = "your-email@example.com"
 auth_secret_value         = "GENERATE_USING_`openssl rand -base64 32`"
 allowed_user_emails_value = "user1@example.com,user2@example.com"
