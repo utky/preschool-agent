@@ -75,5 +75,5 @@ jobs:
         shell: bash
 
       - name: Tofu Apply
-        run: tofu apply -auto-approve -var="container_image=asia-northeast1-docker.pkg.dev/lofilab/utky-applications/school-agent@${{ needs.build_and_push.outputs.digest }}"
+        run: tofu apply -auto-approve -var="container_image=asia-northeast1-docker.pkg.dev/lofilab/utky-applications/school-agent@${{ needs.build_and_push.outputs.digest }}" 2>&1
         working-directory: ./tf/environments/production

@@ -1,0 +1,37 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Build App",
+      "type": "npm",
+      "script": "build",
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "Test App",
+      "type": "npm",
+      "script": "test",
+      "problemMatcher": [],
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "Terraform Plan",
+      "type": "shell",
+      "command": "tofu -chdir=tf/environments/production/ plan",
+      "problemMatcher": []
+    },
+    {
+      "label": "Terraform Apply",
+      "type": "shell",
+      "command": "tofu -chdir=tf/environments/production/ apply",
+      "problemMatcher": []
+    }
+  ]
+}
