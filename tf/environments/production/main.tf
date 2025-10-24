@@ -40,3 +40,18 @@ provider "google-beta" {
     "managed-by"  = "terraform"
   }
 }
+
+resource "random_string" "auth_secret" {
+  length  = 32
+  special = false
+}
+
+module "app" {
+  source                      = "../../modules/app"
+  project_id                  = var.project_id
+  region                      = var.region
+  container_image             = var.container_image
+  user_email                  = var.user_email
+  auth_secret_value           = random_string.auth_secret.result
+  allowed_user_emails_value   = var.allowed_user_emails_value
+}
