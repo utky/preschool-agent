@@ -28,6 +28,7 @@ provider "google" {
   default_labels = {
     "environment" = "production",
     "managed-by"  = "terraform"
+    "terraform-provider" = "google"
   }
 }
 
@@ -38,6 +39,7 @@ provider "google-beta" {
   default_labels = {
     "environment" = "production",
     "managed-by"  = "terraform"
+    "terraform-provider" = "google-beta"
   }
 }
 
@@ -51,7 +53,6 @@ module "app" {
   project_id                  = var.project_id
   region                      = var.region
   container_image             = var.container_image
-  user_email                  = var.user_email
   auth_secret_value           = random_string.auth_secret.result
   allowed_user_emails_value   = var.allowed_user_emails_value
 }

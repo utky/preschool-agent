@@ -23,48 +23,7 @@ resource "google_project_service" "secretmanager" {
   project = var.project_id
   service = "secretmanager.googleapis.com"
 }
-
-# OAuth同意画面の設定
-resource "google_iap_brand" "default" {
-  project          = var.project_id
-  support_email    = var.user_email
-  application_title = "Preschool Agent"
-}
-
-# OAuthクライアントIDの作成
-resource "google_iap_client" "default" {
-  display_name = "${var.app_name}-client"
-  brand        = google_iap_brand.default.name
-}
-
 # --- シークレットの定義 ---
-
-resource "google_secret_manager_secret" "auth_google_id" {
-  project   = var.project_id
-  secret_id = "${var.app_name}--auth-google-id"
-  replication {
-    auto {}
-  }
-}
-
-resource "google_secret_manager_secret_version" "auth_google_id" {
-  secret      = google_secret_manager_secret.auth_google_id.id
-  secret_data = google_iap_client.default.client_id
-}
-
-resource "google_secret_manager_secret" "auth_google_secret" {
-  project   = var.project_id
-  secret_id = "${var.app_name}--auth-google-secret"
-  replication {
-    auto {}
-  }
-}
-
-resource "google_secret_manager_secret_version" "auth_google_secret" {
-  secret      = google_secret_manager_secret.auth_google_secret.id
-  secret_data = google_iap_client.default.secret
-}
-
 resource "google_secret_manager_secret" "auth_secret" {
   project   = var.project_id
   secret_id = "${var.app_name}--auth-secret"
@@ -95,11 +54,18 @@ resource "google_secret_manager_secret_version" "allowed_user_emails" {
 
 resource "google_cloud_run_v2_service" "default" {
   name     = "${var.app_name}"
+  description = "School Agent Web Application"
   location = var.region
   ingress  = "INGRESS_TRAFFIC_ALL"
 
   template {
+    scaling {
+      min_instance_count = 0
+      max_instance_count = 1
+    }
+
     service_account = google_service_account.default.email
+    max_instance_request_concurrency = 10
 
     containers {
       image = var.container_image
@@ -107,29 +73,18 @@ resource "google_cloud_run_v2_service" "default" {
         container_port = 3000
       }
 
+      resources {
+        limits = {
+          memory = "512Mi"
+          cpu    = "1"
+        }
+      }
+
       env {
         name = "AUTH_SECRET"
         value_source {
           secret_key_ref {
             secret  = google_secret_manager_secret.auth_secret.secret_id
-            version = "latest"
-          }
-        }
-      }
-      env {
-        name = "AUTH_GOOGLE_ID"
-        value_source {
-          secret_key_ref {
-            secret  = google_secret_manager_secret.auth_google_id.secret_id
-            version = "latest"
-          }
-        }
-      }
-      env {
-        name = "AUTH_GOOGLE_SECRET"
-        value_source {
-          secret_key_ref {
-            secret  = google_secret_manager_secret.auth_google_secret.secret_id
             version = "latest"
           }
         }

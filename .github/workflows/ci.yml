@@ -71,4 +71,3 @@ jobs:
         id: plan
         run: tofu plan -no-color
         working-directory: ./tf/environments/production
-        continue-on-error: true
