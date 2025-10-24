@@ -19,11 +19,6 @@ variable "container_image" {
   description = "デプロイするコンテナイメージ"
 }
 
-variable "user_email" {
-  type        = string
-  description = "OAuth同意画面に表示するユーザーサポートメール"
-}
-
 variable "auth_secret_value" {
   type        = string
   description = "Auth.jsで使用するAUTH_SECRETの値"
