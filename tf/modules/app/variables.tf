@@ -9,9 +9,9 @@ variable "region" {
 }
 
 variable "app_name" {
-  type = string
+  type        = string
   description = "アプリケーション名"
-  default = "school-agent"
+  default     = "school-agent"
 }
 
 variable "container_image" {

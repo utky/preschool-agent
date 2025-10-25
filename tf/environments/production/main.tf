@@ -3,13 +3,13 @@ terraform {
 
   required_providers {
     google = {
-      source  = "hashicorp/google"
+      source = "hashicorp/google"
     }
     google-beta = {
-      source  = "hashicorp/google-beta"
+      source = "hashicorp/google-beta"
     }
     random = {
-      source = "hashicorp/random"
+      source  = "hashicorp/random"
       version = "3.6.2"
     }
   }
@@ -26,8 +26,8 @@ provider "google" {
   region  = var.region
 
   default_labels = {
-    "environment" = "production",
-    "managed-by"  = "terraform"
+    "environment"        = "production",
+    "managed-by"         = "terraform"
     "terraform-provider" = "google"
   }
 }
@@ -37,8 +37,8 @@ provider "google-beta" {
   region  = var.region
 
   default_labels = {
-    "environment" = "production",
-    "managed-by"  = "terraform"
+    "environment"        = "production",
+    "managed-by"         = "terraform"
     "terraform-provider" = "google-beta"
   }
 }
@@ -49,10 +49,10 @@ resource "random_string" "auth_secret" {
 }
 
 module "app" {
-  source                      = "../../modules/app"
-  project_id                  = var.project_id
-  region                      = var.region
-  container_image             = var.container_image
-  auth_secret_value           = random_string.auth_secret.result
-  allowed_user_emails_value   = var.allowed_user_emails_value
+  source                    = "../../modules/app"
+  project_id                = var.project_id
+  region                    = var.region
+  container_image           = var.container_image
+  auth_secret_value         = random_string.auth_secret.result
+  allowed_user_emails_value = var.allowed_user_emails_value
 }

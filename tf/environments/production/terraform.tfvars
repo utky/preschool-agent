@@ -1,2 +1,2 @@
-project_id                  = "lofilab"
-region = "asia-northeast1"
+project_id = "lofilab"
+region     = "asia-northeast1"
