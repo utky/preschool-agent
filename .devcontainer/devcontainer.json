@@ -15,12 +15,12 @@
         "github.vscode-pull-request-github",
         "googlecloudtools.cloudcode",
         "Google.gemini-cli-vscode-ide-companion"
-      ],
+      ]
     }
   },
   "containerEnv": {
     "GOOGLE_CLOUD_PROJECT": "lofilab",
     "GOOGLE_CLOUD_LOCATION": "global"
   },
-  "postCreateCommand": "ln -s /opt/vscode/config/gcloud /home/node/.config/gcloud && /bin/sh .devcontainer/install-dependencies.sh",
+  "postCreateCommand": "ln -s /opt/vscode/config/gcloud /home/node/.config/gcloud && /bin/sh .devcontainer/install-dependencies.sh"
 }
