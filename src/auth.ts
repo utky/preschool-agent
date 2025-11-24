@@ -9,11 +9,31 @@ export const authConfig: NextAuthOptions = {
     maxAge: 90 * 24 * 60 * 60,
   },
   callbacks: {
-    async jwt({ token, user, account, profile, isNewUser }) {
-      return token
-    },
-    async session({ session, token, user }) {
-      return session
+    async signIn({ user, profile, email, account}) {
+      console.log("signIn callback called.");
+      console.log("User object:", user);
+
+      // TODO: ここでうまくユーザ情報が取れていないのかALOWED_USER_EMAILSのユーザでOAuthサインインしてもAccess Deniedになってしまう
+      if (!user.email) {
+        console.log("User email is missing. Denying access.");
+        return false;
+      }
+
+      console.log("User email:", user.email);
+      const allowedUsers = process.env.ALLOWED_USER_EMAILS;
+      console.log("ALLOWED_USER_EMAILS from environment:", allowedUsers);
+
+      if (!allowedUsers) {
+        console.log("ALLOWED_USER_EMAILS environment variable is not set. Denying access.");
+        return false;
+      }
+
+      const allowedUserEmails = allowedUsers.split(",").map((e) => e.trim());
+      console.log("Parsed allowed user emails:", allowedUserEmails);
+
+      const isAllowed = allowedUserEmails.includes(user.email);
+      console.log(`User email "${user.email}" is ${isAllowed ? "" : "NOT "}in the allowed list. ${isAllowed ? "Granting" : "Denying"} access.`);
+      return isAllowed;
     },
   },
   providers: [
