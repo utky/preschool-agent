@@ -19,6 +19,5 @@ echo "source \$HOME/.tenv.completion.bash" >> ~/.bashrc
 tenv tofu install
 
 # gcloud認証
-echo "Please run commands below if you needed."
-echo "gcloud auth login --no-launch-browser"
-echo "gcloud auth application-default login --no-launch-browser"
+gcloud auth login --no-launch-browser
+gcloud auth application-default login --no-launch-browser
