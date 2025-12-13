@@ -87,6 +87,56 @@ resource "google_secret_manager_secret_iam_policy" "allowed_user_emails" {
   policy_data = data.google_iam_policy.allowed_user_emails.policy_data
 }
 
+# Google OAuth Client IDのシークレット
+# ----------------------------------------------------------------
+resource "google_secret_manager_secret" "auth_google_id" {
+  project   = var.project_id
+  secret_id = "${var.app_name}--auth-google-id"
+  replication {
+    auto {}
+  }
+}
+
+data "google_iam_policy" "auth_google_id" {
+  binding {
+    role = "roles/secretmanager.secretAccessor"
+    members = [
+      "serviceAccount:${google_service_account.default.email}",
+    ]
+  }
+}
+
+resource "google_secret_manager_secret_iam_policy" "auth_google_id" {
+  project     = var.project_id
+  secret_id   = google_secret_manager_secret.auth_google_id.id
+  policy_data = data.google_iam_policy.auth_google_id.policy_data
+}
+
+# Google OAuth Client Secretのシークレット
+# ----------------------------------------------------------------
+resource "google_secret_manager_secret" "auth_google_secret" {
+  project   = var.project_id
+  secret_id = "${var.app_name}--auth-google-secret"
+  replication {
+    auto {}
+  }
+}
+
+data "google_iam_policy" "auth_google_secret" {
+  binding {
+    role = "roles/secretmanager.secretAccessor"
+    members = [
+      "serviceAccount:${google_service_account.default.email}",
+    ]
+  }
+}
+
+resource "google_secret_manager_secret_iam_policy" "auth_google_secret" {
+  project     = var.project_id
+  secret_id   = google_secret_manager_secret.auth_google_secret.id
+  policy_data = data.google_iam_policy.auth_google_secret.policy_data
+}
+
 # --- Cloud Run サービス ---
 
 resource "google_cloud_run_v2_service" "default" {
@@ -135,11 +185,32 @@ resource "google_cloud_run_v2_service" "default" {
           }
         }
       }
+
+      env {
+        name = "AUTH_GOOGLE_ID"
+        value_source {
+          secret_key_ref {
+            secret  = google_secret_manager_secret.auth_google_id.secret_id
+            version = "latest"
+          }
+        }
+      }
+      env {
+        name = "AUTH_GOOGLE_SECRET"
+        value_source {
+          secret_key_ref {
+            secret  = google_secret_manager_secret.auth_google_secret.secret_id
+            version = "latest"
+          }
+        }
+      }
     }
   }
   depends_on = [
     google_secret_manager_secret_version.auth_secret,
     google_secret_manager_secret_version.allowed_user_emails,
+    google_secret_manager_secret_iam_policy.auth_google_id,
+    google_secret_manager_secret_iam_policy.auth_google_secret,
   ]
 }
 
