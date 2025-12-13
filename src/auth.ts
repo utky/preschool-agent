@@ -13,7 +13,6 @@ export const authConfig: NextAuthOptions = {
       console.log("signIn callback called.");
       console.log("User object:", user);
 
-      // TODO: ここでうまくユーザ情報が取れていないのかALOWED_USER_EMAILSのユーザでOAuthサインインしてもAccess Deniedになってしまう
       if (!user.email) {
         console.log("User email is missing. Denying access.");
         return false;
@@ -44,4 +43,12 @@ export const authConfig: NextAuthOptions = {
   ],
 };
 
+export type Session = {
+  user?: {
+    name?: string | null;
+    email?: string | null;
+    image?: string | null;
+  };
+  expires: string;
+}
 export const handler = NextAuth(authConfig);
