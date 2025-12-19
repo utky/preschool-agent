@@ -1,12 +1,9 @@
 {
   "mcpServers": {
-    "serena": {
-      "command": "uvx",
+    "playwright": {
+      "command": "npx",
       "args": [
-        "--from",
-        "git+https://github.com/oraios/serena",
-        "serena",
-        "start-mcp-server"
+        "@playwright/mcp@latest"
       ]
     }
   }

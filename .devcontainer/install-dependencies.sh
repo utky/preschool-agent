@@ -21,3 +21,6 @@ tenv tofu install
 # gcloud認証
 gcloud auth login --no-launch-browser
 gcloud auth application-default login --no-launch-browser
+
+# MCP用にChromeをインストール
+npx playwright install chrome
