@@ -22,5 +22,7 @@ tenv tofu install
 gcloud auth login --no-launch-browser
 gcloud auth application-default login --no-launch-browser
 
+npm install -g @anthropic-ai/claude-code
+
 # MCP用にChromeをインストール
 npx playwright install chrome
