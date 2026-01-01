@@ -130,7 +130,7 @@ documents: テキスト + 埋め込み（最終テーブル）
 
 #### ✅ 採用する提案
 
-**1. documentsテーブルへの冗長メタデータ追加**
+**1. document_chunksテーブルへの冗長メタデータ追加**
 
 **提案**: RAG検索時のJOIN削減のため、`document_type`、`publish_date`、`title`などを各チャンクに冗長に保存
 
@@ -143,7 +143,7 @@ documents: テキスト + 埋め込み（最終テーブル）
 
 **適用**:
 ```sql
-CREATE TABLE documents (
+CREATE TABLE document_chunks (
   chunk_id STRING NOT NULL,
   document_id STRING NOT NULL,
 
@@ -173,7 +173,7 @@ CLUSTER BY document_type, document_id;
 
 **適用**:
 ```sql
--- documentsテーブル
+-- document_chunksテーブル
 chunk_id STRING NOT NULL,  -- UUID（主キー）
 
 -- journalテーブルのsectionsカラム
@@ -252,7 +252,7 @@ chunk_id STRING NOT NULL,  -- UUID（主キー）
 **必要なアクション**:
 全テーブルの完全なスキーマ定義が必要です。以下に推奨スキーマを示します。
 
-##### `documents` テーブル（RAG検索用チャンクテーブル）
+##### `document_chunks` テーブル（RAG検索用チャンクテーブル）
 
 **設計方針**:
 - 1チャンク = 1レコード
@@ -260,7 +260,7 @@ chunk_id STRING NOT NULL,  -- UUID（主キー）
 - UUIDによるチャンク識別
 
 ```sql
-CREATE TABLE documents (
+CREATE TABLE document_chunks (
   -- 主キー
   chunk_id STRING NOT NULL,              -- チャンクの一意ID（UUID v4推奨）
   document_id STRING NOT NULL,           -- 文書の一意ID（UUID v4推奨）
@@ -301,8 +301,8 @@ OPTIONS(
 );
 
 -- Vector Index（ベクトル検索用）
-CREATE VECTOR INDEX documents_embedding_idx
-ON documents(chunk_embedding)
+CREATE VECTOR INDEX document_chunks_embedding_idx
+ON document_chunks(chunk_embedding)
 OPTIONS(
   distance_type = 'COSINE',
   index_type = 'IVF',
@@ -316,15 +316,15 @@ OPTIONS(
 3. `section_id`, `section_title`: チャンクがどのセクションに属するかを記録
 4. クラスタリング順序: `document_type` (低カーディナリティ) → `document_id` → `chunk_id`
 
-##### `document_metadata` テーブル（文書単位のメタデータ）
+##### `documents` テーブル（文書単位のメタデータ）
 
 **設計方針**:
 - 1 PDF = 1レコード
-- documentsテーブルのメタデータ重複を最小化するための正規化テーブル
-- documentsテーブルには検索に必要な最小限のメタデータのみ保存
+- document_chunksテーブルのメタデータ重複を最小化するための正規化テーブル
+- document_chunksテーブルには検索に必要な最小限のメタデータのみ保存
 
 ```sql
-CREATE TABLE document_metadata (
+CREATE TABLE documents (
   -- 主キー
   document_id STRING NOT NULL,           -- 文書の一意ID（documentsへの参照）
 
@@ -361,10 +361,10 @@ OPTIONS(
 );
 ```
 
-**documentsテーブルとの関係**:
-- `documents`: チャンク単位、RAG検索用（冗長メタデータあり）
-- `document_metadata`: 文書単位、マスターデータ（重複なし）
-- アプリケーション層では主にdocumentsを使用し、詳細情報が必要な場合のみJOIN
+**document_chunksテーブルとの関係**:
+- `document_chunks`: チャンク単位、RAG検索用（冗長メタデータあり）
+- `documents`: 文書単位、マスターデータ（重複なし）
+- アプリケーション層では主にdocument_chunksを使用し、詳細情報が必要な場合のみJOIN
 
 ---
 
@@ -683,12 +683,12 @@ OPTIONS (
 
 **テーブル間のリレーション**:
 ```
-documents (チャンク単位、RAG検索用)
+document_chunks (チャンク単位、RAG検索用)
   ├─ PRIMARY KEY: chunk_id (UUID v4)
-  ├─ FOREIGN KEY: document_id -> document_metadata.document_id
+  ├─ FOREIGN KEY: document_id -> documents.document_id
   ├─ chunk_index: チャンク順序（参考用、0始まり）
 
-document_metadata (文書単位のメタデータ)
+documents (文書単位のメタデータ)
   ├─ PRIMARY KEY: document_id (UUID v4)
   ├─ FOREIGN KEY: source_id -> raw_documents.uri
 
@@ -698,7 +698,7 @@ journal (文書種別固有のメタデータ)
 
 photos (文書の関連データ)
   ├─ PRIMARY KEY: photo_id (UUID v4)
-  ├─ FOREIGN KEY: document_id -> document_metadata.document_id
+  ├─ FOREIGN KEY: document_id -> documents.document_id
 ```
 
 **UUID採用の理由**:
@@ -794,12 +794,13 @@ chunk_id = str(uuid.uuid4())  # 例: "550e8400-e29b-41d4-a716-446655440000"
 
 ```
 原則:
-1. documents テーブル = テキストデータの唯一の保存場所
+1. document_chunks テーブル = テキストデータの唯一の保存場所
 2. 文書種別テーブル = 構造化されたメタデータとサマリのみ
 3. 文書種別テーブルは documents.document_id で参照（1:1リレーション）
 
 役割分担:
-- documents: 生のテキスト + ベクトル検索用
+- document_chunks: 生のテキスト + ベクトル検索用
+- documents: 文書単位のメタデータ
 - journal: 記事番号、セクション構造、イベント抽出結果
 - monthly_lunch_schedule: 献立の構造化JSON、栄養価データ
 - photo_album: 写真IDの配列、保育内容表
@@ -918,13 +919,20 @@ NULL  -- event_time, event_location, caption
 **推奨パーティショニング戦略**:
 
 ```sql
--- documents: publish_date でパーティション
+-- document_chunks: publish_date でパーティション
 PARTITION BY DATE(publish_date)
 CLUSTER BY document_type, document_id
 -- 理由:
 --   - ユーザーは「最近の文書」を頻繁に検索
 --   - publish_dateでフィルタすることでスキャン量を大幅削減
 --   - 文書種別での絞り込みも頻繁（クラスタリングで対応）
+
+-- documents: publish_date でパーティション
+PARTITION BY publish_date
+CLUSTER BY document_type
+-- 理由:
+--   - 文書単位のメタデータテーブル
+--   - 文書種別での絞り込みが頻繁
 
 -- pending_events: event_date でパーティション
 PARTITION BY DATE(event_date)
@@ -1084,8 +1092,8 @@ dbt run --models stg_documents --full-refresh
 
 ```sql
 -- ステップ1: ベクトルインデックスの作成
-CREATE VECTOR INDEX documents_embedding_idx
-ON documents(chunk_embedding)
+CREATE VECTOR INDEX document_chunks_embedding_idx
+ON document_chunks(chunk_embedding)
 OPTIONS(
   distance_type = 'COSINE',           -- コサイン類似度（推奨）
   index_type = 'IVF',                 -- Inverted File Index（バランス型）
@@ -1096,8 +1104,8 @@ OPTIONS(
 );
 
 -- または高精度が必要な場合
-CREATE VECTOR INDEX documents_embedding_idx_high_accuracy
-ON documents(chunk_embedding)
+CREATE VECTOR INDEX document_chunks_embedding_idx_high_accuracy
+ON document_chunks(chunk_embedding)
 OPTIONS(
   distance_type = 'COSINE',
   index_type = 'TREE-AH',             -- Tree-based ANN（高精度）
@@ -1121,42 +1129,42 @@ WITH query_embedding AS (
   )
 )
 SELECT
-  d.chunk_id,
-  d.document_id,
-  d.title,
-  d.section_title,                       -- セクション情報も取得
-  d.chunk_text,
+  dc.chunk_id,
+  dc.document_id,
+  dc.title,
+  dc.section_title,                      -- セクション情報も取得
+  dc.chunk_text,
   vs.distance
 FROM VECTOR_SEARCH(
-  TABLE documents,
+  TABLE document_chunks,
   'chunk_embedding',
   (SELECT embedding FROM query_embedding),
   top_k => 10,
   distance_type => 'COSINE'
 ) AS vs
-JOIN documents AS d
-  ON vs.chunk_id = d.chunk_id              -- UUID参照
+JOIN document_chunks AS dc
+  ON vs.chunk_id = dc.chunk_id             -- UUID参照
 WHERE
   -- パーティション pruning（スキャン量削減）
-  d.publish_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY)
+  dc.publish_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY)
   -- 文書種別フィルタ（クラスタリング効果）
-  AND d.document_type IN ('monthly_lunch_schedule', 'monthly_lunch_info')
+  AND dc.document_type IN ('monthly_lunch_schedule', 'monthly_lunch_info')
   -- 処理済みのみ
-  AND d.processing_status = 'COMPLETED'
+  AND dc.processing_status = 'COMPLETED'
 ORDER BY vs.distance ASC
 LIMIT 10;
 
 -- オプション: 文書メタデータの詳細が必要な場合のみJOIN
 SELECT
-  d.chunk_id,
-  d.chunk_text,
-  d.section_title,
-  dm.file_name,
-  dm.total_pages,
+  dc.chunk_id,
+  dc.chunk_text,
+  dc.section_title,
+  d.file_name,
+  d.total_pages,
   vs.distance
 FROM VECTOR_SEARCH(...) AS vs
-JOIN documents AS d ON vs.chunk_id = d.chunk_id
-LEFT JOIN document_metadata AS dm ON d.document_id = dm.document_id
+JOIN document_chunks AS dc ON vs.chunk_id = dc.chunk_id
+LEFT JOIN documents AS d ON dc.document_id = d.document_id
 WHERE ...;
 ```
 
@@ -1164,8 +1172,8 @@ WHERE ...;
 ```
 - 自動更新: デフォルトで有効（新しいデータが挿入されると自動的にインデックスに追加）
 - 手動再構築: データの大部分が変更された場合
-  DROP VECTOR INDEX documents_embedding_idx ON documents;
-  CREATE VECTOR INDEX documents_embedding_idx ON documents(...);
+  DROP VECTOR INDEX document_chunks_embedding_idx ON document_chunks;
+  CREATE VECTOR INDEX document_chunks_embedding_idx ON document_chunks(...);
 ```
 
 **コスト見積もり**:
@@ -1207,11 +1215,17 @@ WHERE ...;
 **推奨クラスタリング順序**:
 
 ```sql
--- documents テーブル
-CLUSTER BY document_type, document_id
+-- document_chunks テーブル
+CLUSTER BY document_type, document_id, chunk_id
 -- 理由:
 --   1. document_type (低カーディナリティ: 6種類) - 頻繁にフィルタ
 --   2. document_id (高カーディナリティ: 数千) - 特定文書の取得
+--   3. chunk_id (最高カーディナリティ) - 特定チャンクの取得
+
+-- documents テーブル
+CLUSTER BY document_type
+-- 理由:
+--   - 文書種別での絞り込みが頻繁
 
 -- pending_events テーブル
 CLUSTER BY approval_status, event_type, event_date
@@ -1233,12 +1247,12 @@ CLUSTER BY document_id
 -- BigQueryコンソールのクエリバリデータで "Bytes processed" を確認
 
 -- クラスタリングなし
-SELECT * FROM documents
+SELECT * FROM document_chunks
 WHERE document_type = 'journal';
 -- 想定スキャン量: 全テーブル（例: 100MB）
 
 -- クラスタリングあり
-SELECT * FROM documents
+SELECT * FROM document_chunks
 WHERE document_type = 'journal';
 -- 想定スキャン量: journal のみ（例: 15MB）
 -- 削減率: 85%
@@ -1253,60 +1267,63 @@ WHERE document_type = 'journal';
 ```sql
 -- ❌ 悪い例1: SELECT *（不要なカラムもスキャン）
 SELECT *
-FROM documents
+FROM document_chunks
 WHERE document_type = 'journal';
 
 -- ✅ 良い例1: 必要なカラムのみ
 SELECT
+  chunk_id,
   document_id,
   title,
   chunk_text
-FROM documents
+FROM document_chunks
 WHERE document_type = 'journal';
 -- 効果: スキャン量を50-70%削減（カラム数による）
 
 -- ❌ 悪い例2: パーティションフィルタなし
-SELECT * FROM documents
+SELECT * FROM document_chunks
 WHERE document_type = 'journal'
 AND EXTRACT(YEAR FROM publish_date) = 2025;
 
 -- ✅ 良い例2: パーティションフィルタあり
 SELECT
+  chunk_id,
   document_id,
   title,
   chunk_text
-FROM documents
+FROM document_chunks
 WHERE document_type = 'journal'
 AND publish_date BETWEEN '2025-01-01' AND '2025-12-31';
 -- 効果: パーティション pruning により、2025年のパーティションのみスキャン
 
 -- ❌ 悪い例3: 関数適用後のフィルタ
-SELECT * FROM documents
+SELECT * FROM document_chunks
 WHERE LOWER(document_type) = 'journal';
 
 -- ✅ 良い例3: 直接フィルタ
-SELECT * FROM documents
+SELECT * FROM document_chunks
 WHERE document_type = 'journal';
 -- 効果: クラスタリング効果が有効になる
 
 -- ❌ 悪い例4: 複数テーブルの非効率なJOIN
-SELECT d.*, j.*
-FROM documents d
-JOIN journal j ON d.document_id = j.document_id
-WHERE d.publish_date >= '2025-01-01';
+SELECT dc.*, j.*
+FROM document_chunks dc
+JOIN journal j ON dc.document_id = j.document_id
+WHERE dc.publish_date >= '2025-01-01';
 
 -- ✅ 良い例4: 効率的なJOIN（小さいテーブルを右側に）
 SELECT
-  d.document_id,
-  d.chunk_text,
+  dc.chunk_id,
+  dc.document_id,
+  dc.chunk_text,
   j.article_number,
   j.summary
-FROM documents d
-JOIN journal j ON d.document_id = j.document_id
+FROM document_chunks dc
+JOIN journal j ON dc.document_id = j.document_id
 WHERE
-  d.publish_date >= '2025-01-01'
-  AND d.document_type = 'journal'
-  AND d.processing_status = 'COMPLETED';
+  dc.publish_date >= '2025-01-01'
+  AND dc.document_type = 'journal'
+  AND dc.processing_status = 'COMPLETED';
 -- 効果: パーティション pruning + クラスタリング + カラム選択
 ```
 
@@ -1457,8 +1474,8 @@ dbt_project/
 │   ├── marts/                        # Layer 3: 最終テーブル
 │   │   ├── core/
 │   │   │   ├── _core.yml
-│   │   │   ├── documents.sql         # テキスト + 埋め込み + 冗長メタデータ
-│   │   │   ├── document_metadata.sql # 文書単位のメタデータ（正規化）
+│   │   │   ├── document_chunks.sql   # テキスト + 埋め込み + 冗長メタデータ
+│   │   │   ├── documents.sql         # 文書単位のメタデータ（正規化）
 │   │   │   ├── photos.sql
 │   │   │   └── pending_events.sql
 │   │   └── document_types/
@@ -1493,8 +1510,8 @@ int_document_chunks (チャンク化、UUID生成)
   ↓
 int_document_embeddings (ML.GENERATE_EMBEDDING)
   ↓
-documents (テキスト + 埋め込み + 冗長メタデータ)
-document_metadata (文書単位のメタデータ、正規化)
+document_chunks (テキスト + 埋め込み + 冗長メタデータ)
+documents (文書単位のメタデータ、正規化)
   ↓
 journal, photo_album, etc. (UUID参照)
 ```
@@ -1515,12 +1532,12 @@ journal, photo_album, etc. (UUID参照)
    - ML.GENERATE_EMBEDDINGで埋め込み生成
    - ephemeralまたはincremental（戦略による）
 
-4. `documents.sql`:
+4. `document_chunks.sql`:
    - 最終テーブル（RAG検索用）
    - チャンク単位、冗長メタデータあり
    - Vector Index作成
 
-5. `document_metadata.sql`:
+5. `documents.sql`:
    - 文書単位のメタデータ（正規化）
    - 1 PDF = 1レコード
 
@@ -1535,7 +1552,7 @@ journal, photo_album, etc. (UUID参照)
 version: 2
 
 models:
-  - name: documents
+  - name: document_chunks
     description: "RAG検索用のチャンクテーブル（メタデータ冗長保存）"
     tests:
       - dbt_utils.unique_combination_of_columns:
@@ -1555,7 +1572,7 @@ models:
         tests:
           - not_null
           - relationships:
-              to: ref('document_metadata')
+              to: ref('documents')
               field: document_id
 
       - name: chunk_index
@@ -1588,7 +1605,7 @@ models:
           - dbt_utils.expression_is_true:
               expression: "ARRAY_LENGTH(chunk_embedding) = 768"  # 次元数チェック
 
-  - name: document_metadata
+  - name: documents
     description: "文書単位のメタデータ（正規化テーブル）"
     tests:
       - dbt_utils.unique_combination_of_columns:
@@ -1620,7 +1637,7 @@ models:
 SELECT
   chunk_id,
   COUNT(*) AS count
-FROM {{ ref('documents') }}
+FROM {{ ref('document_chunks') }}
 GROUP BY chunk_id
 HAVING COUNT(*) > 1;
 
@@ -1631,7 +1648,7 @@ SELECT
   document_id
 FROM {{ ref('photos') }}
 WHERE document_id NOT IN (
-  SELECT DISTINCT document_id FROM {{ ref('document_metadata') }}
+  SELECT DISTINCT document_id FROM {{ ref('documents') }}
 );
 
 -- tests/assert_chunk_ids_in_sections_exist.sql
@@ -1653,9 +1670,9 @@ SELECT
   f.document_id,
   f.chunk_id
 FROM flattened f
-LEFT JOIN {{ ref('documents') }} d
-  ON f.chunk_id = d.chunk_id
-WHERE d.chunk_id IS NULL;
+LEFT JOIN {{ ref('document_chunks') }} dc
+  ON f.chunk_id = dc.chunk_id
+WHERE dc.chunk_id IS NULL;
 ```
 
 ---
@@ -1723,7 +1740,7 @@ ORDER BY query_date DESC;
 ### 優先度: 高（即座に対応が必要）
 
 - [ ] **全テーブルのスキーマ定義を設計書に追加**
-  - documents, photos, pending_events, journal, photo_album, monthly_announcement, monthly_lunch_schedule, monthly_lunch_info, uncategorized, raw_documents
+  - document_chunks, documents, photos, pending_events, journal, photo_album, monthly_announcement, monthly_lunch_schedule, monthly_lunch_info, uncategorized, raw_documents
   - 各カラムの型、NULL制約、デフォルト値、説明を記載
 
 - [ ] **パーティショニング戦略を設計書に明記**
@@ -1799,12 +1816,12 @@ ORDER BY query_date DESC;
 
 **ストレージコスト**:
 ```
-1. テキストデータ（documents.chunk_text）:
+1. テキストデータ（document_chunks.chunk_text）:
    - 512トークン ≈ 2KB/チャンク
    - 6,000チャンク × 2KB = 12MB
    - $0.02/GB/月 × 0.012GB = $0.00024/月
 
-2. ベクトルデータ（documents.chunk_embedding）:
+2. ベクトルデータ（document_chunks.chunk_embedding）:
    - 768次元 × 8 bytes = 6KB/チャンク
    - 6,000チャンク × 6KB = 36MB
    - $0.02/GB/月 × 0.036GB = $0.00072/月
