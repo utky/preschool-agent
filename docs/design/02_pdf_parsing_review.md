@@ -1,19 +1,241 @@
 # PDF解析設計レビュー
 
-**レビュー日**: 2025-12-29
+**レビュー日**: 2025-12-29（2026-01-01更新）
 **対象文書**: `docs/design/02_pdf_parsing.md`
 **レビュー範囲**: データ論理モデル、BigQueryスキャン最適化
+**更新履歴**:
+- 2025-12-29: 初版作成
+- 2026-01-01: チャンク設計、埋め込み生成タイミング、外部レビュー評価を追加
 
 ---
 
 ## エグゼクティブサマリー
 
-現在の設計書は高レベルなアーキテクチャとデータフローを定義していますが、以下の2点で重大な不足があります：
+現在の設計書は高レベルなアーキテクチャとデータフローを定義していますが、以下の点で重大な不足があります：
 
 1. **データの論理モデル**: テーブルスキーマの具体的な定義が欠落
 2. **BigQuery物理最適化**: パーティショニング/クラスタリング戦略が未定義
+3. **チャンク管理**: 1チャンク=1レコード vs ARRAY<STRUCT>の設計判断が必要
+4. **埋め込み生成**: Document AIは埋め込みを生成しない（別ステップが必要）
+5. **RAG最適化**: ベクトル検索用メタデータの冗長保存が必要
 
 これらを補完しない限り、実装フェーズに進むことは推奨されません。
+
+---
+
+## 0. 重要な設計決定事項
+
+### 0.1 チャンク設計: 1チャンク = 1レコード（決定）
+
+**結論**: **1チャンク = 1レコード** を採用
+
+**検討したアプローチ**:
+- ❌ アプローチA: 1 PDF = 1レコード + chunksカラム（ARRAY<STRUCT>）
+- ✅ アプローチB: 1チャンク = 1レコード
+
+**採用理由**:
+
+1. **技術的制約（決定的）**:
+   ```
+   BigQuery Vector Indexは以下の型のみサポート:
+   - ARRAY<FLOAT64>
+   - STRUCT<result ARRAY<FLOAT64>, status STRING>
+
+   ARRAY<STRUCT>内のベクトルに対してインデックスを作成できない
+   → VECTOR_SEARCH関数が使用不可能
+   ```
+
+2. **Google公式ベストプラクティス**:
+   [公式RAGチュートリアル](https://docs.cloud.google.com/bigquery/docs/rag-pipeline-pdf)でも1行1チャンク構造を採用
+
+3. **パフォーマンス**:
+   - Vector Indexによる高速ANN検索が可能
+   - パーティションpruningとクラスタリングの恩恵
+
+**参考資料**:
+- [BigQuery Vector Index](https://docs.cloud.google.com/bigquery/docs/vector-index)
+- [BigQuery Vector Search](https://docs.cloud.google.com/bigquery/docs/vector-search)
+
+---
+
+### 0.2 埋め込み生成のタイミング
+
+**重要**: Document AIは埋め込み（embedding）を生成しない
+
+**データ変換フロー**:
+```
+1. GAS: Google Drive → GCS
+2. ML.PROCESS_DOCUMENT: テキスト抽出（埋め込みなし）
+   → output: document_id, chunk_index, chunk_text
+3. ML.GENERATE_EMBEDDING: 埋め込み生成（別ステップ）
+   → output: document_id, chunk_index, chunk_text, chunk_embedding
+4. 文書種別の分類
+5. Vector Index作成
+```
+
+**使用するBigQuery関数**:
+- `ML.PROCESS_DOCUMENT`: Document AIによるOCR・テキスト抽出
+- `ML.GENERATE_EMBEDDING`: Vertex AI Embeddingによるベクトル生成
+
+**埋め込みモデル**:
+```sql
+-- text-embedding-005モデルを参照
+CREATE OR REPLACE MODEL `project.dataset.text_embedding_005`
+REMOTE WITH CONNECTION `project.region.vertex_connection`
+OPTIONS (
+  endpoint = 'text-embedding-005'
+);
+```
+
+**参考資料**:
+- [ML.GENERATE_EMBEDDING](https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-generate-embedding)
+- [Build a RAG pipeline from PDFs](https://docs.cloud.google.com/bigquery/docs/rag-pipeline-pdf)
+
+---
+
+### 0.3 テキストデータの重複許容
+
+**決定**: 中間テーブルと最終テーブルでのテキスト重複は許容
+
+**理由**:
+
+1. **増分処理の必要性**:
+   - `ML.PROCESS_DOCUMENT`は重い処理
+   - 中間テーブル（stg_documents_text）を保存することで再実行を回避
+
+2. **ストレージコストは無視できる**:
+   ```
+   前提: 年間600チャンク、1チャンク2KB
+   重複データ: 600 × 2KB = 1.2MB/年
+   10年運用: 12MB
+
+   ストレージコスト:
+   $0.02/GB/月 × 0.012GB = $0.00024/月 ≈ $0.003/年
+   ```
+
+3. **Google公式も同様のアプローチ**:
+   公式チュートリアルでも`parsed_pdf`と`embeddings`の両テーブルを保持
+
+**推奨テーブル構成**:
+```
+stg_documents_text: テキストのみ（増分処理用、保存）
+documents: テキスト + 埋め込み（最終テーブル）
+```
+
+---
+
+### 0.4 外部レビュー提案の評価
+
+外部レビュアーから以下の提案を受けました：
+
+#### ✅ 採用する提案
+
+**1. documentsテーブルへの冗長メタデータ追加**
+
+**提案**: RAG検索時のJOIN削減のため、`document_type`、`publish_date`、`title`などを各チャンクに冗長に保存
+
+**評価**: **強く採用** ⭐⭐⭐
+
+**理由**:
+- RAG検索の典型パターン: 「今月の給食は？」「先週のお知らせは？」
+- Vector Search時に`document_type`や`publish_date`でフィルタリングが頻繁
+- JOINなしでパーティションpruningとクラスタリングの恩恵を最大化
+
+**適用**:
+```sql
+CREATE TABLE documents (
+  chunk_id STRING NOT NULL,
+  document_id STRING NOT NULL,
+
+  -- RAG検索用メタデータ（冗長だが必要）
+  document_type STRING NOT NULL,
+  title STRING,
+  publish_date DATE NOT NULL,
+
+  chunk_text STRING,
+  chunk_embedding ARRAY<FLOAT64>,
+  ...
+)
+PARTITION BY publish_date
+CLUSTER BY document_type, document_id;
+```
+
+**2. チャンク参照のUUID化**
+
+**提案**: `content_chunk_indices: [0, 1, 2]`ではなく、`chunk_ids: [UUID, UUID]`で参照
+
+**評価**: **強く採用** ⭐⭐⭐
+
+**理由**:
+- チャンク分割アルゴリズム変更時の整合性リスク回避
+- 再処理・バックフィル時のデータ整合性保証
+- UUIDによる堅牢な参照
+
+**適用**:
+```sql
+-- documentsテーブル
+chunk_id STRING NOT NULL,  -- UUID（主キー）
+
+-- journalテーブルのsectionsカラム
+{
+  "sections": [
+    {
+      "section_id": "sec_001",
+      "title": "お知らせ",
+      "chunk_ids": [
+        "550e8400-e29b-41d4-a716-446655440000",
+        "550e8400-e29b-41d4-a716-446655440001"
+      ]
+    }
+  ]
+}
+```
+
+#### ❌ 採用しない提案
+
+**1. 文書タイプ固有テーブルの統合（JSON化）**
+
+**提案**: `journal`、`photo_album`などを廃止し、`documents.specific_metadata JSON`に統合
+
+**評価**: **採用しない** ❌
+
+**理由**:
+
+1. **プロジェクト規模が小さい**:
+   - 年間60ファイル、10年で600ファイル
+   - このスケールではJOINコストは無視できる
+
+2. **型安全性の喪失**:
+   ```sql
+   -- ❌ JSON（型チェックなし）
+   JSON_EXTRACT_SCALAR(specific_metadata, '$.article_number')
+
+   -- ✅ 専用テーブル（型安全）
+   SELECT article_number FROM journal
+   ```
+
+3. **dbtでのスキーマ管理が困難**:
+   - JSONの内部構造をどうテストするか
+   - スキーマ変更の追跡が困難
+
+4. **クエリの可読性低下**:
+   ```sql
+   -- ❌ JSON（複雑）
+   SELECT JSON_EXTRACT(specific_metadata, '$.menu_items')
+
+   -- ✅ 専用テーブル（シンプル）
+   SELECT menu_items FROM monthly_lunch_schedule
+   ```
+
+5. **文書タイプごとに構造が大きく異なる**:
+   - journal: セクション構造、記事番号
+   - photo_album: 写真ID配列、保育内容表
+   - monthly_lunch_schedule: 献立JSON、栄養価
+   - これらを1つのJSONに押し込むのは設計として不適切
+
+**レビュアーの提案が適用される状況**:
+- 大規模システム（数百万〜数億レコード）
+- 小規模プロジェクトでは型安全性・可読性・保守性を優先すべき
 
 ---
 
@@ -30,45 +252,121 @@
 **必要なアクション**:
 全テーブルの完全なスキーマ定義が必要です。以下に推奨スキーマを示します。
 
-##### `documents` テーブル（解析済み文書データ）
+##### `documents` テーブル（RAG検索用チャンクテーブル）
+
+**設計方針**:
+- 1チャンク = 1レコード
+- RAG検索最適化のため、文書メタデータを冗長に保存
+- UUIDによるチャンク識別
 
 ```sql
 CREATE TABLE documents (
   -- 主キー
-  document_id STRING NOT NULL,           -- 文書の一意ID（UUID推奨）
-  chunk_index INT64 NOT NULL,            -- チャンク番号（0始まり）
-
-  -- メタデータ
-  source_id STRING NOT NULL,             -- raw_documentsへの参照
-  file_name STRING,                      -- 元のファイル名
-  document_type STRING,                  -- journal, photo_album, monthly_announcement,
-                                         -- monthly_lunch_schedule, monthly_lunch_info, uncategorized
-
-  -- 文書情報
-  title STRING,                          -- 文書タイトル（Document AIから抽出）
-  publish_date DATE,                     -- 発行日
-  page_number INT64,                     -- ページ番号
+  chunk_id STRING NOT NULL,              -- チャンクの一意ID（UUID v4推奨）
+  document_id STRING NOT NULL,           -- 文書の一意ID（UUID v4推奨）
+  chunk_index INT64 NOT NULL,            -- チャンク順序（0始まり、参考用）
 
   -- チャンクデータ
-  chunk_text STRING,                     -- チャンク化されたテキスト
+  chunk_text STRING NOT NULL,            -- チャンク化されたテキスト
   chunk_token_count INT64,               -- トークン数
   chunk_embedding ARRAY<FLOAT64>,        -- ベクトル埋め込み（768次元など）
+  page_number INT64,                     -- 元PDFのページ番号
+
+  -- セクション情報
+  section_id STRING,                     -- セクション識別子（例: "sec_001"）
+  section_title STRING,                  -- セクションタイトル（例: "今週のお知らせ"）
+
+  -- RAG検索用メタデータ（冗長だが必要）
+  -- 理由: Vector Search時にJOINなしでフィルタリングするため
+  source_id STRING NOT NULL,             -- raw_documentsへの参照（GCS URI）
+  file_name STRING,                      -- 元のファイル名
+  document_type STRING NOT NULL,         -- journal, photo_album, monthly_announcement,
+                                         -- monthly_lunch_schedule, monthly_lunch_info, uncategorized
+  title STRING,                          -- 文書タイトル（Document AIから抽出）
+  publish_date DATE NOT NULL,            -- 発行日（パーティションキー）
 
   -- 処理状態
-  processing_status STRING,              -- PENDING, COMPLETED, FAILED
+  processing_status STRING NOT NULL DEFAULT 'PENDING',  -- PENDING, COMPLETED, FAILED
   error_message STRING,                  -- エラー時の詳細
 
   -- タイムスタンプ
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP(),
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP()
 )
-PARTITION BY DATE(publish_date)
-CLUSTER BY document_type, document_id
+PARTITION BY publish_date
+CLUSTER BY document_type, document_id, chunk_id
 OPTIONS(
-  description='解析済みPDF文書のチャンク化されたテキストデータ',
+  description='RAG検索用のチャンクテーブル（メタデータ冗長保存）',
+  require_partition_filter=true
+);
+
+-- Vector Index（ベクトル検索用）
+CREATE VECTOR INDEX documents_embedding_idx
+ON documents(chunk_embedding)
+OPTIONS(
+  distance_type = 'COSINE',
+  index_type = 'IVF',
+  ivf_options = '{"num_lists": 1000, "num_probes": 50}'
+);
+```
+
+**設計のポイント**:
+1. `chunk_id`: UUID v4で一意性を保証（チャンク分割アルゴリズム変更に堅牢）
+2. `document_type`, `title`, `publish_date`: 冗長だがRAG検索のパフォーマンスに必須
+3. `section_id`, `section_title`: チャンクがどのセクションに属するかを記録
+4. クラスタリング順序: `document_type` (低カーディナリティ) → `document_id` → `chunk_id`
+
+##### `document_metadata` テーブル（文書単位のメタデータ）
+
+**設計方針**:
+- 1 PDF = 1レコード
+- documentsテーブルのメタデータ重複を最小化するための正規化テーブル
+- documentsテーブルには検索に必要な最小限のメタデータのみ保存
+
+```sql
+CREATE TABLE document_metadata (
+  -- 主キー
+  document_id STRING NOT NULL,           -- 文書の一意ID（documentsへの参照）
+
+  -- ソース情報
+  source_id STRING NOT NULL,             -- raw_documentsへの参照（GCS URI）
+  file_name STRING NOT NULL,             -- 元のファイル名
+  file_size INT64,                       -- ファイルサイズ（バイト）
+  md5_hash STRING,                       -- ファイルのMD5ハッシュ
+
+  -- 文書情報
+  document_type STRING NOT NULL,         -- journal, photo_album, etc.
+  title STRING,                          -- 文書タイトル
+  publish_date DATE NOT NULL,            -- 発行日
+
+  -- 処理統計
+  total_chunks INT64,                    -- チャンク総数
+  total_pages INT64,                     -- ページ総数
+  total_tokens INT64,                    -- トークン総数
+
+  -- 処理状態
+  processing_status STRING NOT NULL DEFAULT 'PENDING',
+  error_message STRING,
+  processed_at TIMESTAMP,                -- 処理完了日時
+
+  -- タイムスタンプ
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP(),
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP()
+)
+PARTITION BY publish_date
+CLUSTER BY document_type
+OPTIONS(
+  description='文書単位のメタデータ（正規化テーブル）',
   require_partition_filter=true
 );
 ```
+
+**documentsテーブルとの関係**:
+- `documents`: チャンク単位、RAG検索用（冗長メタデータあり）
+- `document_metadata`: 文書単位、マスターデータ（重複なし）
+- アプリケーション層では主にdocumentsを使用し、詳細情報が必要な場合のみJOIN
+
+---
 
 ##### `photos` テーブル（写真データ）
 
@@ -154,6 +452,7 @@ OPTIONS(
 
 **現状**: テーブル名のみ記載
 **要件**: 記事番号、セクション構造を持つ
+**更新**: チャンク参照をUUID化
 
 ```sql
 CREATE TABLE journal (
@@ -166,8 +465,12 @@ CREATE TABLE journal (
   weekday STRING,                        -- 曜日
 
   -- 構造化データ
-  sections JSON,                         -- セクション情報
-                                         -- [{title: "お知らせ", content_chunk_indices: [0,1,2]}, ...]
+  sections JSON,                         -- セクション情報（UUID参照）
+                                         -- [{
+                                         --   section_id: "sec_001",
+                                         --   title: "お知らせ",
+                                         --   chunk_ids: ["550e8400-...", "550e8400-..."]
+                                         -- }, ...]
   extracted_events JSON,                 -- 抽出されたイベント情報
                                          -- [{type: "deadline", date: "2025-01-15", title: "..."}, ...]
 
@@ -366,47 +669,77 @@ OPTIONS (
 
 ---
 
-#### 1.2 チャンク管理の設計が不明確
+#### 1.2 チャンク管理の設計（決定済み）
 
-**現状**: "chunking も実施する想定" と記載されているが詳細不明
-**影響**: データの一意性保証が不明、クエリ設計不可能
-**優先度**: 高
+**決定**: UUID v4による一意チャンク識別
 
-**問題点**:
-- 1つのPDFから複数チャンクが生成される場合の識別方法が不明
-- 各文書種別テーブルは文書単位で参照するのか、チャンク単位で参照するのか不明
-
-**推奨アプローチ**:
-
+**データ構造**:
 ```
-データ構造:
-- 1 PDF = 1 document_id
+- 1 PDF = 1 document_id (UUID v4)
 - 1 PDF = N chunks (N >= 1)
-- チャンクの識別: (document_id, chunk_index) の複合キー
+- チャンクの識別: chunk_id (UUID v4)
+- 順序の追跡: chunk_index (INT64)
+```
 
-テーブル間のリレーション:
-documents (チャンク単位)
-  ├─ PRIMARY KEY: (document_id, chunk_index)
+**テーブル間のリレーション**:
+```
+documents (チャンク単位、RAG検索用)
+  ├─ PRIMARY KEY: chunk_id (UUID v4)
+  ├─ FOREIGN KEY: document_id -> document_metadata.document_id
+  ├─ chunk_index: チャンク順序（参考用、0始まり）
+
+document_metadata (文書単位のメタデータ)
+  ├─ PRIMARY KEY: document_id (UUID v4)
   ├─ FOREIGN KEY: source_id -> raw_documents.uri
 
-journal (文書単位のメタデータ)
+journal (文書種別固有のメタデータ)
   ├─ PRIMARY KEY: document_id
-  ├─ FOREIGN KEY: document_id -> documents.document_id
+  ├─ sections.chunk_ids: ARRAY<STRING> (UUID参照)
 
-photos (文書単位の関連データ)
-  ├─ PRIMARY KEY: photo_id
-  ├─ FOREIGN KEY: document_id -> documents.document_id
+photos (文書の関連データ)
+  ├─ PRIMARY KEY: photo_id (UUID v4)
+  ├─ FOREIGN KEY: document_id -> document_metadata.document_id
 ```
+
+**UUID採用の理由**:
+1. **チャンク分割アルゴリズム変更に堅牢**: chunk_indexは変わってもchunk_idは不変
+2. **分散生成可能**: 並列処理やバッチ処理で衝突なし
+3. **再処理時の整合性保証**: 同じPDFを再処理してもchunk_idで同一チャンクを識別
+4. **外部レビュー提案の採用**: chunk_indices配列ではなくchunk_ids配列で参照
 
 **チャンク戦略の推奨**:
 ```python
 # Document AIの処理後のチャンク化ロジック（疑似コード）
+import uuid
+
 chunk_size = 512  # トークン数
 chunk_overlap = 50  # オーバーラップトークン数
 
-# 戦略1: ページ境界を尊重するチャンク
-# - 1ページ = 1チャンク（小さいページの場合）
-# - 大きいページは複数チャンクに分割
+# 戦略1: ページ境界を尊重するチャンク（推奨）
+for page in document.pages:
+    if page.token_count <= chunk_size:
+        chunk_id = str(uuid.uuid4())
+        chunk_index = len(chunks)
+        section_id = extract_section_id(page)
+        chunks.append({
+            'chunk_id': chunk_id,
+            'chunk_index': chunk_index,
+            'section_id': section_id,
+            'text': page.text
+        })
+    else:
+        # ページを複数チャンクに分割
+        sub_chunks = split_with_overlap(page.text, chunk_size, chunk_overlap)
+        for sub_chunk in sub_chunks:
+            chunk_id = str(uuid.uuid4())
+            chunk_index = len(chunks)
+            section_id = extract_section_id(page)
+            chunks.append({
+                'chunk_id': chunk_id,
+                'chunk_index': chunk_index,
+                'section_id': section_id,
+                'text': sub_chunk
+            })
 
 # 戦略2: 意味的なチャンク（セクション境界を尊重）
 # - Document AIのレイアウト解析結果を利用
@@ -414,6 +747,17 @@ chunk_overlap = 50  # オーバーラップトークン数
 
 # 戦略3: 固定サイズチャンク + オーバーラップ
 # - LangChainのRecursiveCharacterTextSplitterを使用
+```
+
+**UUID生成のベストプラクティス**:
+```python
+import uuid
+
+# ✅ UUID v4（ランダム）
+chunk_id = str(uuid.uuid4())  # 例: "550e8400-e29b-41d4-a716-446655440000"
+
+# ❌ UUID v5（名前ベース）は避ける
+# 理由: チャンク分割アルゴリズム変更時に同じUUIDが生成される可能性
 ```
 
 ---
@@ -463,17 +807,24 @@ chunk_overlap = 50  # オーバーラップトークン数
 
 **具体例（journal の場合）**:
 ```json
-// journalテーブルの sections カラムの例
+// journalテーブルの sections カラムの例（UUID参照に更新）
 {
   "sections": [
     {
+      "section_id": "sec_001",
       "title": "今週のお知らせ",
-      "content_chunk_indices": [0, 1],  // documentsテーブルのchunk_index
+      "chunk_ids": [
+        "550e8400-e29b-41d4-a716-446655440000",
+        "550e8400-e29b-41d4-a716-446655440001"
+      ],
       "order": 1
     },
     {
+      "section_id": "sec_002",
       "title": "提出物について",
-      "content_chunk_indices": [2],
+      "chunk_ids": [
+        "550e8400-e29b-41d4-a716-446655440002"
+      ],
       "order": 2,
       "deadline": "2025-01-20"
     }
@@ -487,13 +838,15 @@ chunk_overlap = 50  # オーバーラップトークン数
       "type": "deadline",
       "date": "2025-01-20",
       "title": "健康診断問診票の提出",
-      "source_section": "提出物について"
+      "source_section_id": "sec_002",
+      "source_section_title": "提出物について"
     },
     {
       "type": "schedule",
       "date": "2025-01-25",
       "title": "避難訓練",
-      "source_section": "今週のお知らせ"
+      "source_section_id": "sec_001",
+      "source_section_title": "今週のお知らせ"
     }
   ]
 }
@@ -754,7 +1107,7 @@ OPTIONS(
 );
 ```
 
-**検索クエリの最適化**:
+**検索クエリの最適化（UUID版）**:
 
 ```sql
 -- ベクトル検索 + フィルタリング + パーティション pruning
@@ -762,14 +1115,16 @@ WITH query_embedding AS (
   -- Vertex AI Embedding API を使用
   SELECT embedding
   FROM ML.GENERATE_TEXT_EMBEDDING(
-    MODEL `project.dataset.text_embedding_model`,
-    (SELECT '今月の給食献立は？' AS content)
+    MODEL `project.dataset.text_embedding_005`,
+    (SELECT '今月の給食献立は？' AS content),
+    STRUCT('RETRIEVAL_QUERY' AS task_type)
   )
 )
 SELECT
+  d.chunk_id,
   d.document_id,
-  d.document_type,
   d.title,
+  d.section_title,                       -- セクション情報も取得
   d.chunk_text,
   vs.distance
 FROM VECTOR_SEARCH(
@@ -780,8 +1135,7 @@ FROM VECTOR_SEARCH(
   distance_type => 'COSINE'
 ) AS vs
 JOIN documents AS d
-  ON vs.document_id = d.document_id
-  AND vs.chunk_index = d.chunk_index
+  ON vs.chunk_id = d.chunk_id              -- UUID参照
 WHERE
   -- パーティション pruning（スキャン量削減）
   d.publish_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY)
@@ -791,6 +1145,19 @@ WHERE
   AND d.processing_status = 'COMPLETED'
 ORDER BY vs.distance ASC
 LIMIT 10;
+
+-- オプション: 文書メタデータの詳細が必要な場合のみJOIN
+SELECT
+  d.chunk_id,
+  d.chunk_text,
+  d.section_title,
+  dm.file_name,
+  dm.total_pages,
+  vs.distance
+FROM VECTOR_SEARCH(...) AS vs
+JOIN documents AS d ON vs.chunk_id = d.chunk_id
+LEFT JOIN document_metadata AS dm ON d.document_id = dm.document_id
+WHERE ...;
 ```
 
 **インデックス更新戦略**:
@@ -1068,7 +1435,7 @@ Mastra Agent (RAG) + Frontend (Next.js)
 
 ---
 
-### 3.2 dbtプロジェクト構造
+### 3.2 dbtプロジェクト構造（更新版）
 
 **推奨ディレクトリ構造**:
 
@@ -1080,23 +1447,24 @@ dbt_project/
 │   │   ├── _sources.yml              # raw_documents の定義
 │   │   ├── _staging.yml              # スキーマ定義
 │   │   ├── stg_raw_documents.sql     # Object Tableのラッパー
-│   │   └── stg_documents.sql         # ML.PROCESS_DOCUMENT + 基本変換
+│   │   └── stg_documents_text.sql    # ML.PROCESS_DOCUMENT（テキストのみ、保存）
 │   ├── intermediate/                 # Layer 2: ビジネスロジック
 │   │   ├── _intermediate.yml
-│   │   ├── int_document_chunks.sql   # チャンク化
-│   │   ├── int_document_embeddings.sql  # 埋め込み生成
+│   │   ├── int_document_chunks.sql   # チャンク化（UUID生成）
+│   │   ├── int_document_embeddings.sql  # ML.GENERATE_EMBEDDING
 │   │   ├── int_extracted_photos.sql  # 写真抽出
 │   │   └── int_extracted_events.sql  # イベント抽出
 │   ├── marts/                        # Layer 3: 最終テーブル
 │   │   ├── core/
 │   │   │   ├── _core.yml
-│   │   │   ├── documents.sql
+│   │   │   ├── documents.sql         # テキスト + 埋め込み + 冗長メタデータ
+│   │   │   ├── document_metadata.sql # 文書単位のメタデータ（正規化）
 │   │   │   ├── photos.sql
 │   │   │   └── pending_events.sql
 │   │   └── document_types/
 │   │       ├── _document_types.yml
-│   │       ├── journal.sql
-│   │       ├── photo_album.sql
+│   │       ├── journal.sql           # UUID参照
+│   │       ├── photo_album.sql       # UUID参照
 │   │       ├── monthly_announcement.sql
 │   │       ├── monthly_lunch_schedule.sql
 │   │       ├── monthly_lunch_info.sql
@@ -1105,19 +1473,62 @@ dbt_project/
 │       ├── _analytics.yml
 │       └── vector_search_ready.sql   # RAG用の最適化ビュー
 ├── macros/
+│   ├── generate_uuid.sql             # UUID v4生成
 │   ├── chunk_text.sql                # チャンク化UDF
 │   └── extract_document_metadata.sql # メタデータ抽出
 ├── tests/
-│   └── assert_no_duplicate_documents.sql
+│   ├── assert_no_duplicate_chunk_ids.sql
+│   └── assert_no_orphaned_photos.sql
 └── seeds/
     └── document_type_mapping.csv     # 文書種別のマッピング
 ```
+
+**データフロー**:
+```
+raw_documents (Object Table)
+  ↓
+stg_documents_text (ML.PROCESS_DOCUMENT: テキスト抽出、保存)
+  ↓
+int_document_chunks (チャンク化、UUID生成)
+  ↓
+int_document_embeddings (ML.GENERATE_EMBEDDING)
+  ↓
+documents (テキスト + 埋め込み + 冗長メタデータ)
+document_metadata (文書単位のメタデータ、正規化)
+  ↓
+journal, photo_album, etc. (UUID参照)
+```
+
+**主要モデルの説明**:
+
+1. `stg_documents_text.sql`:
+   - ML.PROCESS_DOCUMENTでテキスト抽出
+   - **増分処理用に保存**（materializ ed='incremental'）
+   - Document AIの重い処理を再実行しないため
+
+2. `int_document_chunks.sql`:
+   - チャンク化ロジック
+   - UUID v4生成（`GENERATE_UUID()`）
+   - section_id, section_titleの抽出
+
+3. `int_document_embeddings.sql`:
+   - ML.GENERATE_EMBEDDINGで埋め込み生成
+   - ephemeralまたはincremental（戦略による）
+
+4. `documents.sql`:
+   - 最終テーブル（RAG検索用）
+   - チャンク単位、冗長メタデータあり
+   - Vector Index作成
+
+5. `document_metadata.sql`:
+   - 文書単位のメタデータ（正規化）
+   - 1 PDF = 1レコード
 
 ---
 
 ### 3.3 テストとバリデーション
 
-**推奨テスト**:
+**推奨テスト（UUID版）**:
 
 ```yaml
 # models/marts/core/_core.yml
@@ -1125,22 +1536,35 @@ version: 2
 
 models:
   - name: documents
-    description: "解析済みPDF文書のチャンク化されたテキストデータ"
+    description: "RAG検索用のチャンクテーブル（メタデータ冗長保存）"
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - chunk_id
     columns:
+      - name: chunk_id
+        description: "チャンクの一意ID（UUID v4）"
+        tests:
+          - not_null
+          - unique
+          - dbt_utils.expression_is_true:
+              expression: "LENGTH(chunk_id) = 36"  # UUID形式チェック
+
       - name: document_id
-        description: "文書の一意ID"
+        description: "文書の一意ID（UUID v4）"
         tests:
           - not_null
           - relationships:
-              to: ref('stg_documents')
+              to: ref('document_metadata')
               field: document_id
 
       - name: chunk_index
-        description: "チャンク番号"
+        description: "チャンク順序"
         tests:
           - not_null
           - dbt_utils.sequential_values:
               group_by_columns: ['document_id']
+              interval: 1
 
       - name: document_type
         description: "文書種別"
@@ -1164,6 +1588,18 @@ models:
           - dbt_utils.expression_is_true:
               expression: "ARRAY_LENGTH(chunk_embedding) = 768"  # 次元数チェック
 
+  - name: document_metadata
+    description: "文書単位のメタデータ（正規化テーブル）"
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - document_id
+    columns:
+      - name: document_id
+        tests:
+          - not_null
+          - unique
+
   - name: pending_events
     description: "承認待ちイベント"
     tests:
@@ -1179,6 +1615,15 @@ models:
 
 **カスタムテスト**:
 ```sql
+-- tests/assert_no_duplicate_chunk_ids.sql
+-- chunk_idの重複がないことを確認
+SELECT
+  chunk_id,
+  COUNT(*) AS count
+FROM {{ ref('documents') }}
+GROUP BY chunk_id
+HAVING COUNT(*) > 1;
+
 -- tests/assert_no_orphaned_photos.sql
 -- 孤立した写真（document_idが存在しない）が無いことを確認
 SELECT
@@ -1186,8 +1631,31 @@ SELECT
   document_id
 FROM {{ ref('photos') }}
 WHERE document_id NOT IN (
-  SELECT DISTINCT document_id FROM {{ ref('documents') }}
+  SELECT DISTINCT document_id FROM {{ ref('document_metadata') }}
+);
+
+-- tests/assert_chunk_ids_in_sections_exist.sql
+-- journalのsectionsに含まれるchunk_idsが実際に存在することを確認
+WITH section_chunk_ids AS (
+  SELECT
+    document_id,
+    JSON_EXTRACT_ARRAY(sections, '$.chunk_ids') AS chunk_ids_array
+  FROM {{ ref('journal') }}
+),
+flattened AS (
+  SELECT
+    document_id,
+    chunk_id
+  FROM section_chunk_ids,
+  UNNEST(JSON_EXTRACT_STRING_ARRAY(chunk_ids_array)) AS chunk_id
 )
+SELECT
+  f.document_id,
+  f.chunk_id
+FROM flattened f
+LEFT JOIN {{ ref('documents') }} d
+  ON f.chunk_id = d.chunk_id
+WHERE d.chunk_id IS NULL;
 ```
 
 ---
