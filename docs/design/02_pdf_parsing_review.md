@@ -6,6 +6,7 @@
 **更新履歴**:
 - 2025-12-29: 初版作成
 - 2026-01-01: チャンク設計、埋め込み生成タイミング、外部レビュー評価を追加
+- 2026-01-01: JSON型をSTRUCT型に変更（型安全性とクエリ可読性の向上）
 
 ---
 
@@ -239,6 +240,102 @@ chunk_id STRING NOT NULL,  -- UUID（主キー）
 
 ---
 
+### 0.5 JSON vs STRUCT型の選択（決定）
+
+**結論**: 文書種別テーブルの構造化データには **STRUCT型を採用**
+
+**決定理由**:
+
+#### 1. 型安全性の確保 ⭐⭐⭐
+
+```sql
+-- ❌ JSON型（型チェックなし、実行時エラーのリスク）
+SELECT JSON_EXTRACT_SCALAR(sections, '$[0].section_id') FROM journal;
+
+-- ✅ STRUCT型（コンパイル時の型チェック）
+SELECT sections[OFFSET(0)].section_id FROM journal;
+```
+
+#### 2. クエリの可読性とパフォーマンス ⭐⭐⭐
+
+```sql
+-- JSON型（複雑、遅い）
+SELECT
+  document_id,
+  JSON_EXTRACT_SCALAR(section, '$.title') AS section_title,
+  JSON_EXTRACT_ARRAY(section, '$.chunk_ids') AS chunk_ids
+FROM journal,
+UNNEST(JSON_EXTRACT_ARRAY(sections)) AS section;
+
+-- STRUCT型（シンプル、高速）
+SELECT
+  document_id,
+  section.title AS section_title,
+  section.chunk_ids
+FROM journal,
+UNNEST(sections) AS section;
+```
+
+#### 3. dbtでのスキーマ管理が容易 ⭐⭐
+
+```yaml
+# STRUCT型ならdbtテストが簡単
+models:
+  - name: journal
+    columns:
+      - name: sections
+        description: "セクション情報（STRUCT配列）"
+        tests:
+          - not_null
+```
+
+#### 4. セクション0.4との一貫性 ⭐⭐
+
+セクション0.4で「文書タイプ固有テーブルの統合（JSON化）」を却下した理由：
+- 型安全性の喪失
+- dbtでのスキーマ管理が困難
+- クエリの可読性低下
+
+**これらの理由は個別カラムのJSON型にも同様に当てはまる**
+
+#### デメリットと緩和策
+
+**デメリット1**: スキーマの柔軟性低下
+- 新しいフィールドを追加する場合、テーブルスキーマの変更が必要
+
+**緩和策**:
+- このプロジェクトでは構造が比較的安定している
+- 年間60ファイルの小規模プロジェクトなので、スキーマ変更コストは小さい
+- オプショナルフィールドはNULLを許容する設計
+
+**デメリット2**: 定義が冗長になる
+- STRUCT型の完全な定義が必要
+
+**緩和策**:
+- 型安全性と可読性のメリットがデメリットを上回る
+- スキーマ定義はドキュメントとしても機能
+
+#### 採用方針
+
+**STRUCT型を使用するカラム**:
+- `journal.sections`: ARRAY<STRUCT<...>>
+- `journal.extracted_events`: ARRAY<STRUCT<...>>
+- `photo_album.care_content_table`: ARRAY<STRUCT<...>>
+- `monthly_announcement.schedule`: ARRAY<STRUCT<...>>
+- `monthly_announcement.star_sections`: ARRAY<STRUCT<...>>
+- `monthly_announcement.care_goals`: STRUCT<...>
+- `monthly_announcement.extracted_events`: ARRAY<STRUCT<...>>
+- `monthly_lunch_schedule.menu_items`: ARRAY<STRUCT<...>>
+- `monthly_lunch_schedule.nutrition_info`: STRUCT<...>
+- `monthly_lunch_info.content_sections`: ARRAY<STRUCT<...>>
+
+**JSON型を使用し続けるケース**:
+- 構造が完全に不定形で、スキーマ定義が不可能な場合
+- 外部システムからのペイロードをそのまま保存する場合
+- このプロジェクトでは該当なし
+
+---
+
 ## 1. データの論理モデル
 
 ### 🔴 重大な問題
@@ -452,7 +549,7 @@ OPTIONS(
 
 **現状**: テーブル名のみ記載
 **要件**: 記事番号、セクション構造を持つ
-**更新**: チャンク参照をUUID化
+**更新**: チャンク参照をUUID化、STRUCT型を採用
 
 ```sql
 CREATE TABLE journal (
@@ -464,15 +561,22 @@ CREATE TABLE journal (
   japanese_era STRING,                   -- 和暦（例: "令和7年"）
   weekday STRING,                        -- 曜日
 
-  -- 構造化データ
-  sections JSON,                         -- セクション情報（UUID参照）
-                                         -- [{
-                                         --   section_id: "sec_001",
-                                         --   title: "お知らせ",
-                                         --   chunk_ids: ["550e8400-...", "550e8400-..."]
-                                         -- }, ...]
-  extracted_events JSON,                 -- 抽出されたイベント情報
-                                         -- [{type: "deadline", date: "2025-01-15", title: "..."}, ...]
+  -- 構造化データ（STRUCT型）
+  sections ARRAY<STRUCT<
+    section_id STRING,                   -- セクション識別子（例: "sec_001"）
+    title STRING,                        -- セクションタイトル（例: "お知らせ"）
+    chunk_ids ARRAY<STRING>,             -- チャンクへの参照（UUID配列）
+    order INT64,                         -- セクション順序
+    deadline DATE                        -- 提出期限（オプショナル、NULLを許容）
+  >>,
+
+  extracted_events ARRAY<STRUCT<
+    type STRING,                         -- deadline, schedule, submission, other
+    date DATE,                           -- イベント日付
+    title STRING,                        -- イベントタイトル
+    source_section_id STRING,            -- 元のセクション識別子
+    source_section_title STRING          -- 元のセクションタイトル
+  >>,
 
   -- AI生成サマリ
   summary STRING,                        -- LLMで生成した要約
@@ -485,7 +589,7 @@ CREATE TABLE journal (
 PARTITION BY publish_date
 CLUSTER BY article_number
 OPTIONS(
-  description='日誌（journal）の構造化メタデータ',
+  description='日誌（journal）の構造化メタデータ（STRUCT型）',
   require_partition_filter=true
 );
 ```
@@ -502,11 +606,15 @@ CREATE TABLE photo_album (
   japanese_era STRING,                   -- 和暦
   school_name STRING,                    -- 園名
 
-  -- 構造化データ
+  -- 構造化データ（STRUCT型）
   photo_ids ARRAY<STRING>,               -- photosテーブルへの参照配列
   photo_count INT64,                     -- 写真の数
-  care_content_table JSON,               -- 保育内容表
-                                         -- {items: [{activity: "外遊び", date: "2025-01-10"}, ...]}
+
+  care_content_table ARRAY<STRUCT<
+    activity STRING,                     -- 活動内容（例: "外遊び"）
+    date DATE,                           -- 活動日
+    description STRING                   -- 活動の詳細説明（オプショナル）
+  >>,
 
   -- AI生成サマリ
   summary STRING,                        -- LLMで生成した要約
@@ -517,7 +625,7 @@ CREATE TABLE photo_album (
 )
 PARTITION BY DATE(created_at)
 OPTIONS(
-  description='写真アルバムの構造化メタデータ'
+  description='写真アルバムの構造化メタデータ（STRUCT型）'
 );
 ```
 
@@ -531,16 +639,34 @@ CREATE TABLE monthly_announcement (
   -- 月次お知らせ固有の情報
   year_month DATE NOT NULL,              -- 対象月度（月初日で統一）
 
-  -- 構造化データ
+  -- 構造化データ（STRUCT型）
   introduction_text STRING,              -- 序文
-  schedule JSON,                         -- スケジュール
-                                         -- [{date: "2025-01-15", event: "遠足"}, ...]
-  star_sections JSON,                    -- "★"で始まるセクション
-                                         -- [{title: "持ち物について", content_chunks: [5,6]}, ...]
-  care_goals JSON,                       -- 月度の保育目標
-                                         -- {age_groups: [{age: "3歳児", goal: "..."}, ...]}
 
-  extracted_events JSON,                 -- 抽出されたイベント情報
+  schedule ARRAY<STRUCT<
+    date DATE,                           -- イベント日付
+    event STRING,                        -- イベント名（例: "遠足"）
+    description STRING                   -- イベントの詳細（オプショナル）
+  >>,
+
+  star_sections ARRAY<STRUCT<
+    title STRING,                        -- セクションタイトル（例: "持ち物について"）
+    chunk_ids ARRAY<STRING>,             -- チャンクへの参照（UUID配列）
+    order INT64                          -- セクション順序
+  >>,
+
+  care_goals STRUCT<
+    age_groups ARRAY<STRUCT<
+      age STRING,                        -- 年齢グループ（例: "3歳児"）
+      goal STRING                        -- 保育目標
+    >>
+  >,
+
+  extracted_events ARRAY<STRUCT<
+    type STRING,                         -- deadline, schedule, submission, other
+    date DATE,                           -- イベント日付
+    title STRING,                        -- イベントタイトル
+    source_section_title STRING          -- 元のセクションタイトル
+  >>,
 
   -- AI生成サマリ
   summary STRING,                        -- LLMで生成した要約
@@ -550,7 +676,7 @@ CREATE TABLE monthly_announcement (
 )
 PARTITION BY year_month
 OPTIONS(
-  description='月次お知らせの構造化メタデータ',
+  description='月次お知らせの構造化メタデータ（STRUCT型）',
   require_partition_filter=true
 );
 ```
@@ -566,13 +692,22 @@ CREATE TABLE monthly_lunch_schedule (
   year_month DATE NOT NULL,              -- 対象月度（月初日で統一）
   school_name STRING,                    -- 園名
 
-  -- 構造化データ
-  menu_items JSON NOT NULL,              -- 日ごとの献立データ
-                                         -- [{date: "2025-01-15", main: "カレーライス",
-                                         --   side: "サラダ", soup: "味噌汁", dessert: "果物"}, ...]
-  nutrition_info JSON,                   -- 平均栄養価
-                                         -- {calories: 450, protein: 18.5, fat: 12.3,
-                                         --  carbs: 65.2, salt: 1.8}
+  -- 構造化データ（STRUCT型）
+  menu_items ARRAY<STRUCT<
+    date DATE,                           -- 献立日付
+    main STRING,                         -- 主菜（例: "カレーライス"）
+    side STRING,                         -- 副菜（例: "サラダ"）
+    soup STRING,                         -- 汁物（例: "味噌汁"）
+    dessert STRING                       -- デザート（例: "果物"）
+  >> NOT NULL,
+
+  nutrition_info STRUCT<
+    calories FLOAT64,                    -- 平均カロリー（kcal）
+    protein FLOAT64,                     -- 平均タンパク質（g）
+    fat FLOAT64,                         -- 平均脂質（g）
+    carbs FLOAT64,                       -- 平均炭水化物（g）
+    salt FLOAT64                         -- 平均塩分（g）
+  >,
 
   -- AI生成サマリ
   summary STRING,                        -- LLMで生成した要約
@@ -582,7 +717,7 @@ CREATE TABLE monthly_lunch_schedule (
 )
 PARTITION BY year_month
 OPTIONS(
-  description='月次給食献立の構造化メタデータ',
+  description='月次給食献立の構造化メタデータ（STRUCT型）',
   require_partition_filter=true
 );
 ```
@@ -598,10 +733,14 @@ CREATE TABLE monthly_lunch_info (
   year_month DATE NOT NULL,              -- 対象月度（月初日で統一）
   author STRING,                         -- 執筆者
 
-  -- 構造化データ
+  -- 構造化データ（STRUCT型）
   introduction_text STRING,              -- 序文
-  content_sections JSON,                 -- コンテンツ（複数セクション）
-                                         -- [{title: "今月のテーマ", content_chunks: [0,1]}, ...]
+
+  content_sections ARRAY<STRUCT<
+    title STRING,                        -- セクションタイトル（例: "今月のテーマ"）
+    chunk_ids ARRAY<STRING>,             -- チャンクへの参照（UUID配列）
+    order INT64                          -- セクション順序
+  >>,
 
   -- AI生成サマリ
   summary STRING,                        -- LLMで生成した要約
@@ -611,7 +750,7 @@ CREATE TABLE monthly_lunch_info (
 )
 PARTITION BY year_month
 OPTIONS(
-  description='月次給食お知らせの構造化メタデータ',
+  description='月次給食お知らせの構造化メタデータ（STRUCT型）',
   require_partition_filter=true
 );
 ```
@@ -801,56 +940,96 @@ chunk_id = str(uuid.uuid4())  # 例: "550e8400-e29b-41d4-a716-446655440000"
 役割分担:
 - document_chunks: 生のテキスト + ベクトル検索用
 - documents: 文書単位のメタデータ
-- journal: 記事番号、セクション構造、イベント抽出結果
-- monthly_lunch_schedule: 献立の構造化JSON、栄養価データ
-- photo_album: 写真IDの配列、保育内容表
+- journal: 記事番号、セクション構造（STRUCT型）、イベント抽出結果
+- monthly_lunch_schedule: 献立の構造化データ（STRUCT型）、栄養価データ
+- photo_album: 写真IDの配列、保育内容表（STRUCT型）
 ```
 
 **具体例（journal の場合）**:
-```json
-// journalテーブルの sections カラムの例（UUID参照に更新）
-{
-  "sections": [
-    {
-      "section_id": "sec_001",
-      "title": "今週のお知らせ",
-      "chunk_ids": [
-        "550e8400-e29b-41d4-a716-446655440000",
-        "550e8400-e29b-41d4-a716-446655440001"
-      ],
-      "order": 1
-    },
-    {
-      "section_id": "sec_002",
-      "title": "提出物について",
-      "chunk_ids": [
-        "550e8400-e29b-41d4-a716-446655440002"
-      ],
-      "order": 2,
-      "deadline": "2025-01-20"
-    }
-  ]
-}
 
-// journalテーブルの extracted_events カラムの例
-{
-  "events": [
-    {
-      "type": "deadline",
-      "date": "2025-01-20",
-      "title": "健康診断問診票の提出",
-      "source_section_id": "sec_002",
-      "source_section_title": "提出物について"
-    },
-    {
-      "type": "schedule",
-      "date": "2025-01-25",
-      "title": "避難訓練",
-      "source_section_id": "sec_001",
-      "source_section_title": "今週のお知らせ"
-    }
-  ]
-}
+```sql
+-- journalテーブルへのINSERT例（STRUCT型）
+INSERT INTO journal (
+  document_id,
+  article_number,
+  japanese_era,
+  weekday,
+  sections,
+  extracted_events,
+  summary,
+  keywords,
+  publish_date,
+  created_at
+) VALUES (
+  '550e8400-e29b-41d4-a716-446655440100',
+  'No.123',
+  '令和7年',
+  '月曜日',
+  -- sections: ARRAY<STRUCT>
+  [
+    STRUCT(
+      'sec_001' AS section_id,
+      '今週のお知らせ' AS title,
+      ['550e8400-e29b-41d4-a716-446655440000', '550e8400-e29b-41d4-a716-446655440001'] AS chunk_ids,
+      1 AS order,
+      NULL AS deadline
+    ),
+    STRUCT(
+      'sec_002' AS section_id,
+      '提出物について' AS title,
+      ['550e8400-e29b-41d4-a716-446655440002'] AS chunk_ids,
+      2 AS order,
+      DATE('2025-01-20') AS deadline
+    )
+  ],
+  -- extracted_events: ARRAY<STRUCT>
+  [
+    STRUCT(
+      'deadline' AS type,
+      DATE('2025-01-20') AS date,
+      '健康診断問診票の提出' AS title,
+      'sec_002' AS source_section_id,
+      '提出物について' AS source_section_title
+    ),
+    STRUCT(
+      'schedule' AS type,
+      DATE('2025-01-25') AS date,
+      '避難訓練' AS title,
+      'sec_001' AS source_section_id,
+      '今週のお知らせ' AS source_section_title
+    )
+  ],
+  'この日誌では避難訓練と健康診断問診票の提出について記載されています。' AS summary,
+  ['避難訓練', '健康診断', '提出物'] AS keywords,
+  DATE('2025-01-13'),
+  CURRENT_TIMESTAMP()
+);
+
+-- sectionsをクエリする例（STRUCT型）
+SELECT
+  document_id,
+  section.section_id,
+  section.title,
+  section.chunk_ids,
+  section.order,
+  section.deadline
+FROM journal,
+UNNEST(sections) AS section
+WHERE section.deadline IS NOT NULL
+ORDER BY section.deadline ASC;
+
+-- extracted_eventsをクエリする例（STRUCT型）
+SELECT
+  document_id,
+  event.type,
+  event.date,
+  event.title,
+  event.source_section_title
+FROM journal,
+UNNEST(extracted_events) AS event
+WHERE event.type = 'deadline'
+  AND event.date >= CURRENT_DATE()
+ORDER BY event.date ASC;
 ```
 
 ---
@@ -870,10 +1049,22 @@ TIMESTAMP   -- created_at, updated_at, approved_at (タイムゾーン付き)
 STRING      -- UUID v4 推奨（例: "550e8400-e29b-41d4-a716-446655440000"）
             -- 理由: 分散生成可能、衝突リスク極小、可読性
 
--- JSON vs ARRAY vs STRING
-JSON        -- 構造化データ（sections, menu_items, nutrition_info）
-ARRAY       -- 単純なリスト（photo_ids, keywords）
-STRING      -- 非構造化テキスト（summary, description）
+-- 構造化データの型選択（重要！）
+STRUCT/ARRAY<STRUCT>  -- 構造化データ（型安全性が重要）
+                      -- 例: sections, menu_items, nutrition_info, extracted_events
+                      -- 理由: 型チェック、クエリ可読性、dbt管理の容易さ
+
+ARRAY<STRING>         -- 単純なリスト（型が単一）
+                      -- 例: photo_ids, keywords, chunk_ids
+                      -- 理由: 配列操作が簡単、型安全
+
+STRING                -- 非構造化テキスト
+                      -- 例: summary, description, introduction_text
+                      -- 理由: 自由形式のテキスト
+
+JSON                  -- このプロジェクトでは非推奨
+                      -- 理由: 型安全性の喪失、クエリの複雑さ
+                      -- 例外: 外部システムからのペイロードをそのまま保存する場合のみ
 ```
 
 #### 1.6 NULL制約とデフォルト値
@@ -1652,19 +1843,14 @@ WHERE document_id NOT IN (
 );
 
 -- tests/assert_chunk_ids_in_sections_exist.sql
--- journalのsectionsに含まれるchunk_idsが実際に存在することを確認
-WITH section_chunk_ids AS (
+-- journalのsectionsに含まれるchunk_idsが実際に存在することを確認（STRUCT型版）
+WITH flattened AS (
   SELECT
-    document_id,
-    JSON_EXTRACT_ARRAY(sections, '$.chunk_ids') AS chunk_ids_array
-  FROM {{ ref('journal') }}
-),
-flattened AS (
-  SELECT
-    document_id,
+    j.document_id,
     chunk_id
-  FROM section_chunk_ids,
-  UNNEST(JSON_EXTRACT_STRING_ARRAY(chunk_ids_array)) AS chunk_id
+  FROM {{ ref('journal') }} j,
+  UNNEST(j.sections) AS section,
+  UNNEST(section.chunk_ids) AS chunk_id
 )
 SELECT
   f.document_id,
@@ -1673,6 +1859,26 @@ FROM flattened f
 LEFT JOIN {{ ref('document_chunks') }} dc
   ON f.chunk_id = dc.chunk_id
 WHERE dc.chunk_id IS NULL;
+
+-- tests/assert_sections_have_valid_structure.sql
+-- journalのsectionsが正しい構造を持つことを確認（STRUCT型版）
+WITH section_validation AS (
+  SELECT
+    document_id,
+    section.section_id,
+    section.title,
+    ARRAY_LENGTH(section.chunk_ids) AS chunk_count
+  FROM {{ ref('journal') }},
+  UNNEST(sections) AS section
+)
+SELECT
+  document_id,
+  section_id,
+  title
+FROM section_validation
+WHERE section_id IS NULL
+   OR title IS NULL
+   OR chunk_count = 0;
 ```
 
 ---
