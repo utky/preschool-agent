@@ -46,3 +46,6 @@ secrets.auto.tfvars
 
 # voltagent
 .voltagent
+
+# input pdf
+*.pdf
