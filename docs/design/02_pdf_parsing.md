@@ -1,6 +1,6 @@
 ## 2. PDF解析アプローチ
 
-**最終更新**: 2026-01-01（設計レビュー反映）
+**最終更新**: 2026-01-03（extracted_eventsの正規化とイベント管理のシンプル化）
 
 本プロジェクトでは、PDFからのテキストおよび構造化データ抽出に **Google Cloud Document AI** を全面的に採用します。その理由は、高精度なOCR、特定のドキュメントタイプ（請求書、領収書など）に特化した専用プロセッサの存在、そしてサーバーレスアーキテクチャとの親和性の高さにあります。
 
@@ -11,6 +11,8 @@
 3. **型安全性**: STRUCT型を採用（JSON型ではなく）
 4. **RAG最適化**: 文書メタデータを`document_chunks`テーブルに冗長保存
 5. **埋め込み生成**: `ML.GENERATE_EMBEDDING`を別ステップで実行（Document AIは埋め込みを生成しない）
+6. **イベント管理**: 承認ワークフローを廃止し、フロントエンドでのワンタップ登録に統一
+7. **イベント正規化**: `extracted_events`を独立したテーブルとして管理（複数文書種別からの参照を一元化）
 
 ### 参照実装
 https://docs.cloud.google.com/bigquery/docs/rag-pipeline-pdf?hl=ja
@@ -142,11 +144,6 @@ CREATE TABLE documents (
   total_pages INT64,                     -- ページ総数
   total_tokens INT64,                    -- トークン総数
 
-  -- 処理状態
-  processing_status STRING NOT NULL DEFAULT 'PENDING',  -- PENDING, COMPLETED, FAILED
-  error_message STRING,                  -- エラー時の詳細
-  processed_at TIMESTAMP,                -- 処理完了日時
-
   -- タイムスタンプ
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP(),
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP()
@@ -190,10 +187,6 @@ CREATE TABLE document_chunks (
   title STRING,                          -- 文書タイトル（Document AIから抽出）
   publish_date DATE NOT NULL,            -- 発行日（パーティションキー）
 
-  -- 処理状態
-  processing_status STRING NOT NULL DEFAULT 'PENDING',  -- PENDING, COMPLETED, FAILED
-  error_message STRING,                  -- エラー時の詳細
-
   -- タイムスタンプ
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP(),
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP()
@@ -221,48 +214,163 @@ OPTIONS(
 3. `section_id`, `section_title`: チャンクがどのセクションに属するかを記録
 4. クラスタリング順序: `document_type` (低カーディナリティ) → `document_id` → `chunk_id`
 
-#### BigQuery: `pending_events` テーブル
+#### BigQuery: `calendar_sync_history` テーブル
 
-承認待ちのイベント・予定・期限を管理するテーブルです。
-解析結果として保存したデータに予定や期限に関するものがあれば、承認待ちリストに追加します。
+フロントエンドからカレンダー登録された履歴を記録するテーブルです。
+承認ワークフローは廃止し、ユーザーがUIでワンタップ登録した時点で記録されます。
+
+**設計思想**:
+- 状態管理を排除（登録 = 記録）
+- 重複登録防止機能を内蔵（家族共有前提）
+- 誰か1人が登録すれば全員から「登録済み」として認識される
+- `event_hash` のみで一意性を保証（ユーザーごとの重複管理は行わない）
+- `synced_by` は履歴記録用（誰が登録したかのトレーサビリティ）
 
 ```sql
-CREATE TABLE pending_events (
+CREATE TABLE calendar_sync_history (
+  -- 主キー
+  sync_id STRING NOT NULL,              -- UUID v4
+
+  -- イベント情報
+  document_id STRING NOT NULL,          -- 元文書への参照
+  event_type STRING NOT NULL,           -- deadline, schedule, submission, other
+  event_date DATE NOT NULL,             -- イベント日付
+  event_title STRING NOT NULL,          -- イベントタイトル
+  event_description STRING,             -- 詳細説明
+
+  -- ソース情報
+  source_table STRING NOT NULL,         -- journal, monthly_announcement, etc.
+  source_section_title STRING,          -- 元のセクションタイトル
+
+  -- カレンダー情報
+  calendar_event_id STRING NOT NULL,    -- Googleカレンダーイベントへの参照
+  calendar_link STRING,                 -- カレンダーイベントへの直リンク
+
+  -- ユーザー情報（誰が登録したかの記録用、一意性制約には使わない）
+  synced_by STRING NOT NULL,            -- ユーザーID（Auth.jsのsession.user.id）
+  synced_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP(),
+
+  -- 重複防止
+  event_hash STRING NOT NULL,           -- MD5(event_type + event_date + event_title)
+
+  -- タイムスタンプ
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP()
+)
+PARTITION BY DATE(event_date)
+CLUSTER BY synced_by, event_type
+OPTIONS(
+  description='カレンダー登録履歴'
+);
+
+-- 重複防止用のユニーク制約（同じイベントは家族全体で1回のみ登録可能）
+CREATE UNIQUE INDEX idx_unique_event
+ON calendar_sync_history(event_hash);
+```
+
+**使用例: 未登録イベントの取得**
+```sql
+-- 家族全体で未登録のイベントを取得（正規化版、documentsとJOIN）
+WITH synced_hashes AS (
+  SELECT event_hash
+  FROM calendar_sync_history
+)
+SELECT
+  e.event_id,
+  e.document_id,
+  e.event_type,
+  e.event_date,
+  e.event_title,
+  e.event_description,
+  e.source_table,
+  e.source_section_title,
+  d.title AS document_title,              -- documentsテーブルからJOINで取得
+  d.document_type,                        -- 必要に応じて文書種別も取得可能
+  d.publish_date,                         -- 必要に応じて発行日も取得可能
+  MD5(CONCAT(e.event_type, CAST(e.event_date AS STRING), e.event_title)) AS event_hash
+FROM extracted_events e
+LEFT JOIN documents d ON e.document_id = d.document_id
+WHERE
+  e.event_date >= CURRENT_DATE()
+  AND MD5(CONCAT(e.event_type, CAST(e.event_date AS STRING), e.event_title))
+      NOT IN (SELECT event_hash FROM synced_hashes)
+ORDER BY e.event_date ASC
+LIMIT 50;
+```
+
+**journalなどの各テーブルにイベントリストを埋め込む設計との比較**:
+- UNION ALLによる複数テーブルの結合が不要
+- クエリが大幅に簡潔になり、可読性が向上
+- 新しい文書種別を追加してもクエリの変更が不要
+- パーティション pruning（`event_date`）により、効率的なスキャンが可能
+
+#### BigQuery: `extracted_events` テーブル
+
+**設計思想**:
+- イベント情報を独立したテーブルとして管理し、複数の文書種別テーブルからの参照を一元化
+- `upcoming_events`ビューの基盤となり、UNION ALLによる複雑なクエリを不要にする
+- 将来的な文書種別の追加（例: 年次イベント、週間予定など）に対して拡張性が高い
+- イベント単位での検索・集計・分析が容易になる
+
+```sql
+CREATE TABLE extracted_events (
   -- 主キー
   event_id STRING NOT NULL,              -- イベントの一意ID（UUID v4推奨）
 
-  -- 参照
-  document_id STRING NOT NULL,           -- 元文書への参照
-
   -- イベント情報
   event_type STRING NOT NULL,            -- deadline, schedule, submission, other
-  event_date DATE,                       -- イベント日付
-  event_time TIME,                       -- イベント時刻（あれば）
+  event_date DATE NOT NULL,              -- イベント日付
   event_title STRING NOT NULL,           -- イベントタイトル
-  event_description STRING,              -- 詳細説明
-  event_location STRING,                 -- 場所（あれば）
+  event_description STRING,              -- 詳細説明（オプショナル）
 
-  -- 承認ワークフロー
-  approval_status STRING NOT NULL DEFAULT 'PENDING',  -- PENDING, APPROVED, REJECTED
-  approved_by STRING,                    -- 承認者のユーザーID
-  approved_at TIMESTAMP,                 -- 承認日時
-  rejection_reason STRING,               -- 却下理由
-
-  -- カレンダー連携
-  calendar_event_id STRING,              -- Googleカレンダーイベントへの参照
-  calendar_synced_at TIMESTAMP,          -- カレンダー同期日時
+  -- ソース情報（トレーサビリティ）
+  document_id STRING NOT NULL,           -- documentsテーブルへの参照（JOINで文書情報を取得）
+  source_table STRING NOT NULL,          -- journal, monthly_announcement, etc.
+  source_section_id STRING,              -- 元のセクション識別子（journalの場合）
+  source_section_title STRING,           -- 元のセクションタイトル
 
   -- タイムスタンプ
-  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP(),
-  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP()
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP()
 )
-PARTITION BY DATE(event_date)
-CLUSTER BY approval_status, event_type
+PARTITION BY event_date
+CLUSTER BY event_type, source_table
 OPTIONS(
-  description='承認待ちのイベント・予定・期限',
-  require_partition_filter=false  -- NULLのevent_dateもあり得るため
+  description='文書から抽出されたイベント（正規化テーブル、documentsとJOINして使用）',
+  require_partition_filter=true
 );
+
+-- インデックス: 重複防止用
+CREATE UNIQUE INDEX idx_unique_extracted_event
+ON extracted_events(event_type, event_date, event_title, document_id);
 ```
+
+**正規化のメリット**:
+1. **クエリの簡素化**: UNION ALLが不要になり、単一テーブルクエリで全イベントを取得可能
+2. **拡張性**: 新しい文書種別を追加してもクエリを変更する必要がない
+3. **パフォーマンス**: イベント日付でのパーティショニングにより、未来の予定のみを効率的にスキャン可能
+4. **一貫性**: イベント構造が文書種別ごとに微妙に異なる問題を解消
+5. **分析の容易さ**: イベント単位での統計・傾向分析が簡単に
+6. **データ正規化**: 文書メタデータを冗長保存せず、`documents`テーブルとJOINして取得（データ一貫性の向上）
+
+**正規化前との比較**:
+
+| 項目 | 正規化前 | 正規化後 |
+|------|---------|---------|
+| イベント格納 | 各文書テーブルに`extracted_events`カラム | 独立した`extracted_events`テーブル |
+| クエリ複雑度 | UNION ALL + UNNEST必要 | 単一テーブルクエリ（必要に応じてdocumentsとJOIN） |
+| 文書種別追加時 | クエリの変更が必要 | 変更不要（拡張性高） |
+| イベント検索 | 複数テーブルのスキャン | 単一テーブルのスキャン |
+| パーティショニング | 各文書テーブルの`publish_date` | イベント日付（`event_date`）で直接パーティション可能 |
+| 重複防止 | ハッシュベースのチェックのみ | UNIQUE INDEX + ハッシュの二重防御 |
+| データ一貫性 | 各テーブルで重複管理が必要 | `documents`とJOINで最新情報を取得、冗長性なし |
+
+**移行戦略**:
+1. 既存の`journal`と`monthly_announcement`テーブルに`extracted_events`カラムがある場合:
+   - `extracted_events`テーブルを新規作成
+   - dbtで既存カラムから`extracted_events`テーブルへデータ移行
+   - 既存カラムは削除せず、コメントで「非推奨」とマーク（後方互換性維持）
+2. 新規実装の場合:
+   - 最初から`extracted_events`テーブルのみ使用
+   - 各文書テーブルには`extracted_events`カラムを作成しない
 
 #### BigQuery: `journal` テーブル
 
@@ -287,13 +395,8 @@ CREATE TABLE journal (
     deadline DATE                        -- 提出期限（オプショナル、NULLを許容）
   >>,
 
-  extracted_events ARRAY<STRUCT<
-    type STRING,                         -- deadline, schedule, submission, other
-    date DATE,                           -- イベント日付
-    title STRING,                        -- イベントタイトル
-    source_section_id STRING,            -- 元のセクション識別子
-    source_section_title STRING          -- 元のセクションタイトル
-  >>,
+  -- イベント情報は extracted_events テーブルに正規化
+  -- （後方互換性のため、ビューで extracted_events を結合して提供可能）
 
   -- AI生成サマリ
   summary STRING,                        -- LLMで生成した要約
@@ -330,10 +433,28 @@ CREATE TABLE photo_album (
   photo_ids ARRAY<STRING>,               -- photosテーブルへの参照配列
   photo_count INT64,                     -- 写真の数
 
-  care_content_table ARRAY<STRUCT<
-    activity STRING,                     -- 活動内容（例: "外遊び"）
-    date DATE,                           -- 活動日
-    description STRING                   -- 活動の詳細説明（オプショナル）
+  -- 記事セクション（journalと同様の構造）
+  sections ARRAY<STRUCT<
+    section_id STRING,                   -- セクション識別子（例: "sec_001"）
+    title STRING,                        -- セクションタイトル（例: "あつ～い日の過ごし方"）
+    chunk_ids ARRAY<STRING>,             -- チャンクへの参照（UUID配列）
+    order INT64                          -- セクション順序
+  >>,
+
+  -- 日程表（保育内容）
+  schedule ARRAY<STRUCT<
+    date DATE,                           -- 日付
+    weekday STRING,                      -- 曜日
+    activities ARRAY<STRING>,            -- 活動内容の配列（例: ["活動", "戸外遊び"]）
+    notes STRING                         -- 備考（例: "※半日保育"）
+  >>,
+
+  -- お知らせ（箇条書き通知）
+  announcements ARRAY<STRUCT<
+    title STRING,                        -- お知らせタイトル（例: "22日(月)について"）
+    content STRING,                      -- お知らせ内容
+    date DATE,                           -- 該当日（あれば）
+    time TIME                            -- 該当時刻（あれば）
   >>,
 
   -- AI生成サマリ
@@ -406,7 +527,7 @@ CREATE TABLE monthly_announcement (
     description STRING                   -- イベントの詳細（オプショナル）
   >>,
 
-  star_sections ARRAY<STRUCT<
+  content_sections ARRAY<STRUCT<
     title STRING,                        -- セクションタイトル（例: "持ち物について"）
     chunk_ids ARRAY<STRING>,             -- チャンクへの参照（UUID配列）
     order INT64                          -- セクション順序
@@ -419,12 +540,8 @@ CREATE TABLE monthly_announcement (
     >>
   >,
 
-  extracted_events ARRAY<STRUCT<
-    type STRING,                         -- deadline, schedule, submission, other
-    date DATE,                           -- イベント日付
-    title STRING,                        -- イベントタイトル
-    source_section_title STRING          -- 元のセクションタイトル
-  >>,
+  -- イベント情報は extracted_events テーブルに正規化
+  -- （後方互換性のため、ビューで extracted_events を結合して提供可能）
 
   -- AI生成サマリ
   summary STRING,                        -- LLMで生成した要約
@@ -452,21 +569,65 @@ CREATE TABLE monthly_lunch_schedule (
   year_month DATE NOT NULL,              -- 対象月度（月初日で統一）
   school_name STRING,                    -- 園名
 
-  -- 構造化データ（STRUCT型）
-  menu_items ARRAY<STRUCT<
+  -- 日別メニュー（構造化データ）
+  daily_menus ARRAY<STRUCT<
     date DATE,                           -- 献立日付
-    main STRING,                         -- 主菜（例: "カレーライス"）
-    side STRING,                         -- 副菜（例: "サラダ"）
-    soup STRING,                         -- 汁物（例: "味噌汁"）
-    dessert STRING                       -- デザート（例: "果物"）
+    weekday STRING,                      -- 曜日（例: "月"）
+
+    -- 昼食（複数料理対応）
+    lunch_items ARRAY<STRING>,           -- 昼食メニュー（例: ["焼きそば", "ちくわの磯辺揚げ", "フルーツゼリー"]）
+
+    -- おやつ（別項目）
+    snack_items ARRAY<STRING>,           -- おやつメニュー（例: ["鮭おにぎり", "牛乳"]）
+
+    -- 食材分類（3色）
+    ingredients_red ARRAY<STRING>,       -- 赤：血や肉になる（例: ["ウインナーソーセージ", "焼き竹輪", "ぎんざけ", "普通牛乳"]）
+    ingredients_yellow ARRAY<STRING>,    -- 黄：熱や力となる（例: ["中華めん", "調合油", "天ぷら用バッター", "大豆油", "精白米", "いりごま"]）
+    ingredients_green ARRAY<STRING>,     -- 緑：調子をととのえる（例: ["たまねぎ", "焼きのり", "はくさい", "にんじん", "みかん", "塩昆布"]）
+
+    -- 日別栄養成分（おやつあり/なしの両方）
+    nutrition_with_snack STRUCT<
+      energy_kcal FLOAT64,               -- エネルギー（kcal）
+      protein_g FLOAT64,                 -- たんぱく質（g）
+      fat_g FLOAT64,                     -- 脂質（g）
+      salt_g FLOAT64                     -- 塩分（g）
+    >,
+    nutrition_without_snack STRUCT<
+      energy_kcal FLOAT64,               -- エネルギー（kcal）
+      protein_g FLOAT64,                 -- たんぱく質（g）
+      fat_g FLOAT64,                     -- 脂質（g）
+      salt_g FLOAT64                     -- 塩分（g）
+    >
   >> NOT NULL,
 
-  nutrition_info STRUCT<
-    calories FLOAT64,                    -- 平均カロリー（kcal）
-    protein FLOAT64,                     -- 平均タンパク質（g）
-    fat FLOAT64,                         -- 平均脂質（g）
-    carbs FLOAT64,                       -- 平均炭水化物（g）
-    salt FLOAT64                         -- 平均塩分（g）
+  -- 月平均栄養情報（おやつあり - 拡張版11項目）
+  monthly_avg_with_snack STRUCT<
+    energy_kcal FLOAT64,                 -- エネルギー（kcal）
+    protein_g FLOAT64,                   -- たんぱく質（g）
+    fat_g FLOAT64,                       -- 脂質（g）
+    calcium_mg FLOAT64,                  -- カルシウム（mg）
+    iron_mg FLOAT64,                     -- 鉄（mg）
+    vitamin_a_ug FLOAT64,                -- ビタミンA（レチノール当量RE）（μg）
+    vitamin_b1_mg FLOAT64,               -- ビタミンB1（mg）
+    vitamin_b2_mg FLOAT64,               -- ビタミンB2（mg）
+    vitamin_c_mg FLOAT64,                -- ビタミンC（mg）
+    dietary_fiber_g FLOAT64,             -- 食物繊維（g）
+    salt_g FLOAT64                       -- 食塩相当量（g）
+  >,
+
+  -- 月平均栄養情報（おやつなし - 拡張版11項目）
+  monthly_avg_without_snack STRUCT<
+    energy_kcal FLOAT64,                 -- エネルギー（kcal）
+    protein_g FLOAT64,                   -- たんぱく質（g）
+    fat_g FLOAT64,                       -- 脂質（g）
+    calcium_mg FLOAT64,                  -- カルシウム（mg）
+    iron_mg FLOAT64,                     -- 鉄（mg）
+    vitamin_a_ug FLOAT64,                -- ビタミンA（レチノール当量RE）（μg）
+    vitamin_b1_mg FLOAT64,               -- ビタミンB1（mg）
+    vitamin_b2_mg FLOAT64,               -- ビタミンB2（mg）
+    vitamin_c_mg FLOAT64,                -- ビタミンC（mg）
+    dietary_fiber_g FLOAT64,             -- 食物繊維（g）
+    salt_g FLOAT64                       -- 食塩相当量（g）
   >,
 
   -- AI生成サマリ
@@ -477,7 +638,7 @@ CREATE TABLE monthly_lunch_schedule (
 )
 PARTITION BY year_month
 OPTIONS(
-  description='月次給食献立の構造化メタデータ（STRUCT型）',
+  description='月次給食献立の構造化メタデータ（拡張版、3色食材分類・11項目栄養情報対応）',
   require_partition_filter=true
 );
 ```
@@ -602,8 +763,6 @@ WHERE
   dc.publish_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY)
   -- 文書種別フィルタ（クラスタリング効果）
   AND dc.document_type IN ('monthly_lunch_schedule', 'monthly_lunch_info')
-  -- 処理済みのみ
-  AND dc.processing_status = 'COMPLETED'
 ORDER BY vs.distance ASC
 LIMIT 10;
 ```
@@ -626,32 +785,33 @@ dbt_project/
 │   │   ├── _intermediate.yml
 │   │   ├── int_document_chunks.sql   # チャンク化（UUID生成）
 │   │   ├── int_document_embeddings.sql  # ML.GENERATE_EMBEDDING
-│   │   ├── int_extracted_photos.sql  # 写真抽出
-│   │   └── int_extracted_events.sql  # イベント抽出
+│   │   └── int_extracted_photos.sql  # 写真抽出
 │   ├── marts/                        # Layer 3: 最終テーブル
 │   │   ├── core/
 │   │   │   ├── _core.yml
 │   │   │   ├── document_chunks.sql   # テキスト + 埋め込み + 冗長メタデータ
 │   │   │   ├── documents.sql         # 文書単位のメタデータ（正規化）
-│   │   │   ├── photos.sql
-│   │   │   └── pending_events.sql
+│   │   │   ├── extracted_events.sql  # イベント正規化テーブル（全文書種別から抽出）
+│   │   │   └── photos.sql
 │   │   └── document_types/
 │   │       ├── _document_types.yml
-│   │       ├── journal.sql           # UUID参照
+│   │       ├── journal.sql           # UUID参照、イベント情報なし
 │   │       ├── photo_album.sql       # UUID参照
-│   │       ├── monthly_announcement.sql
+│   │       ├── monthly_announcement.sql  # イベント情報なし
 │   │       ├── monthly_lunch_schedule.sql
 │   │       ├── monthly_lunch_info.sql
 │   │       └── uncategorized.sql
 │   └── analytics/                    # Layer 4: AI/分析用ビュー
 │       ├── _analytics.yml
-│       └── vector_search_ready.sql   # RAG用の最適化ビュー
+│       ├── vector_search_ready.sql   # RAG用の最適化ビュー
+│       └── upcoming_events.sql       # extracted_eventsから未登録イベントを取得
 ├── macros/
 │   ├── generate_uuid.sql             # UUID v4生成
 │   ├── chunk_text.sql                # チャンク化UDF
 │   └── extract_document_metadata.sql # メタデータ抽出
 ├── tests/
 │   ├── assert_no_duplicate_chunk_ids.sql
+│   ├── assert_no_duplicate_event_ids.sql  # イベント重複チェック
 │   └── assert_no_orphaned_photos.sql
 └── seeds/
     └── document_type_mapping.csv     # 文書種別のマッピング
@@ -670,7 +830,15 @@ int_document_embeddings (ML.GENERATE_EMBEDDING)
 document_chunks (テキスト + 埋め込み + 冗長メタデータ)
 documents (文書単位のメタデータ、正規化)
   ↓
-journal, photo_album, etc. (UUID参照)
+journal, photo_album, monthly_announcement, etc. (UUID参照、イベント情報なし)
+  ↓
+extracted_events (正規化: 全文書種別のイベントを一元管理)
+  ↓
+upcoming_events (ビュー: extracted_eventsから未登録イベントを取得)
+  ↓
+[フロントエンド] ユーザーがカレンダー登録
+  ↓
+calendar_sync_history (登録履歴)
 ```
 
 **主要モデルの説明**:
@@ -679,6 +847,14 @@ journal, photo_album, etc. (UUID参照)
 3. `int_document_embeddings.sql`: ML.GENERATE_EMBEDDINGで埋め込み生成
 4. `document_chunks.sql`: 最終テーブル（RAG検索用、冗長メタデータあり）
 5. `documents.sql`: 文書単位のメタデータ（正規化）
+6. `journal.sql`, `monthly_announcement.sql`: 文書種別ごとのメタデータ（イベント情報は含まない）
+7. `extracted_events.sql`: 全文書種別から抽出されたイベントを一元管理（正規化）
+8. `upcoming_events.sql`: `extracted_events`から未登録イベントを取得するビュー
+
+**イベント管理のフロー（正規化版）**:
+- バックエンド（dbt）: 各文書種別からイベントを抽出し、`extracted_events`テーブルに集約
+- フロントエンド: `upcoming_events`ビューから未登録イベントを取得して表示
+- ユーザー操作: UIで登録 → Googleカレンダー + `calendar_sync_history`に記録
 
 ### 2.5. インフラストラクチャ (IaC)
 
@@ -706,6 +882,229 @@ journal, photo_album, etc. (UUID参照)
 
 ### 2.7. エラーハンドリング
 
--   Document AIでの処理や関数内のロジックでエラーが発生した場合、関数は`processing_status`カラムを `FAILED` に更新し、エラー情報を`error_message`カラムとCloud Loggingに詳細に出力します。
--   関数の実行自体がタイムアウトなどで失敗した場合でも、冪等性が確保されているため、次回のスケジューラー実行時に未完了のタスクが再試行されます。
--   dbtの増分処理は`incremental_strategy='merge'`でUPSERTとして動作し、同じファイルが再処理されても重複を防ぎます。
+#### dbt + BigQuery側（バッチ処理）
+
+-   **処理方式**: dbtによる一括バッチ処理（トランザクション単位で成功/失敗）
+-   **冪等性**: `incremental_strategy='merge'` でUPSERT動作、同じファイルの再処理でも重複を防止
+-   **失敗時の運用**: Cloud Workflowを再実行し、dbtモデルを再実行
+-   **エラー追跡**:
+  - BigQueryのジョブ履歴で実行ログを確認
+  - Cloud Loggingでdbt実行ログとエラー詳細を確認
+  - テーブルに存在するレコード = 処理完了とみなす（状態管理カラム不要）
+
+#### Google Apps Script側（PDF転送）
+
+-   **エラーハンドリング設計**: 未完了
+-   **想定されるエラー**:
+  - Google Drive APIのレート制限
+  - GCS転送時のネットワークエラー
+  - 権限エラー（Service Accountの権限不足）
+-   **今後の設計課題**:
+  - エラー通知方法（メール、Slack等）
+  - リトライロジック
+  - 失敗したファイルの追跡方法
+
+### 2.8. フロントエンド実装（イベント管理）
+
+#### 操作契機とUX
+
+**主要契機: 予定一覧画面でのワンタップ登録**
+
+ユーザーはモバイルファースト設計のUIで直近の予定を確認し、ワンタップでGoogleカレンダーに登録できます。
+
+**UI設計のポイント**:
+- 📅 カードベースのレイアウト（モバイル最適化）
+- ✓ 登録済みバッジで視覚的なフィードバック
+- 🔄 楽観的UI更新（即座にUIを更新し、バックグラウンドで同期）
+- 🔗 カレンダーイベントへの直リンク
+
+**実装例（Next.js + React）**:
+```tsx
+// app/events/page.tsx
+import { UpcomingEvents } from '@/components/UpcomingEvents';
+
+export default function EventsPage() {
+  return (
+    <div className="container mx-auto p-4">
+      <h1 className="text-2xl font-bold mb-4">直近の予定</h1>
+      <UpcomingEvents />
+    </div>
+  );
+}
+
+// components/UpcomingEvents.tsx
+'use client';
+
+import { useUpcomingEvents, useCalendarSync } from '@/hooks/events';
+
+export function UpcomingEvents() {
+  const { events, isLoading } = useUpcomingEvents();
+  const { addToCalendar, syncedHashes } = useCalendarSync();
+
+  if (isLoading) return <div>読み込み中...</div>;
+
+  return (
+    <div className="space-y-4">
+      {events.map(event => {
+        const isSynced = syncedHashes.has(event.hash);
+
+        return (
+          <div key={event.hash} className="border rounded-lg p-4 shadow-sm">
+            <div className="flex justify-between items-center">
+              <div>
+                <div className="text-sm text-gray-500">
+                  {new Date(event.date).toLocaleDateString('ja-JP')} • {event.type}
+                </div>
+                <div className="font-medium">{event.title}</div>
+                <div className="text-xs text-gray-400 mt-1">
+                  出典: {event.document_title}
+                </div>
+              </div>
+
+              {isSynced ? (
+                <span className="text-green-600 text-sm">✓ 登録済み</span>
+              ) : (
+                <button
+                  onClick={() => addToCalendar(event)}
+                  className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+                >
+                  📅 追加
+                </button>
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+```
+
+**APIエンドポイント（Next.js App Router）**:
+```typescript
+// app/api/calendar/sync/route.ts
+import { auth } from '@/auth';
+import { calendar_v3, google } from 'googleapis';
+import { BigQuery } from '@google-cloud/bigquery';
+
+export async function POST(req: Request) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return Response.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const event = await req.json();
+  const calendar = google.calendar('v3');
+  const bigquery = new BigQuery();
+
+  try {
+    // 1. Googleカレンダーにイベント作成
+    const calendarEvent = await calendar.events.insert({
+      calendarId: 'primary',
+      requestBody: {
+        summary: event.title,
+        description: event.description,
+        start: { date: event.date },
+        end: { date: event.date },
+      },
+    });
+
+    // 2. BigQueryに履歴を記録
+    await bigquery
+      .dataset('school_agent')
+      .table('calendar_sync_history')
+      .insert([{
+        sync_id: crypto.randomUUID(),
+        document_id: event.document_id,
+        event_type: event.type,
+        event_date: event.date,
+        event_title: event.title,
+        event_description: event.description,
+        source_table: event.source_table,
+        source_section_title: event.source_section_title,
+        calendar_event_id: calendarEvent.data.id!,
+        calendar_link: calendarEvent.data.htmlLink!,
+        synced_by: session.user.id,
+        synced_at: new Date().toISOString(),
+        event_hash: event.hash,
+      }]);
+
+    return Response.json({
+      success: true,
+      calendarEventId: calendarEvent.data.id,
+      calendarLink: calendarEvent.data.htmlLink
+    });
+  } catch (error) {
+    // ユニーク制約違反（他の家族が既に登録済み）の場合は成功扱い
+    if (error.code === 'ALREADY_EXISTS' || error.message?.includes('Duplicate')) {
+      return Response.json({
+        success: true,
+        alreadyRegistered: true,
+        message: '他の家族が既に登録済みです'
+      });
+    }
+
+    console.error('Calendar sync failed:', error);
+    return Response.json({ error: 'Sync failed' }, { status: 500 });
+  }
+}
+```
+
+#### AIエージェント統合（Mastra）
+
+AIエージェントは`upcoming_events`ビューを検索し、ユーザーに予定を提案できます。
+
+**エージェントアクション例（正規化版）**:
+```typescript
+// mastra/tools/calendar.ts
+import { createTool } from '@mastra/core';
+
+export const listUpcomingEvents = createTool({
+  id: 'list-upcoming-events',
+  description: '直近の予定を取得する（家族共有、正規化版）',
+  execute: async () => {
+    // 正規化されたextracted_eventsテーブルから直接取得
+    // UNION ALLやUNNESTが不要でシンプル
+    const events = await bigquery.query(`
+      SELECT * FROM \`project.dataset.upcoming_events\`
+      ORDER BY event_date ASC
+      LIMIT 10
+    `);
+
+    return events;
+  }
+});
+
+export const syncEventToCalendar = createTool({
+  id: 'sync-event-to-calendar',
+  description: 'イベントをGoogleカレンダーに登録する',
+  execute: async ({ event, userId }) => {
+    const response = await fetch('/api/calendar/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...event, userId })
+    });
+
+    return response.json();
+  }
+});
+```
+
+**使用例**:
+```
+ユーザー: 「今週の予定は？」
+
+AIエージェント:
+「今週の予定は3件あります：
+
+1. 10/15(火) 遠足 - 弁当持参
+2. 10/17(木) 健康診断
+3. 10/18(金) 写真撮影
+
+これらはまだカレンダーに未登録です。登録しますか？」
+
+ユーザー: 「全部登録して」
+
+AIエージェント: （syncEventToCalendarを3回実行）
+「3件すべてをカレンダーに登録しました！」
+```
