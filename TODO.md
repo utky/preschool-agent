@@ -10,6 +10,40 @@
 
 ---
 
+### フェーズ 0.5: アーキテクチャ移行（Next.js → Vite + React + Hono + Mastra）
+
+**目標:** 現在のNext.jsアーキテクチャから、Vite + React（フロントエンド）+ Hono + Mastra（バックエンド）の構成に移行する。
+
+**背景:** Next.jsを本来の役割（BFF）を超えてフルバックエンドとして使用していたが、責務の明確化とコスト最適化のため、SPAとAPIサーバーに分離する。
+
+- [ ] **バックエンド (Hono + Mastra):**
+    - [ ] `backend/` ディレクトリを作成し、Honoプロジェクトをセットアップ
+    - [ ] 認証実装（`@hono/oauth-providers` でGoogle OAuth）
+    - [ ] セッション管理実装（BigQueryベース）
+    - [ ] 認証ミドルウェア実装
+    - [ ] Dockerfileを作成（Cloud Run用）
+- [ ] **フロントエンド (Vite + React):**
+    - [ ] `frontend/` ディレクトリを作成し、Viteプロジェクトをセットアップ
+    - [ ] React Router導入
+    - [ ] APIクライアント実装（`credentials: 'include'`でCookie送信）
+    - [ ] 認証フック実装（`useAuth`）
+    - [ ] ログインページ実装
+- [ ] **インフラ (IaC):**
+    - [ ] `auth` モジュールを作成（OAuth設定、Secret Manager）
+    - [ ] `backend` モジュールを作成（Hono用Cloud Run）
+    - [ ] `frontend` モジュールを作成（Cloud Storage静的ホスティング）
+    - [ ] セッションテーブルをBigQueryに追加
+- [ ] **CI/CD:**
+    - [ ] バックエンドビルド・デプロイワークフローを追加
+    - [ ] フロントエンドビルド・デプロイワークフローを追加
+    - [ ] 既存のNext.jsワークフローを削除
+- [ ] **既存コードの移行:**
+    - [ ] `/api/health` エンドポイントをHonoに移行
+    - [ ] フロントエンドページをReactに移行
+    - [ ] 動作確認（Health Check）
+
+---
+
 ### フェーズ 1: パイプラインの確立 (Health-Checkスライス)
 
 **目標:** 最小限のアプリケーションを本番環境にデプロイし、CI/CDパイプラインを完全に確立する。
