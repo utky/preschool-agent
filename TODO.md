@@ -19,8 +19,8 @@
 - [ ] **バックエンド (Hono + Mastra):**
     - [ ] `backend/` ディレクトリを作成し、Honoプロジェクトをセットアップ
     - [ ] 認証実装（`@hono/oauth-providers` でGoogle OAuth）
-    - [ ] セッション管理実装（BigQueryベース）
-    - [ ] 認証ミドルウェア実装
+    - [ ] JWT認証実装（ステートレス、`hono/jwt`使用）
+    - [ ] 認証ミドルウェア実装（JWT検証）
     - [ ] Dockerfileを作成（Cloud Run用）
 - [ ] **フロントエンド (Vite + React):**
     - [ ] `frontend/` ディレクトリを作成し、Viteプロジェクトをセットアップ
@@ -30,9 +30,9 @@
     - [ ] ログインページ実装
 - [ ] **インフラ (IaC):**
     - [ ] `auth` モジュールを作成（OAuth設定、Secret Manager）
+    - [ ] JWT_SECRETをSecret Managerに追加
     - [ ] `backend` モジュールを作成（Hono用Cloud Run）
     - [ ] `frontend` モジュールを作成（Cloud Storage静的ホスティング）
-    - [ ] セッションテーブルをBigQueryに追加
 - [ ] **CI/CD:**
     - [ ] バックエンドビルド・デプロイワークフローを追加
     - [ ] フロントエンドビルド・デプロイワークフローを追加
