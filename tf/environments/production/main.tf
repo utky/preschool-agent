@@ -56,3 +56,16 @@ module "app" {
   auth_secret_value         = random_string.auth_secret.result
   allowed_user_emails_value = var.allowed_user_emails_value
 }
+
+module "document_ai" {
+  source     = "../../modules/document_ai"
+  project_id = var.project_id
+  location   = "us"
+}
+
+module "bigquery" {
+  source                  = "../../modules/bigquery"
+  project_id              = var.project_id
+  location                = "US"
+  pdf_uploads_bucket_name = module.app.pdf_uploads_bucket_name
+}
