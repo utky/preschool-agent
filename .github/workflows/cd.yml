@@ -6,7 +6,7 @@ on:
       - main
 
 jobs:
-  build_and_push:
+  build_backend:
     runs-on: ubuntu-latest
     environment: prod
     permissions:
@@ -34,16 +34,50 @@ jobs:
         id: build
         uses: docker/build-push-action@v5
         with:
-          context: .
-          file: ./Dockerfile.prod
+          context: ./backend
+          file: ./backend/Dockerfile
           push: true
           tags: asia-northeast1-docker.pkg.dev/lofilab/utky-applications/school-agent:${{ github.sha }}
-          build-args: |
-            GOOGLE_VERTEX_LOCATION=${{ secrets.GOOGLE_VERTEX_LOCATION }}
-            GOOGLE_VERTEX_PROJECT=${{ secrets.GOOGLE_VERTEX_PROJECT }}
+
+  build_frontend:
+    runs-on: ubuntu-latest
+    environment: prod
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Configure Google Cloud credentials
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Install dependencies
+        working-directory: ./frontend
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: ./frontend
+        env:
+          VITE_BASE_URL: https://storage.googleapis.com/${{ secrets.FRONTEND_BUCKET_NAME }}/
+        run: npm run build
+
+      - name: Upload to Cloud Storage
+        run: |
+          gsutil -m rsync -r -d frontend/dist gs://${{ secrets.FRONTEND_BUCKET_NAME }}/
 
   deploy:
-    needs: build_and_push
+    needs: [build_backend, build_frontend]
     runs-on: ubuntu-latest
     environment: prod
     permissions:
@@ -75,5 +109,5 @@ jobs:
         shell: bash
 
       - name: Tofu Apply
-        run: tofu apply -auto-approve -var="container_image=asia-northeast1-docker.pkg.dev/lofilab/utky-applications/school-agent@${{ needs.build_and_push.outputs.digest }}" 2>&1
+        run: tofu apply -auto-approve -var="container_image=asia-northeast1-docker.pkg.dev/lofilab/utky-applications/school-agent@${{ needs.build_backend.outputs.digest }}" 2>&1
         working-directory: ./tf/environments/production

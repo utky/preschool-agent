@@ -4,6 +4,108 @@ resource "google_service_account" "default" {
   display_name = "Service Account for Preschool Agent"
 }
 
+# --- フロントエンド用Cloud Storageバケット ---
+
+resource "google_storage_bucket" "frontend" {
+  name          = "${var.app_name}-${var.project_id}-frontend"
+  location      = var.region
+  force_destroy = false
+
+  uniform_bucket_level_access = true
+
+  website {
+    main_page_suffix = "index.html"
+    not_found_page   = "index.html"
+  }
+
+  cors {
+    origin          = ["*"]
+    method          = ["GET", "HEAD"]
+    response_header = ["Content-Type"]
+    max_age_seconds = 3600
+  }
+}
+
+# フロントエンドバケットを公開
+resource "google_storage_bucket_iam_member" "frontend_public" {
+  bucket = google_storage_bucket.frontend.name
+  role   = "roles/storage.objectViewer"
+  member = "allUsers"
+}
+
+# バックエンドがフロントエンドバケットを読み取る権限
+resource "google_storage_bucket_iam_member" "backend_read_frontend" {
+  bucket = google_storage_bucket.frontend.name
+  role   = "roles/storage.objectViewer"
+  member = "serviceAccount:${google_service_account.default.email}"
+}
+
+# --- API Data用Cloud Storageバケット ---
+
+resource "google_storage_bucket" "api_data" {
+  name          = "${var.app_name}-${var.project_id}-api-data"
+  location      = var.region
+  force_destroy = false
+
+  uniform_bucket_level_access = true
+}
+
+# バックエンドがAPI Dataバケットを読み取る権限
+resource "google_storage_bucket_iam_member" "backend_read_api_data" {
+  bucket = google_storage_bucket.api_data.name
+  role   = "roles/storage.objectViewer"
+  member = "serviceAccount:${google_service_account.default.email}"
+}
+
+# --- PDF Uploads用Cloud Storageバケット ---
+
+resource "google_storage_bucket" "pdf_uploads" {
+  name          = "${var.app_name}-${var.project_id}-pdf-uploads"
+  location      = var.region
+  force_destroy = false
+
+  uniform_bucket_level_access = true
+
+  lifecycle_rule {
+    condition {
+      age = 90
+    }
+    action {
+      type          = "SetStorageClass"
+      storage_class = "COLDLINE"
+    }
+  }
+
+  lifecycle_rule {
+    condition {
+      age = 365
+    }
+    action {
+      type = "Delete"
+    }
+  }
+}
+
+# GAS用サービスアカウント
+resource "google_service_account" "gas" {
+  account_id   = "${var.app_name}-gas-sa"
+  display_name = "Service Account for Google Apps Script"
+}
+
+# GASがPDF Uploadsバケットに書き込む権限
+resource "google_storage_bucket_iam_member" "gas_write_pdf_uploads" {
+  bucket = google_storage_bucket.pdf_uploads.name
+  role   = "roles/storage.objectCreator"
+  member = "serviceAccount:${google_service_account.gas.email}"
+}
+
+# バックエンドがPDF Uploadsバケットを読み取る権限
+resource "google_storage_bucket_iam_member" "backend_read_pdf_uploads" {
+  bucket = google_storage_bucket.pdf_uploads.name
+  role   = "roles/storage.objectViewer"
+  member = "serviceAccount:${google_service_account.default.email}"
+}
+
 # Secret Managerへのアクセス権限を付与
 #resource "google_project_iam_member" "secret_accessor" {
 #  project = var.project_id
@@ -203,6 +305,16 @@ resource "google_cloud_run_v2_service" "default" {
             version = "latest"
           }
         }
+      }
+
+      env {
+        name  = "FRONTEND_BUCKET_NAME"
+        value = google_storage_bucket.frontend.name
+      }
+
+      env {
+        name  = "API_DATA_BUCKET_NAME"
+        value = google_storage_bucket.api_data.name
       }
     }
   }
