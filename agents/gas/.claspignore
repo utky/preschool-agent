@@ -1,0 +1,4 @@
+# Ignore everything except the dist output and config
+**/*
+!dist/Code.js
+!appsscript.json

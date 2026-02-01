@@ -1,0 +1,21 @@
+{
+  "name": "gas-drive-sync",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "esbuild src/main.ts --bundle --outfile=dist/Code.js --format=iife --global-name=global --target=es2020",
+    "push": "npm run build && clasp push",
+    "watch": "npm run build -- --watch",
+    "lint": "eslint src/",
+    "test": "jest"
+  },
+  "devDependencies": {
+    "@google/clasp": "^2.4.2",
+    "@types/google-apps-script": "^1.0.83",
+    "@types/jest": "^29.5.0",
+    "esbuild": "^0.24.0",
+    "eslint": "^9.21.0",
+    "jest": "^29.7.0",
+    "typescript": "~5.7.0"
+  }
+}

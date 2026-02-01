@@ -1,0 +1,50 @@
+name: Deploy GAS
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'agents/gas/**'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: prod
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Configure Google Cloud credentials
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.SERVICE_ACCOUNT }}
+
+      - name: Install dependencies
+        working-directory: ./agents/gas
+        run: npm ci
+
+      - name: Build
+        working-directory: ./agents/gas
+        run: npm run build
+
+      - name: Create .clasprc.json
+        run: |
+          echo '${{ secrets.CLASP_CREDENTIALS }}' > ~/.clasprc.json
+
+      - name: Create .clasp.json
+        working-directory: ./agents/gas
+        run: |
+          echo '{"scriptId":"${{ secrets.GAS_SCRIPT_ID }}","rootDir":"./"}' > .clasp.json
+
+      - name: Push to Apps Script
+        working-directory: ./agents/gas
+        run: npx clasp push --force
