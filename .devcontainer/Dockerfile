@@ -14,5 +14,16 @@ RUN echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.
     apt-get update && \
     apt-get install -y google-cloud-cli
 
+# npmのグローバルパッケージのインストール先を変更
+RUN mkdir -p /usr/local/share/npm-global && \
+  chown -R node:node /usr/local/share
+
 # DEBIAN_FRONTENDをリセット
 ENV DEBIAN_FRONTEND=
+
+# Set up non-root user
+USER node
+
+# Install global packages
+ENV NPM_CONFIG_PREFIX=/usr/local/share/npm-global
+ENV PATH=$PATH:/usr/local/share/npm-global/bin

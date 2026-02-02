@@ -1,6 +1,5 @@
 #!/bin/sh
-# npmでGemini CLIをインストール
-npm install -g '@google/gemini-cli'
+curl -fsSL https://claude.ai/install.sh | bash
 
 # tofu
 LATEST_VERSION=$(curl https://api.github.com/repos/sigstore/cosign/releases/latest | jq -r .tag_name | tr -d "v")
@@ -19,10 +18,8 @@ echo "source \$HOME/.tenv.completion.bash" >> ~/.bashrc
 tenv tofu install
 
 # gcloud認証
-gcloud auth login --no-launch-browser
-gcloud auth application-default login --no-launch-browser
-
-npm install -g @anthropic-ai/claude-code
+#gcloud auth login --no-launch-browser
+#gcloud auth application-default login --no-launch-browser
 
 # MCP用にChromeをインストール
-npx playwright install chrome
+#npx playwright install chrome

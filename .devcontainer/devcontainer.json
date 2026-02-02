@@ -6,7 +6,6 @@
   ],
   "features": {
     "ghcr.io/devcontainers/features/github-cli:1": {},
-    //"ghcr.io/devcontainers/features/docker-outside-of-docker:1.6.5": {}
   },
   "customizations": {
     "vscode": {
@@ -14,9 +13,7 @@
         "ms-vscode.vscode-typescript-next",
         "dbaeumer.vscode-eslint",
         "esbenp.prettier-vscode",
-        "github.vscode-pull-request-github",
-        "anthropic.claude-code",
-        "Google.gemini-cli-vscode-ide-companion"
+        "github.vscode-pull-request-github"
       ]
     }
   },
