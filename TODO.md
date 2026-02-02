@@ -6,9 +6,31 @@
 
 ---
 
+## 進捗サマリー
+
+| スライス | 内容 | 状態 |
+|---------|------|------|
+| 0 | アーキテクチャ移行 (Next.js → Vite + Hono) | **DONE** |
+| 7 | Google Drive → GCS自動連携 | **DONE** |
+| 1 | Document AI + BigQuery基盤 | **DONE** |
+| 2 | dbtパイプライン | TODO |
+| 3 | キーワード検索チャット | TODO |
+| 4 | ベクトル検索 + Mastra統合 | TODO |
+| 5 | イベント抽出 + カレンダー登録 | TODO |
+| 6 | 文書種別構造化 | TODO |
+
+### 次のアクション
+1. **スライス2**: dbtプロジェクト構造をセットアップし、テキスト抽出・チャンク化パイプラインを実装
+2. BigQuery Object Table (`raw_documents`) の作成とDocument AIテスト実行
+3. Cloud Run Job でdbt実行環境を構築
+
+---
+
 ## スライス0: アーキテクチャ移行（Next.js → Vite + React + Hono + Mastra）- DONE
 
 **目標:** Next.js 15を廃止し、設計書準拠のVite + React + Hono構成に移行する。
+
+**コミット:** `9da87d6` feat(slice0): Next.js → Vite + React + Hono アーキテクチャ移行
 
 - [x] **フロントエンド (Vite + React):**
     - [x] `frontend/` ディレクトリを作成し、Viteプロジェクトをセットアップ
@@ -43,6 +65,8 @@
 
 **目標:** Google Driveの指定フォルダを監視し、新規PDFを自動的にGCSにコピーする。
 
+**コミット:** `27512cd` feat(slice7): Google Drive → GCS自動連携 (GAS)
+
 - [x] **Google Apps Script:**
     - [x] `agents/gas/` ディレクトリを作成
     - [x] Drive監視ロジック実装（`src/drive.ts`）
@@ -64,6 +88,8 @@
 
 **目標:** GCS内のPDFをDocument AIで解析し、BigQueryに格納する基盤を構築。
 
+**コミット:** `e4bfff6` feat(slice1): Document AI + BigQuery基盤
+
 - [x] **インフラ (IaC):**
     - [x] `tf/modules/document_ai/` モジュール作成（Document OCRプロセッサー）
     - [x] `tf/modules/bigquery/` モジュール作成（データセット、Vertex AI接続）
@@ -79,12 +105,12 @@
 
 ---
 
-## スライス2: dbtパイプライン - IN PROGRESS
+## スライス2: dbtパイプライン - TODO
 
 **目標:** Document AIで抽出したテキストをチャンク化し、BigQueryテーブルに格納する。
 
 - [ ] **dbt:**
-    - [ ] dbtプロジェクト構造をセットアップ
+    - [ ] dbtプロジェクト構造をセットアップ (`dbt/`)
     - [ ] `staging/documents_text.sql` モデル実装（ML.PROCESS_DOCUMENT）
     - [ ] `intermediate/document_chunks.sql` モデル実装（チャンク化、UUID生成）
     - [ ] `marts/core/documents.sql` モデル実装（文書メタデータ）
@@ -102,7 +128,7 @@
 
 ---
 
-## スライス3: キーワード検索チャット
+## スライス3: キーワード検索チャット - TODO
 
 **目標:** シンプルなチャットUIを実装し、キーワード検索で関連テキストを返す。
 
@@ -118,7 +144,7 @@
 
 ---
 
-## スライス4: ベクトル検索 + Mastra統合
+## スライス4: ベクトル検索 + Mastra統合 - TODO
 
 **目標:** 自然言語でのセマンティック検索を可能にし、MastraでLLMエージェントを統合する。
 
@@ -134,7 +160,7 @@
 
 ---
 
-## スライス5: イベント抽出 + カレンダー登録
+## スライス5: イベント抽出 + カレンダー登録 - TODO
 
 **目標:** PDFから予定を抽出し、ワンタップでGoogleカレンダーに登録できる機能を実装。
 
@@ -153,7 +179,7 @@
 
 ---
 
-## スライス6: 文書種別構造化
+## スライス6: 文書種別構造化 - TODO
 
 **目標:** 各文書種別（journal, photo_album等）に特化したテーブルとビューを実装。
 

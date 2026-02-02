@@ -39,8 +39,6 @@ feat(sliceN): スライスの簡潔な説明
 - 主要な変更点1
 - 主要な変更点2
 - 主要な変更点3
-
-Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
 EOF
 )"
 ```
