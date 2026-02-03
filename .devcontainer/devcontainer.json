@@ -17,6 +17,11 @@
       ]
     }
   },
+  "forwardPorts": [3000, 5173],
+  "portsAttributes": {
+    "3000": { "label": "Backend API" },
+    "5173": { "label": "Frontend Dev" }
+  },
   "containerEnv": {
     "GOOGLE_CLOUD_PROJECT": "lofilab",
     "GOOGLE_CLOUD_LOCATION": "global"

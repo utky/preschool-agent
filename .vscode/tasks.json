@@ -2,7 +2,7 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "Build App",
+      "label": "Build: All",
       "type": "npm",
       "script": "build",
       "problemMatcher": [],
@@ -12,7 +12,7 @@
       }
     },
     {
-      "label": "Test App",
+      "label": "Test: All",
       "type": "npm",
       "script": "test",
       "problemMatcher": [],
@@ -20,6 +20,78 @@
         "kind": "test",
         "isDefault": true
       }
+    },
+    {
+      "label": "Lint: All",
+      "type": "npm",
+      "script": "lint",
+      "problemMatcher": ["$eslint-stylish"]
+    },
+    {
+      "label": "Dev: All",
+      "type": "npm",
+      "script": "dev",
+      "problemMatcher": [],
+      "isBackground": true
+    },
+    {
+      "label": "Dev: Frontend",
+      "type": "npm",
+      "script": "dev",
+      "path": "frontend",
+      "problemMatcher": [],
+      "isBackground": true
+    },
+    {
+      "label": "Dev: Backend",
+      "type": "npm",
+      "script": "dev",
+      "path": "backend",
+      "problemMatcher": [],
+      "isBackground": true
+    },
+    {
+      "label": "Test: Frontend",
+      "type": "npm",
+      "script": "test",
+      "path": "frontend",
+      "problemMatcher": []
+    },
+    {
+      "label": "Test: Backend",
+      "type": "npm",
+      "script": "test",
+      "path": "backend",
+      "problemMatcher": []
+    },
+    {
+      "label": "Test: GAS",
+      "type": "npm",
+      "script": "test",
+      "path": "agents/gas",
+      "problemMatcher": []
+    },
+    {
+      "label": "Test: Watch Frontend",
+      "type": "npm",
+      "script": "test:watch",
+      "path": "frontend",
+      "problemMatcher": [],
+      "isBackground": true
+    },
+    {
+      "label": "Test: Watch Backend",
+      "type": "npm",
+      "script": "test:watch",
+      "path": "backend",
+      "problemMatcher": [],
+      "isBackground": true
+    },
+    {
+      "label": "Terraform Validate",
+      "type": "shell",
+      "command": "tofu -chdir=tf/environments/production/ validate",
+      "problemMatcher": []
     },
     {
       "label": "Terraform Plan",
