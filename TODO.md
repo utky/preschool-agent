@@ -68,7 +68,7 @@
 **コミット:** `27512cd` feat(slice7): Google Drive → GCS自動連携 (GAS)
 
 - [x] **Google Apps Script:**
-    - [x] `agents/gas/` ディレクトリを作成
+    - [x] `gas/` ディレクトリを作成
     - [x] Drive監視ロジック実装（`src/drive.ts`）
     - [x] GCS転送ロジック実装（`src/gcs.ts`）
     - [x] 設定管理実装（`src/config.ts`）

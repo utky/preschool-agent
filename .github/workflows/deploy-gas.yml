@@ -5,7 +5,8 @@ on:
     branches:
       - main
     paths:
-      - 'agents/gas/**'
+      - 'gas/**'
+  workflow_dispatch:
 
 jobs:
   deploy:
@@ -29,11 +30,11 @@ jobs:
           service_account: ${{ secrets.SERVICE_ACCOUNT }}
 
       - name: Install dependencies
-        working-directory: ./agents/gas
+        working-directory: ./gas
         run: npm ci
 
       - name: Build
-        working-directory: ./agents/gas
+        working-directory: ./gas
         run: npm run build
 
       - name: Create .clasprc.json
@@ -41,10 +42,10 @@ jobs:
           echo '${{ secrets.CLASP_CREDENTIALS }}' > ~/.clasprc.json
 
       - name: Create .clasp.json
-        working-directory: ./agents/gas
+        working-directory: ./gas
         run: |
-          echo '{"scriptId":"${{ secrets.GAS_SCRIPT_ID }}","rootDir":"./"}' > .clasp.json
+          echo '{"scriptId":"${{ vars.GAS_SCRIPT_ID }}","rootDir":"./"}' > .clasp.json
 
       - name: Push to Apps Script
-        working-directory: ./agents/gas
+        working-directory: ./gas
         run: npx clasp push --force

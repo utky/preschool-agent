@@ -68,7 +68,7 @@
       "label": "Test: GAS",
       "type": "npm",
       "script": "test",
-      "path": "agents/gas",
+      "path": "gas",
       "problemMatcher": []
     },
     {

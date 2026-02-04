@@ -111,7 +111,7 @@ export default {
 }
 ```
 
-### 設定ファイル (`agents/gas/jest.config.js`)
+### 設定ファイル (`gas/jest.config.js`)
 
 ```javascript
 export default {
@@ -164,7 +164,7 @@ cd frontend && npm run test
 cd backend && npm run test
 
 # GAS
-cd agents/gas && npm run test
+cd gas && npm run test
 
 # IaC（テスト相当）
 tofu -chdir=tf/environments/production/ validate

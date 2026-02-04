@@ -51,11 +51,11 @@ if echo "$CHANGED_FILES" | grep -q "^tf/"; then
   fi
 fi
 
-# agents/gas/の変更を検出
-if echo "$CHANGED_FILES" | grep -q "^agents/gas/"; then
-  if [ -f "agents/gas/package.json" ] && grep -q '"test"' agents/gas/package.json; then
+# gas/の変更を検出
+if echo "$CHANGED_FILES" | grep -q "^gas/"; then
+  if [ -f "gas/package.json" ] && grep -q '"test"' gas/package.json; then
     echo "Running GAS tests..."
-    if ! (cd agents/gas && npm run test 2>&1); then
+    if ! (cd gas && npm run test 2>&1); then
       echo '{"decision": "block", "reason": "GASのテストが失敗しました。テストを修正してください。"}'
       exit 0
     fi

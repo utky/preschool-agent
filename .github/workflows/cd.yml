@@ -66,15 +66,28 @@ jobs:
         working-directory: ./frontend
         run: npm ci
 
+      - name: Setup OpenTofu
+        uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: 1.6.0
+
+      - name: Get frontend bucket info from Tofu
+        id: get_bucket
+        working-directory: ./tf/environments/production
+        run: |
+          tofu init -backend=true
+          echo "bucket_name=$(tofu output -raw frontend_bucket_name)" >> $GITHUB_OUTPUT
+          echo "bucket_url=$(tofu output -raw frontend_bucket_url)" >> $GITHUB_OUTPUT
+
       - name: Build frontend
         working-directory: ./frontend
         env:
-          VITE_BASE_URL: https://storage.googleapis.com/${{ secrets.FRONTEND_BUCKET_NAME }}/
+          VITE_BASE_URL: ${{ steps.get_bucket.outputs.bucket_url }}
         run: npm run build
 
       - name: Upload to Cloud Storage
         run: |
-          gsutil -m rsync -r -d frontend/dist gs://${{ secrets.FRONTEND_BUCKET_NAME }}/
+          gsutil -m rsync -r -d frontend/dist gs://${{ steps.get_bucket.outputs.bucket_name }}/
 
   deploy:
     needs: [build_backend, build_frontend]

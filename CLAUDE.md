@@ -7,7 +7,7 @@ Vite + React + Hono + Mastra構成のフルスタックアプリケーション�
 ## プロジェクト構成
 - `frontend/`: Vite + React + Tailwind CSS
 - `backend/`: Hono + JWT認証
-- `agents/gas/`: Google Apps Script (Drive → GCS連携)
+- `gas/`: Google Apps Script (Drive → GCS連携)
 - `dbt/`: BigQueryデータパイプライン
 - `tf/`: OpenTofu (IaC)
 
@@ -89,7 +89,7 @@ EOF
 npm run test                # 全ワークスペース
 cd frontend && npm run test # Frontend (Vitest)
 cd backend && npm run test  # Backend (Jest)
-cd agents/gas && npm run test # GAS (Jest)
+cd gas && npm run test        # GAS (Jest)
 
 # IaC（テスト相当）
 tofu -chdir=tf/environments/production/ validate

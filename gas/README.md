@@ -14,7 +14,7 @@ Google DriveのPDFファイルをGoogle Cloud Storageに自動同期するGoogle
 ### 1. 依存関係のインストール
 
 ```bash
-cd agents/gas
+cd gas
 npm install
 ```
 
@@ -59,7 +59,7 @@ npm run push
 ## ファイル構成
 
 ```
-agents/gas/
+gas/
 ├── src/
 │   ├── main.ts      # エントリーポイント、グローバル関数
 │   ├── config.ts    # 設定管理

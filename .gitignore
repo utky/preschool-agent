@@ -42,6 +42,10 @@ yarn-error.log*
 .terraform/
 secrets.auto.tfvars
 
+# clasp
+.clasp.json
+.clasprc.json
+
 # voltagent
 .voltagent
 
