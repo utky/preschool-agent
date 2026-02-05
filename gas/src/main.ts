@@ -1,6 +1,7 @@
 import { CONFIG, validateConfig } from './config'
-import { getPdfFilesFromFolder, getFileContent, getProcessedFileIds, markFileAsProcessed, DriveFile } from './drive'
+import { getPdfFilesFromFolder, getFileContent, getProcessedFileIds, markFileAsProcessed } from './drive'
 import { uploadToGcs, checkFileExistsInGcs } from './gcs'
+import { getAuthMethod } from './auth'
 
 interface SyncResult {
   processed: number
@@ -88,14 +89,29 @@ function getConfig(): typeof CONFIG {
   return CONFIG
 }
 
+interface AuthInfo {
+  method: 'service_account' | 'user_oauth'
+  description: string
+}
+
+function getAuthInfo(): AuthInfo {
+  const method = getAuthMethod()
+  const description = method === 'service_account'
+    ? 'サービスアカウント認証（GCS_SERVICE_ACCOUNT_KEY）を使用中'
+    : 'ユーザーOAuth認証を使用中（GCS_SERVICE_ACCOUNT_KEYを設定するとサービスアカウント認証に切り替わります）'
+  return { method, description }
+}
+
 declare const global: {
   syncDriveToGcs: typeof syncDriveToGcs
   setupTrigger: typeof setupTrigger
   manualSync: typeof manualSync
   getConfig: typeof getConfig
+  getAuthInfo: typeof getAuthInfo
 }
 
 global.syncDriveToGcs = syncDriveToGcs
 global.setupTrigger = setupTrigger
 global.manualSync = manualSync
 global.getConfig = getConfig
+global.getAuthInfo = getAuthInfo

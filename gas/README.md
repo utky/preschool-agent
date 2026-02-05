@@ -29,9 +29,38 @@ npx clasp create --type standalone --title "Drive to GCS Sync"
 
 Google Apps Scriptエディタで以下のプロパティを設定:
 
+**必須:**
 - `DRIVE_FOLDER_ID`: 監視対象のGoogle DriveフォルダID
 - `GCS_BUCKET_NAME`: アップロード先のGCSバケット名
 - `GCP_PROJECT_ID`: GCPプロジェクトID
+
+**オプション（サービスアカウント認証）:**
+- `GCS_SERVICE_ACCOUNT_KEY`: サービスアカウントキーのJSON（下記参照）
+
+### 3.1. サービスアカウント認証（推奨）
+
+デフォルトでは実行ユーザーのOAuth認証を使用しますが、サービスアカウント認証を使用すると：
+- 特定のユーザーに依存しない
+- 最小権限の原則に従える
+- トリガー実行時も安定して動作
+
+**設定手順:**
+
+```bash
+# 1. サービスアカウントキーを生成
+gcloud iam service-accounts keys create gas-key.json \
+  --iam-account=school-agent-gas-sa@lofilab.iam.gserviceaccount.com
+
+# 2. キーの内容をScript Propertiesに設定（JSONを1行にして）
+cat gas-key.json | jq -c .
+
+# 3. 上記の出力をGCS_SERVICE_ACCOUNT_KEYとして設定
+
+# 4. キーファイルを削除（セキュリティのため）
+rm gas-key.json
+```
+
+認証方式の確認は `getAuthInfo()` 関数を実行してください。
 
 ### 4. デプロイ
 

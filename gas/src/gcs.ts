@@ -1,8 +1,5 @@
 import { CONFIG } from './config'
-
-function getAccessToken(): string {
-  return ScriptApp.getOAuthToken()
-}
+import { getAccessToken } from './auth'
 
 function formatDatePath(date: Date): string {
   const year = date.getFullYear()

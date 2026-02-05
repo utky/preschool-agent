@@ -16,6 +16,7 @@ node_modules
 # build output
 /frontend/dist
 /backend/dist
+/gas/dist
 
 # production
 /build
