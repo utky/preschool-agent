@@ -4,6 +4,26 @@ resource "google_service_account" "default" {
   display_name = "Service Account for Preschool Agent"
 }
 
+# --- アクセスログ用Cloud Storageバケット ---
+
+resource "google_storage_bucket" "access_logs" {
+  name          = "${var.app_name}-${var.project_id}-access-logs"
+  location      = var.region
+  force_destroy = false
+
+  uniform_bucket_level_access = true
+
+  # ログバケット自体のライフサイクル: 90日後に削除
+  lifecycle_rule {
+    condition {
+      age = 90
+    }
+    action {
+      type = "Delete"
+    }
+  }
+}
+
 # --- フロントエンド用Cloud Storageバケット ---
 
 resource "google_storage_bucket" "frontend" {
@@ -13,11 +33,34 @@ resource "google_storage_bucket" "frontend" {
 
   uniform_bucket_level_access = true
 
+  # バージョニング有効化
+  versioning {
+    enabled = true
+  }
+
+  # 直近2バージョンより古いものを削除
+  lifecycle_rule {
+    condition {
+      num_newer_versions = 2
+      with_state         = "ARCHIVED"
+    }
+    action {
+      type = "Delete"
+    }
+  }
+
+  # アクセスログの出力先
+  logging {
+    log_bucket = google_storage_bucket.access_logs.name
+  }
+
   website {
     main_page_suffix = "index.html"
     not_found_page   = "index.html"
   }
 
+  # 注意: Cloud Run URIへの制限は循環依存を生むため、
+  # 実行時にCloud Run側でCORSを制御する
   cors {
     origin          = ["*"]
     method          = ["GET", "HEAD"]
