@@ -19,7 +19,7 @@ export function getPdfFilesFromFolder(): DriveFile[] {
       id: file.getId(),
       name: file.getName(),
       mimeType: file.getMimeType(),
-      modifiedTime: file.getLastUpdated(),
+      modifiedTime: file.getLastUpdated() as unknown as Date,
       size: file.getSize(),
     })
   }
@@ -32,29 +32,8 @@ export function getFileContent(fileId: string): GoogleAppsScript.Base.Blob {
   return file.getBlob()
 }
 
-export function getProcessedFileIds(): Set<string> {
-  const properties = PropertiesService.getScriptProperties()
-  const stored = properties.getProperty(CONFIG.PROCESSED_FILES_KEY)
-  if (!stored) {
-    return new Set()
-  }
-  try {
-    const ids = JSON.parse(stored) as string[]
-    return new Set(ids)
-  } catch {
-    return new Set()
-  }
-}
-
-export function markFileAsProcessed(fileId: string): void {
-  const processedIds = getProcessedFileIds()
-  processedIds.add(fileId)
-
-  const idsArray = Array.from(processedIds)
-  if (idsArray.length > 1000) {
-    idsArray.splice(0, idsArray.length - 1000)
-  }
-
-  const properties = PropertiesService.getScriptProperties()
-  properties.setProperty(CONFIG.PROCESSED_FILES_KEY, JSON.stringify(idsArray))
+export function moveFileToArchive(fileId: string): void {
+  const file = DriveApp.getFileById(fileId)
+  const archiveFolder = DriveApp.getFolderById(CONFIG.ARCHIVE_FOLDER_ID)
+  file.moveTo(archiveFolder)
 }

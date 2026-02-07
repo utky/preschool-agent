@@ -1,5 +1,5 @@
 import { CONFIG, validateConfig } from './config'
-import { getPdfFilesFromFolder, getFileContent, getProcessedFileIds, markFileAsProcessed } from './drive'
+import { getPdfFilesFromFolder, getFileContent, moveFileToArchive } from './drive'
 import { uploadToGcs, checkFileExistsInGcs } from './gcs'
 import { getAuthMethod } from './auth'
 
@@ -20,22 +20,17 @@ function syncDriveToGcs(): SyncResult {
     errors: [],
   }
 
-  const processedIds = getProcessedFileIds()
+  // 入力フォルダ内の全PDFを取得（フォルダ内にある = 未処理）
   const files = getPdfFilesFromFolder()
 
   console.log(`Found ${files.length} PDF files in folder`)
 
   for (const file of files) {
     try {
-      if (processedIds.has(file.id)) {
-        console.log(`Skipping already processed file: ${file.name} (${file.id})`)
-        result.skipped++
-        continue
-      }
-
+      // GCSに既に存在する場合はアップロードをスキップし、アーカイブに移動
       if (checkFileExistsInGcs(file.id)) {
         console.log(`File already exists in GCS: ${file.name} (${file.id})`)
-        markFileAsProcessed(file.id)
+        moveFileToArchive(file.id)
         result.skipped++
         continue
       }
@@ -46,7 +41,13 @@ function syncDriveToGcs(): SyncResult {
 
       if (uploadResult.success) {
         console.log(`Successfully uploaded to: ${uploadResult.gcsPath}`)
-        markFileAsProcessed(file.id)
+        // アーカイブフォルダに移動（失敗してもGCSにはアップロード済み）
+        try {
+          moveFileToArchive(file.id)
+        } catch (moveError) {
+          const msg = moveError instanceof Error ? moveError.message : String(moveError)
+          console.error(`Warning: Failed to move ${file.name} to archive: ${msg}`)
+        }
         result.processed++
       } else {
         console.error(`Failed to upload ${file.name}: ${uploadResult.error}`)
