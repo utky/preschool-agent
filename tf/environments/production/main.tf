@@ -60,12 +60,13 @@ module "app" {
 module "document_ai" {
   source     = "../../modules/document_ai"
   project_id = var.project_id
+  # Document AI OCR は asia-northeast1 未対応のため us を使用
   location   = "us"
 }
 
 module "bigquery" {
   source                  = "../../modules/bigquery"
   project_id              = var.project_id
-  location                = "US"
+  location                = var.region
   pdf_uploads_bucket_name = module.app.pdf_uploads_bucket_name
 }

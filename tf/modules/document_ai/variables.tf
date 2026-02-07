@@ -5,7 +5,7 @@ variable "project_id" {
 
 variable "location" {
   type        = string
-  description = "Document AIプロセッサーのロケーション"
+  description = "Document AIプロセッサーのロケーション（OCRはasia-northeast1未対応のためusを使用）"
   default     = "us"
 }
 

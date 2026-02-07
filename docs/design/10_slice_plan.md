@@ -305,14 +305,14 @@ GCS内のPDFをDocument AIで解析し、BigQueryに格納する基盤を構築�
 
 **主要な実装**:
 1. **Document AIプロセッサー**: Document OCR
-   - プロセッサーID: `projects/{project}/locations/us/processors/{processor-id}`
+   - プロセッサーID: `projects/{project}/locations/us/processors/{processor-id}`（※ OCR は asia-northeast1 未対応）
 2. **BigQueryデータセット**: `school_agent`
-   - ロケーション: `US`（Document AIと同じリージョン）
+   - ロケーション: `asia-northeast1`
 3. **Vertex AI接続**: BigQueryからVertex AIを呼び出すための接続
 4. **BigQuery Object Table**: `raw_documents`
    ```sql
    CREATE EXTERNAL TABLE raw_documents
-   WITH CONNECTION `project.us.vertex_connection`
+   WITH CONNECTION `project.asia-northeast1.vertex_connection`
    OPTIONS (
      object_metadata = 'SIMPLE',
      uris = ['gs://school-agent-prod-pdf-uploads/*/*/*.pdf'],

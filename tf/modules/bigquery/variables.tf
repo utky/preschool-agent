@@ -6,7 +6,7 @@ variable "project_id" {
 variable "location" {
   type        = string
   description = "BigQueryデータセットのロケーション"
-  default     = "US"
+  default     = "asia-northeast1"
 }
 
 variable "dataset_id" {
