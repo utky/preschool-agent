@@ -94,9 +94,7 @@ describe('syncDriveToGcs', () => {
     mockGetFileContent.mockReturnValue({} as any)
     mockUploadToGcs.mockReturnValue({ success: false, error: 'Upload failed' })
 
-    const result = syncDriveToGcs()
-
-    expect(result.failed).toBe(1)
+    expect(() => syncDriveToGcs()).toThrow('Sync failed: 1 file(s) failed - a.pdf: Upload failed')
     expect(mockMoveFileToArchive).not.toHaveBeenCalled()
   })
 
@@ -125,20 +123,17 @@ describe('syncDriveToGcs', () => {
     expect(result.failed).toBe(0)
   })
 
-  it('should handle getFileContent failure', () => {
+  it('should throw error on getFileContent failure', () => {
     mockGetPdfFiles.mockReturnValue([makePdf('f1', 'a.pdf')])
     mockCheckFileExistsInGcs.mockReturnValue(false)
     mockGetFileContent.mockImplementationOnce(() => {
       throw new Error('File read error')
     })
 
-    const result = syncDriveToGcs()
-
-    expect(result.failed).toBe(1)
-    expect(result.errors).toContain('a.pdf: File read error')
+    expect(() => syncDriveToGcs()).toThrow('Sync failed: 1 file(s) failed - a.pdf: File read error')
   })
 
-  it('should continue processing remaining files when one fails', () => {
+  it('should continue processing remaining files when one fails and throw at end', () => {
     const files = [makePdf('f1', 'ok.pdf'), makePdf('f2', 'fail.pdf'), makePdf('f3', 'ok2.pdf')]
     mockGetPdfFiles.mockReturnValue(files)
     mockCheckFileExistsInGcs.mockReturnValue(false)
@@ -148,11 +143,9 @@ describe('syncDriveToGcs', () => {
       .mockReturnValueOnce({ success: false, error: 'Upload failed' })
       .mockReturnValueOnce({ success: true, gcsPath: 'gs://bucket/p3' })
 
-    const result = syncDriveToGcs()
-
-    expect(result.processed).toBe(2)
-    expect(result.failed).toBe(1)
-    expect(result.errors).toHaveLength(1)
+    expect(() => syncDriveToGcs()).toThrow('Sync failed: 1 file(s) failed')
+    // 失敗したファイルがあっても残りは処理を続行する
+    expect(mockUploadToGcs).toHaveBeenCalledTimes(3)
     expect(mockMoveFileToArchive).toHaveBeenCalledTimes(2)
   })
 })

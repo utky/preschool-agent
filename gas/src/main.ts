@@ -63,6 +63,11 @@ function syncDriveToGcs(): SyncResult {
   }
 
   console.log(`Sync complete: ${result.processed} processed, ${result.skipped} skipped, ${result.failed} failed`)
+
+  if (result.failed > 0) {
+    throw new Error(`Sync failed: ${result.failed} file(s) failed - ${result.errors.join('; ')}`)
+  }
+
   return result
 }
 
