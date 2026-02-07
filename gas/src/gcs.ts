@@ -17,14 +17,15 @@ export function uploadToGcs(
 ): { success: boolean; gcsPath?: string; error?: string } {
   const datePath = formatDatePath(modifiedTime)
   const gcsPath = `${datePath}/${fileId}.pdf`
-  const url = `https://storage.googleapis.com/upload/storage/v1/b/${CONFIG.GCS_BUCKET_NAME}/o?uploadType=media&name=${encodeURIComponent(gcsPath)}`
+  // XML API を使用（x-goog-meta-* ヘッダーでカスタムメタデータを付与するため）
+  const url = `https://storage.googleapis.com/${CONFIG.GCS_BUCKET_NAME}/${encodeURIComponent(gcsPath)}`
 
   const options: GoogleAppsScript.URL_Fetch.URLFetchRequestOptions = {
-    method: 'post',
-    contentType: blob.getContentType() || 'application/pdf',
+    method: 'put',
     payload: blob.getBytes(),
     headers: {
       Authorization: `Bearer ${getAccessToken()}`,
+      'Content-Type': blob.getContentType() || 'application/pdf',
       'x-goog-meta-original-filename': encodeURIComponent(fileName),
       'x-goog-meta-drive-file-id': fileId,
     },
