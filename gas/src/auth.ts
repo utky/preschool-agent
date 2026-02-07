@@ -53,16 +53,8 @@ function base64UrlEncode(data: string): string {
  * RSA-SHA256で署名を生成
  */
 function signJwt(input: string, privateKey: string): string {
-  // PEMフォーマットからキーを抽出
-  const pemHeader = '-----BEGIN PRIVATE KEY-----'
-  const pemFooter = '-----END PRIVATE KEY-----'
-  const pemContents = privateKey
-    .replace(pemHeader, '')
-    .replace(pemFooter, '')
-    .replace(/\s/g, '')
-
-  const keyBytes = Utilities.base64Decode(pemContents)
-  const signature = Utilities.computeRsaSha256Signature(input, keyBytes)
+  // computeRsaSha256SignatureはPEM形式の文字列をそのまま受け取る
+  const signature = Utilities.computeRsaSha256Signature(input, privateKey)
   const base64Signature = Utilities.base64Encode(signature)
   return base64Signature.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
 }
