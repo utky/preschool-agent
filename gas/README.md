@@ -1,4 +1,4 @@
-# Google Apps Script - Drive to GCS Sync
+# Google Apps Script - school-agent-sync
 
 Google DriveのPDFファイルをGoogle Cloud Storageに自動同期するGoogle Apps Scriptプロジェクト。
 
@@ -22,7 +22,7 @@ npm install
 
 ```bash
 npx clasp login
-npx clasp create --type standalone --title "Drive to GCS Sync"
+npx clasp create --type standalone --title "school-agent-sync"
 ```
 
 ### 3. Script Propertiesの設定
