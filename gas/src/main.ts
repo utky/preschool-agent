@@ -102,16 +102,4 @@ function getAuthInfo(): AuthInfo {
   return { method, description }
 }
 
-declare const global: {
-  syncDriveToGcs: typeof syncDriveToGcs
-  setupTrigger: typeof setupTrigger
-  manualSync: typeof manualSync
-  getConfig: typeof getConfig
-  getAuthInfo: typeof getAuthInfo
-}
-
-global.syncDriveToGcs = syncDriveToGcs
-global.setupTrigger = setupTrigger
-global.manualSync = manualSync
-global.getConfig = getConfig
-global.getAuthInfo = getAuthInfo
+export { syncDriveToGcs, setupTrigger, manualSync, getConfig, getAuthInfo }

@@ -81,10 +81,10 @@
     - [x] IAM権限設定（`roles/storage.objectCreator`）
 - [x] **CI/CD:**
     - [x] GASデプロイワークフロー追加（`.github/workflows/deploy-gas.yml`）
-- [ ] **運用設定（手動）:**
-    - [ ] Script Properties設定（`DRIVE_FOLDER_ID`, `GCS_BUCKET_NAME`, `GCP_PROJECT_ID`）
-    - [ ] サービスアカウントキー生成・登録（`GCS_SERVICE_ACCOUNT_KEY`）
-    - [ ] `setupTrigger()` 実行（1時間ごとの定期実行トリガー設定）
+- [x] **運用設定（手動）:**
+    - [x] Script Properties設定（`DRIVE_FOLDER_ID`, `GCS_BUCKET_NAME`, `GCP_PROJECT_ID`）
+    - [x] サービスアカウントキー生成・登録（`GCS_SERVICE_ACCOUNT_KEY`）
+    - [x] `setupTrigger()` 実行（1時間ごとの定期実行トリガー設定）
 
 ---
 

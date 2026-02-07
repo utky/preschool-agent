@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "build": "esbuild src/main.ts --bundle --outfile=dist/Code.js --format=iife --global-name=global --target=es2020",
+    "build": "esbuild src/main.ts --bundle --outfile=dist/Code.js --format=iife --global-name=_GasExports --target=es2020 --footer:js=\"function syncDriveToGcs(){return _GasExports.syncDriveToGcs()}function setupTrigger(){return _GasExports.setupTrigger()}function manualSync(){return _GasExports.manualSync()}function getConfig(){return _GasExports.getConfig()}function getAuthInfo(){return _GasExports.getAuthInfo()}\"",
     "push": "npm run build && clasp push",
     "watch": "npm run build -- --watch",
     "lint": "eslint src/",
