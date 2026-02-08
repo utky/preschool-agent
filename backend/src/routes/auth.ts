@@ -5,6 +5,12 @@ import type { GoogleUserInfo, User } from '../types/auth.js'
 
 const auth = new Hono()
 
+// 開発時はFRONTEND_URLでVite dev serverにリダイレクトする
+function getFrontendUrl(path: string = '/'): string {
+  const base = process.env.FRONTEND_URL
+  return base ? `${base}${path}` : path
+}
+
 const GOOGLE_CLIENT_ID = process.env.AUTH_GOOGLE_ID || ''
 const GOOGLE_CLIENT_SECRET = process.env.AUTH_GOOGLE_SECRET || ''
 const ALLOWED_USER_EMAILS = (process.env.ALLOWED_USER_EMAILS || '')
@@ -40,11 +46,11 @@ auth.get('/callback/google', async (c) => {
 
   if (error) {
     console.error('OAuth error:', error)
-    return c.redirect('/login?error=oauth_error')
+    return c.redirect(getFrontendUrl('/login?error=oauth_error'))
   }
 
   if (!code) {
-    return c.redirect('/login?error=no_code')
+    return c.redirect(getFrontendUrl('/login?error=no_code'))
   }
 
   try {
@@ -67,7 +73,7 @@ auth.get('/callback/google', async (c) => {
     if (!tokenResponse.ok) {
       const errorText = await tokenResponse.text()
       console.error('Token exchange failed:', errorText)
-      return c.redirect('/login?error=token_exchange_failed')
+      return c.redirect(getFrontendUrl('/login?error=token_exchange_failed'))
     }
 
     const tokens = (await tokenResponse.json()) as { access_token: string }
@@ -83,14 +89,14 @@ auth.get('/callback/google', async (c) => {
 
     if (!userInfoResponse.ok) {
       console.error('Failed to get user info')
-      return c.redirect('/login?error=user_info_failed')
+      return c.redirect(getFrontendUrl('/login?error=user_info_failed'))
     }
 
     const googleUser = (await userInfoResponse.json()) as GoogleUserInfo
 
     if (!googleUser.email_verified) {
       console.log('Email not verified:', googleUser.email)
-      return c.redirect('/login?error=email_not_verified')
+      return c.redirect(getFrontendUrl('/login?error=email_not_verified'))
     }
 
     if (
@@ -98,7 +104,7 @@ auth.get('/callback/google', async (c) => {
       !ALLOWED_USER_EMAILS.includes(googleUser.email)
     ) {
       console.log('User not in allowed list:', googleUser.email)
-      return c.redirect('/login?error=not_allowed')
+      return c.redirect(getFrontendUrl('/login?error=not_allowed'))
     }
 
     const user: User = {
@@ -117,10 +123,10 @@ auth.get('/callback/google', async (c) => {
       path: '/',
     })
 
-    return c.redirect('/')
+    return c.redirect(getFrontendUrl('/'))
   } catch (err) {
     console.error('OAuth callback error:', err)
-    return c.redirect('/login?error=callback_failed')
+    return c.redirect(getFrontendUrl('/login?error=callback_failed'))
   }
 })
 
