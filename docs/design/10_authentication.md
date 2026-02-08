@@ -7,30 +7,30 @@ Honoの`@hono/oauth-providers`を利用して、Googleアカウントによる�
 ```mermaid
 sequenceDiagram
     participant Browser as ブラウザ (React)
-    participant Frontend as フロントエンド (Cloud Storage)
-    participant Backend as バックエンド (Hono on Cloud Run)
+    participant Backend as バックエンド (Hono on Cloud Run / index.html配信)
     participant Google as Google Identity Platform
 
-    Browser->>Frontend: 1. 保護されたページにアクセス
-    Frontend->>Backend: 2. GET /api/auth/me (認証確認)
-    Backend->>Browser: 3. 401 Unauthorized
-    Browser->>Frontend: 4. ログインページにリダイレクト
-    Browser->>Backend: 5. GET /api/auth/google (OAuth開始)
-    Backend->>Browser: 6. Googleの認証画面へリダイレクト
-    Browser->>Google: 7. Googleアカウントでログイン・アプリを承認
-    Google->>Browser: 8. 認可コードと共にコールバックURLへリダイレクト
-    Browser->>Backend: 9. GET /api/auth/google/callback
-    Backend->>Google: 10. 認可コードをアクセストークンと交換
-    Google-->>Backend: 11. アクセストークン、IDトークンを返却
-    Backend->>Backend: 12.【認可】メールアドレスを検証
+    Browser->>Backend: 1. 保護されたページにアクセス (GET /)
+    Backend->>Browser: 2. index.html を返却 (GCSバケットから取得)
+    Browser->>Backend: 3. GET /api/auth/session (認証確認)
+    Backend->>Browser: 4. 未認証の場合 { user: null }
+    Browser->>Browser: 5. ログインページにリダイレクト (クライアントサイド)
+    Browser->>Backend: 6. GET /api/auth/signin/google (OAuth開始)
+    Backend->>Browser: 7. Googleの認証画面へリダイレクト
+    Browser->>Google: 8. Googleアカウントでログイン・アプリを承認
+    Google->>Browser: 9. 認可コードと共にコールバックURLへリダイレクト
+    Browser->>Backend: 10. GET /api/auth/callback/google
+    Backend->>Google: 11. 認可コードをアクセストークンと交換
+    Google-->>Backend: 12. アクセストークン、IDトークンを返却
+    Backend->>Backend: 13.【認可】メールアドレスを検証
     alt メールアドレスが許可リストに存在する場合
-        Backend->>Backend: 13. JWTトークンを生成（ユーザー情報を署名）
-        Backend->>Browser: 14. HTTPOnly CookieでJWTを設定、フロントエンドへリダイレクト
-        Browser->>Backend: 15. JWTを付けてAPIリクエスト
-        Backend->>Backend: 16. JWTを検証（署名チェック、有効期限確認）
-        Backend-->>Browser: 17. APIレスポンス
+        Backend->>Backend: 14. JWTトークンを生成（ユーザー情報を署名）
+        Backend->>Browser: 15. HTTPOnly CookieでJWTを設定、/ へリダイレクト（相対パス）
+        Browser->>Backend: 16. JWTを付けてAPIリクエスト
+        Backend->>Backend: 17. JWTを検証（署名チェック、有効期限確認）
+        Backend-->>Browser: 18. APIレスポンス
     else メールアドレスが許可リストに存在しない場合
-        Backend-->>Browser: 13. /unauthorized へリダイレクト
+        Backend-->>Browser: 14. /login?error=not_allowed へリダイレクト（相対パス）
     end
 ```
 
@@ -139,73 +139,15 @@ resource "google_secret_manager_secret_version" "jwt_secret" {
 
 Cloud Runサービスに以下の環境変数を設定し、Secret Managerから値を取得します。
 
-- `GOOGLE_CLIENT_ID`: Google OAuthクライアントID
-- `GOOGLE_CLIENT_SECRET`: Google OAuthクライアントシークレット
+- `AUTH_GOOGLE_ID`: Google OAuthクライアントID
+- `AUTH_GOOGLE_SECRET`: Google OAuthクライアントシークレット
 - `ALLOWED_USER_EMAILS`: アクセスを許可するメールアドレスのカンマ区切りリスト
-- `FRONTEND_URL`: フロントエンドのURL（リダイレクト先）
-- `JWT_SECRET`: JWT署名用シークレット（256ビット以上のランダム文字列）
+- `AUTH_SECRET`: JWT署名用シークレット（256ビット以上のランダム文字列）
+- `FRONTEND_BUCKET_NAME`: フロントエンド静的ファイル用GCSバケット名（index.html取得用）
 
-```hcl
-# tf/modules/app/main.tf (Cloud Run設定)
+> **Note**: `FRONTEND_URL` は不要です。backendがindex.htmlを配信する同一オリジン構成のため、OAuth callback後のリダイレクトは相対パス（`/`, `/login`）で行います。開発時のみ `FRONTEND_URL` を `.env` に設定し、Vite dev server (`http://localhost:5173`) にリダイレクトします。
 
-resource "google_cloud_run_service" "backend" {
-  name     = "preschool-agent-backend"
-  location = var.region
-
-  template {
-    spec {
-      containers {
-        image = var.container_image
-
-        env {
-          name = "GOOGLE_CLIENT_ID"
-          value_from {
-            secret_key_ref {
-              name = google_secret_manager_secret.google_client_id.secret_id
-              key  = "latest"
-            }
-          }
-        }
-
-        env {
-          name = "GOOGLE_CLIENT_SECRET"
-          value_from {
-            secret_key_ref {
-              name = google_secret_manager_secret.google_client_secret.secret_id
-              key  = "latest"
-            }
-          }
-        }
-
-        env {
-          name = "ALLOWED_USER_EMAILS"
-          value_from {
-            secret_key_ref {
-              name = google_secret_manager_secret.allowed_user_emails.secret_id
-              key  = "latest"
-            }
-          }
-        }
-
-        env {
-          name  = "FRONTEND_URL"
-          value = var.frontend_url
-        }
-
-        env {
-          name = "JWT_SECRET"
-          value_from {
-            secret_key_ref {
-              name = google_secret_manager_secret.jwt_secret.secret_id
-              key  = "latest"
-            }
-          }
-        }
-      }
-    }
-  }
-}
-```
+実際のTerraform設定は `tf/modules/app/main.tf` を参照してください（Cloud Run v2 APIを使用）。
 
 #### 10.3.2. 認証ルート実装 (`backend/src/routes/auth.ts`)
 
@@ -231,7 +173,7 @@ auth.get('/google', async (c) => {
   const allowedEmails = process.env.ALLOWED_USER_EMAILS?.split(',') || []
   if (!allowedEmails.includes(user.email)) {
     console.warn(`Unauthorized access attempt by ${user.email}`)
-    return c.redirect(`${process.env.FRONTEND_URL}/unauthorized`)
+    return c.redirect('/login?error=not_allowed')
   }
 
   // JWTトークン生成
@@ -254,7 +196,8 @@ auth.get('/google', async (c) => {
     path: '/',
   })
 
-  return c.redirect(`${process.env.FRONTEND_URL}/dashboard`)
+  // 同一オリジンなので相対パスでリダイレクト
+  return c.redirect('/')
 })
 
 // ログアウト

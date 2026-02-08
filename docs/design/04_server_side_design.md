@@ -72,9 +72,9 @@ import { authMiddleware } from './middlewares/auth'
 
 const app = new Hono()
 
-// CORS設定（フロントエンドのオリジンを許可）
+// CORS設定（開発時のみ必要。productionではbackendがindex.htmlを配信する同一オリジン構成）
 app.use('/*', cors({
-  origin: process.env.FRONTEND_URL!,
+  origin: ['http://localhost:5173', 'http://localhost:3000'],
   credentials: true,
 }))
 
@@ -113,7 +113,7 @@ auth.get('/google', async (c) => {
   // メールアドレス認可チェック
   const allowedEmails = process.env.ALLOWED_USER_EMAILS?.split(',') || []
   if (!allowedEmails.includes(user.email)) {
-    return c.redirect(`${process.env.FRONTEND_URL}/unauthorized`)
+    return c.redirect('/login?error=not_allowed')
   }
 
   // セッション作成
@@ -127,7 +127,8 @@ auth.get('/google', async (c) => {
     maxAge: 60 * 60 * 24 * 7, // 7日間
   })
 
-  return c.redirect(`${process.env.FRONTEND_URL}/dashboard`)
+  // 同一オリジンなので相対パスでリダイレクト
+  return c.redirect('/')
 })
 
 auth.post('/logout', (c) => {

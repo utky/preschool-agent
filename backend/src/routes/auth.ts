@@ -5,7 +5,8 @@ import type { GoogleUserInfo, User } from '../types/auth.js'
 
 const auth = new Hono()
 
-// 開発時はFRONTEND_URLでVite dev serverにリダイレクトする
+// productionではbackendがindex.htmlを配信する同一オリジン構成のため相対パスでリダイレクト
+// 開発時のみFRONTEND_URLを設定し、Vite dev server (localhost:5173) にリダイレクト
 function getFrontendUrl(path: string = '/'): string {
   const base = process.env.FRONTEND_URL
   return base ? `${base}${path}` : path

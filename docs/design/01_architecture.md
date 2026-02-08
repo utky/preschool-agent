@@ -1,6 +1,6 @@
 ## 1. アーキテクチャ概要
 
-本システムは、Google Cloud上に構築されたサーバーレスアーキテクチャを採用します。フロントエンドはVite + Reactで構築され、静的ファイルとしてCloud Storage（またはFirebase Hosting）でホスティングされます。バックエンドAPIはHono + Mastraで構築され、Cloud Run上で稼働します。認証はHonoのOAuthプロバイダーを利用したGoogle認証を採用します。データ処理は、Cloud Schedulerに定期実行されるCloud Workflowが担い、Document AIでの解析結果をBigQueryに蓄積します。
+本システムは、Google Cloud上に構築されたサーバーレスアーキテクチャを採用します。フロントエンドはVite + Reactで構築され、バックエンド（Hono on Cloud Run）が`index.html`を配信し、JS/CSSなどの静的アセットはCloud Storage（公開バケット）から直接配信されます（Cloud Load Balancer不使用によるコスト削減）。認証はHonoのOAuthプロバイダーを利用したGoogle認証を採用します。データ処理は、Cloud Schedulerに定期実行されるCloud Workflowが担い、Document AIでの解析結果をBigQueryに蓄積します。
 
 ### 1.1. コンポーネント構成図
 
@@ -11,11 +11,11 @@ graph TD
     end
 
     subgraph "Google Cloud"
-        subgraph "Static Hosting"
-            FE[Vite + React / Cloud Storage or Firebase Hosting]
-        end
         subgraph "Cloud Run"
-            BE[Hono + Mastra: バックエンドAPI]
+            BE[Hono + Mastra: バックエンドAPI + index.html配信]
+        end
+        subgraph "Static Assets"
+            FE[Vite + React ビルド成果物 / Cloud Storage 公開バケット]
         end
         subgraph "Data Processing"
             C[dbt処理 / Cloud Run Job]
@@ -35,8 +35,9 @@ graph TD
         end
     end
 
-    U -- "静的ファイル配信" --> FE
-    U -- "API HTTPSリクエスト" --> BE
+    U -- "HTTPS (index.html + API)" --> BE
+    U -. "JS/CSS/画像 (ブラウザが直接取得)" .-> FE
+    BE -. "index.html取得" .-> FE
     BE -- "認証" --> Google[Google OAuth]
     BE -- "シークレット取得" --> I
     BE -- "データ参照・更新" --> E

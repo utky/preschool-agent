@@ -1,5 +1,7 @@
 import { cors } from 'hono/cors'
 
+// productionではbackendがindex.htmlを配信する同一オリジン構成のためCORSは不要
+// 開発時のみフロントエンド(Vite dev server)とバックエンドが別オリジンになるため必要
 const FRONTEND_ORIGINS = [
   'http://localhost:5173',
   'http://localhost:3000',

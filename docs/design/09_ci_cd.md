@@ -10,20 +10,21 @@ graph LR
     B --> C[Frontend Build]
     B --> D[Backend Build]
     B --> E[dbt Build]
-    C --> F[Cloud Storage]
+    C --> F[Cloud Storage 公開バケット]
     D --> G[Artifact Registry]
     E --> H[Cloud Run Job]
-    F --> I[Cloud CDN]
     G --> J[Cloud Run]
+    J -. "index.html取得" .-> F
     H --> K[BigQuery]
 ```
 
 ### 9.2. フロントエンド (Vite + React)
 
 #### ビルドフロー
-1. **Viteビルド**: `npm run build` で静的ファイルを生成（`dist/`ディレクトリ）
+1. **Viteビルド**: `VITE_BASE_URL`にGCSバケットURLを設定し、`npm run build` で静的ファイルを生成（`dist/`ディレクトリ）
 2. **Cloud Storageアップロード**: `dist/`の内容をGCSバケットにアップロード
-3. **Cloud CDN無効化**: キャッシュをクリアして即座に反映
+
+> **Note**: Cloud Load BalancerおよびCloud CDNは不使用（コスト削減）。JS/CSSはハッシュ付きファイル名のため、長期キャッシュが可能です。
 
 #### GitHub Actions ワークフロー例
 
@@ -80,19 +81,13 @@ jobs:
 
       - name: Set Cache-Control headers
         run: |
-          # HTMLファイルはキャッシュしない
+          # HTMLファイルはキャッシュしない（backendがGCSから取得して配信するため）
           gsutil -m setmeta -h "Cache-Control:no-cache,must-revalidate" \
             "gs://${{ secrets.GCS_BUCKET_NAME }}/**/*.html"
 
           # JS/CSSはハッシュ付きなので長期キャッシュ可能
           gsutil -m setmeta -h "Cache-Control:public,max-age=31536000,immutable" \
             "gs://${{ secrets.GCS_BUCKET_NAME }}/assets/**"
-
-      - name: Invalidate CDN cache
-        run: |
-          gcloud compute url-maps invalidate-cdn-cache ${{ secrets.CDN_URL_MAP_NAME }} \
-            --path "/*" \
-            --async
 ```
 
 ### 9.3. バックエンド (Hono + Mastra)
@@ -324,8 +319,7 @@ jobs:
 - `GCP_WORKLOAD_IDENTITY_PROVIDER`: Workload Identity Providerのリソース名
 - `GCP_SERVICE_ACCOUNT`: GitHub Actions用サービスアカウントのメールアドレス
 - `GCP_PROJECT_ID`: GCPプロジェクトID
-- `GCS_BUCKET_NAME`: フロントエンド配信用GCSバケット名
-- `CDN_URL_MAP_NAME`: Cloud CDNのURL Map名
+- `GCS_BUCKET_NAME`: フロントエンド配信用GCSバケット名（公開バケット）
 
 #### GCP Secret Manager
 アプリケーションで使用するシークレットはSecret Managerで管理します：
