@@ -18,9 +18,10 @@ const ALLOWED_USER_EMAILS = (process.env.ALLOWED_USER_EMAILS || '')
   .map((e) => e.trim())
   .filter(Boolean)
 
-function getBaseUrl(c: { req: { url: string } }): string {
+function getBaseUrl(c: { req: { url: string; header: (name: string) => string | undefined } }): string {
   const url = new URL(c.req.url)
-  return `${url.protocol}//${url.host}`
+  const proto = c.req.header('x-forwarded-proto') || url.protocol.replace(':', '')
+  return `${proto}://${url.host}`
 }
 
 auth.get('/signin/google', (c) => {
