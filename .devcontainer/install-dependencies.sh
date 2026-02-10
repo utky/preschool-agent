@@ -23,3 +23,7 @@ tenv tofu install
 
 # MCP用にChromeをインストール
 #npx playwright install chrome
+
+# dbt
+pipx install dbt-core
+pipx inject dbt-core dbt-bigquery

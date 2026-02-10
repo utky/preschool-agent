@@ -6,6 +6,10 @@
   ],
   "features": {
     "ghcr.io/devcontainers/features/github-cli:1": {},
+    "ghcr.io/devcontainers/features/python:1": {
+      "version": "3.12",
+      "installTools": false
+    }
   },
   "customizations": {
     "vscode": {
@@ -24,7 +28,8 @@
   },
   "containerEnv": {
     "GOOGLE_CLOUD_PROJECT": "lofilab",
-    "GOOGLE_CLOUD_LOCATION": "global"
+    "GOOGLE_CLOUD_LOCATION": "global",
+    "DBT_PROFILES_DIR": "${containerWorkspaceFolder}/dbt"
   },
   "postCreateCommand": "ln -s /opt/vscode/config/gcloud /home/node/.config/gcloud && /bin/sh .devcontainer/install-dependencies.sh"
 }
