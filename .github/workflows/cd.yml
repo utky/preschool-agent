@@ -150,6 +150,10 @@ jobs:
           EOF
         shell: bash
 
+      - name: Untaint Cloud Run Job if tainted
+        run: tofu untaint 'module.cloud_run_job.google_cloud_run_v2_job.dbt' || true
+        working-directory: ./tf/environments/production
+
       - name: Tofu Apply
         run: tofu apply -auto-approve -var="container_image=asia-northeast1-docker.pkg.dev/lofilab/utky-applications/school-agent@${{ needs.build_backend.outputs.digest }}" -var="dbt_container_image=asia-northeast1-docker.pkg.dev/lofilab/utky-applications/school-agent-dbt:${{ github.sha }}" 2>&1
         working-directory: ./tf/environments/production
