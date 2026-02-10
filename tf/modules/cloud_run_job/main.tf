@@ -34,8 +34,9 @@ resource "google_storage_bucket_iam_member" "dbt_write_api_data" {
 
 # Cloud Run Job
 resource "google_cloud_run_v2_job" "dbt" {
-  name     = "${var.app_name}-dbt"
-  location = var.region
+  name                = "${var.app_name}-dbt"
+  location            = var.region
+  deletion_protection = false
 
   template {
     template {
