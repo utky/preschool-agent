@@ -17,13 +17,10 @@ echo "source \$HOME/.tenv.completion.bash" >> ~/.bashrc
 
 tenv tofu install
 
-# gcloud認証
-#gcloud auth login --no-launch-browser
-#gcloud auth application-default login --no-launch-browser
-
-# MCP用にChromeをインストール
-#npx playwright install chrome
-
 # dbt
-pipx install dbt-core
-pipx inject dbt-core dbt-bigquery
+pip install dbt-core dbt-bigquery
+cd dbt/; dbt deps; cd -
+
+# gcloud認証
+gcloud auth login --no-launch-browser
+gcloud auth application-default login --no-launch-browser

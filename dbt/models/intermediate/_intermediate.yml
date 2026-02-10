@@ -6,18 +6,18 @@ models:
     columns:
       - name: document_id
         description: "文書ID（URIのMD5ハッシュ）"
-        tests:
+        data_tests:
           - not_null
       - name: chunk_id
         description: "チャンクID（URI+chunk_indexのMD5ハッシュ）"
-        tests:
+        data_tests:
           - not_null
           - unique
       - name: chunk_index
         description: "チャンクの順序インデックス"
-        tests:
+        data_tests:
           - not_null
       - name: chunk_text
         description: "チャンクテキスト"
-        tests:
+        data_tests:
           - not_null

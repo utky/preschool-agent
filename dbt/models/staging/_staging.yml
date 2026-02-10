@@ -6,12 +6,12 @@ models:
     columns:
       - name: uri
         description: "GCS URI"
-        tests:
+        data_tests:
           - unique
           - not_null
       - name: extracted_text
         description: "Document AIで抽出されたテキスト"
-        tests:
+        data_tests:
           - not_null
       - name: content_type
         description: "MIMEタイプ"
