@@ -1,0 +1,23 @@
+version: 2
+
+models:
+  - name: stg_pdf_uploads__extracted_texts
+    description: "Document AI OCRでPDFからテキストを抽出したステージングモデル"
+    columns:
+      - name: uri
+        description: "GCS URI"
+        tests:
+          - unique
+          - not_null
+      - name: extracted_text
+        description: "Document AIで抽出されたテキスト"
+        tests:
+          - not_null
+      - name: content_type
+        description: "MIMEタイプ"
+      - name: size
+        description: "ファイルサイズ（バイト）"
+      - name: md5_hash
+        description: "MD5ハッシュ"
+      - name: updated_at
+        description: "GCSオブジェクトの最終更新日時"

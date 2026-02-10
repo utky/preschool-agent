@@ -42,3 +42,13 @@ output "bigquery_vertex_connection_name" {
   value       = module.bigquery.vertex_connection_name
   description = "BigQuery Vertex AI connection name."
 }
+
+output "dbt_job_name" {
+  value       = module.cloud_run_job.job_name
+  description = "Cloud Run Job name for dbt."
+}
+
+output "gcs_egress_alert_policy_id" {
+  value       = module.monitoring.alert_policy_id
+  description = "GCS egress alert policy ID."
+}

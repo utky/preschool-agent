@@ -1,0 +1,23 @@
+version: 2
+
+sources:
+  - name: pdf_uploads
+    description: "GCSバケット上のPDFファイルを参照するObject Table"
+    database: "{{ var('gcp_project_id') }}"
+    schema: "{{ var('dataset_id') }}"
+    tables:
+      - name: raw_documents
+        description: "PDF UploadsバケットのObject Table（自動検出されたPDFファイルメタデータ）"
+        columns:
+          - name: uri
+            description: "GCS URI (gs://bucket/path)"
+          - name: generation
+            description: "GCSオブジェクトの世代番号"
+          - name: content_type
+            description: "MIMEタイプ"
+          - name: size
+            description: "ファイルサイズ（バイト）"
+          - name: md5_hash
+            description: "MD5ハッシュ"
+          - name: updated
+            description: "最終更新日時"

@@ -1,0 +1,62 @@
+version: 2
+
+models:
+  - name: dim_documents
+    description: "文書メタデータのディメンションテーブル"
+    columns:
+      - name: document_id
+        description: "文書ID（URIのMD5ハッシュ）"
+        tests:
+          - unique
+          - not_null
+      - name: uri
+        description: "GCS URI"
+        tests:
+          - unique
+          - not_null
+      - name: title
+        description: "文書タイトル（暫定: ファイル名）"
+        tests:
+          - not_null
+      - name: document_type
+        description: "文書種別（Slice 6で分類実装予定、暫定NULL）"
+      - name: publish_date
+        description: "発行日（Slice 6で抽出実装予定、暫定NULL）"
+      - name: content_type
+        description: "MIMEタイプ"
+      - name: size
+        description: "ファイルサイズ（バイト）"
+      - name: total_chunks
+        description: "チャンク総数"
+      - name: updated_at
+        description: "GCSオブジェクトの最終更新日時"
+
+  - name: fct_document_chunks
+    description: "文書チャンクのファクトテーブル（RAG用）"
+    columns:
+      - name: chunk_id
+        description: "チャンクID"
+        tests:
+          - unique
+          - not_null
+      - name: document_id
+        description: "文書ID"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_documents')
+              field: document_id
+      - name: chunk_index
+        description: "チャンクの順序インデックス"
+        tests:
+          - not_null
+      - name: chunk_text
+        description: "チャンクテキスト"
+        tests:
+          - not_null
+      - name: title
+        description: "文書タイトル（冗長: RAG用）"
+      - name: document_type
+        description: "文書種別（冗長: RAG用）"
+      - name: publish_date
+        description: "発行日（冗長: RAG用）"

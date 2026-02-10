@@ -20,3 +20,14 @@ variable "allowed_user_emails_value" {
   description = "アクセスを許可するユーザーのメールアドレスリスト（カンマ区切り）"
   sensitive   = true
 }
+
+variable "dbt_container_image" {
+  type        = string
+  description = "dbt用コンテナイメージ"
+  default     = "asia-northeast1-docker.pkg.dev/lofilab/utky-applications/school-agent-dbt:latest"
+}
+
+variable "alert_email" {
+  type        = string
+  description = "アラート通知先のメールアドレス"
+}

@@ -1,0 +1,11 @@
+school_agent:
+  target: prod
+  outputs:
+    prod:
+      type: bigquery
+      method: oauth
+      project: "{{ env_var('GCP_PROJECT_ID', 'lofilab') }}"
+      dataset: school_agent
+      location: asia-northeast1
+      threads: 4
+      timeout_seconds: 300

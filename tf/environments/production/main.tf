@@ -70,3 +70,19 @@ module "bigquery" {
   location                = var.region
   pdf_uploads_bucket_name = module.app.pdf_uploads_bucket_name
 }
+
+module "cloud_run_job" {
+  source               = "../../modules/cloud_run_job"
+  project_id           = var.project_id
+  region               = var.region
+  container_image      = var.dbt_container_image
+  api_data_bucket_name = module.app.api_data_bucket_name
+}
+
+module "monitoring" {
+  source                            = "../../modules/monitoring"
+  project_id                        = var.project_id
+  frontend_bucket_name              = module.app.frontend_bucket_name
+  alert_email                       = var.alert_email
+  # デフォルト: 2048 バイト/秒 (2KB/s)
+}

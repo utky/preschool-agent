@@ -1,7 +1,9 @@
 import { Hono } from 'hono'
 import { requireAuth } from '../middleware/auth.js'
 import { getApiData } from '../lib/storage.js'
-import { listDocuments, processDocument } from '../lib/bigquery.js'
+import { listDocuments } from '../lib/bigquery.js'
+import { triggerDbtJob } from '../lib/cloud-run-job.js'
+import type { DocumentMetadata, DocumentChunk } from '../types/documents.js'
 
 const documents = new Hono()
 
@@ -18,19 +20,36 @@ documents.get('/', async (c) => {
 })
 
 documents.post('/process', async (c) => {
-  const body = await c.req.json<{ uri: string }>()
-  const { uri } = body
-
-  if (!uri) {
-    return c.json({ error: 'uri is required' }, 400)
-  }
-
-  const result = await processDocument(uri)
+  const result = await triggerDbtJob()
 
   if (result.success) {
-    return c.json({ success: true, jobId: result.jobId })
+    return c.json({ success: true, executionId: result.executionId })
   } else {
     return c.json({ error: result.error }, 500)
+  }
+})
+
+documents.get('/:id', async (c) => {
+  const id = c.req.param('id')
+
+  try {
+    const docData = await getApiData('documents.json')
+    const { documents: docs } = JSON.parse(docData) as { documents: DocumentMetadata[] }
+    const document = docs.find((d) => d.document_id === id)
+
+    if (!document) {
+      return c.json({ error: 'Document not found' }, 404)
+    }
+
+    const chunksData = await getApiData('chunks.json')
+    const { chunks: allChunks } = JSON.parse(chunksData) as { chunks: DocumentChunk[] }
+    const chunks = allChunks
+      .filter((chunk) => chunk.document_id === id)
+      .sort((a, b) => a.chunk_index - b.chunk_index)
+
+    return c.json({ document, chunks })
+  } catch {
+    return c.json({ error: 'Document not found' }, 404)
   }
 })
 

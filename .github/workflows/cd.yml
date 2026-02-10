@@ -39,6 +39,35 @@ jobs:
           push: true
           tags: asia-northeast1-docker.pkg.dev/lofilab/utky-applications/school-agent:${{ github.sha }}
 
+  build_dbt:
+    runs-on: ubuntu-latest
+    environment: prod
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure Google Cloud credentials
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.SERVICE_ACCOUNT }}
+
+      - name: Set up Docker
+        uses: docker/setup-buildx-action@v3
+
+      - name: Authenticate to Artifact Registry
+        run: gcloud auth configure-docker asia-northeast1-docker.pkg.dev
+
+      - name: Build and push dbt Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./dbt
+          file: ./dbt/Dockerfile
+          push: true
+          tags: asia-northeast1-docker.pkg.dev/lofilab/utky-applications/school-agent-dbt:${{ github.sha }}
+
   build_frontend:
     runs-on: ubuntu-latest
     environment: prod
@@ -90,7 +119,7 @@ jobs:
           gsutil -m rsync -r -d frontend/dist gs://${{ steps.get_bucket.outputs.bucket_name }}/
 
   deploy:
-    needs: [build_backend, build_frontend]
+    needs: [build_backend, build_dbt, build_frontend]
     runs-on: ubuntu-latest
     environment: prod
     permissions:
@@ -122,5 +151,5 @@ jobs:
         shell: bash
 
       - name: Tofu Apply
-        run: tofu apply -auto-approve -var="container_image=asia-northeast1-docker.pkg.dev/lofilab/utky-applications/school-agent@${{ needs.build_backend.outputs.digest }}" 2>&1
+        run: tofu apply -auto-approve -var="container_image=asia-northeast1-docker.pkg.dev/lofilab/utky-applications/school-agent@${{ needs.build_backend.outputs.digest }}" -var="dbt_container_image=asia-northeast1-docker.pkg.dev/lofilab/utky-applications/school-agent-dbt:${{ github.sha }}" 2>&1
         working-directory: ./tf/environments/production

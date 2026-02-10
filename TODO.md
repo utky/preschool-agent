@@ -13,16 +13,16 @@
 | 0 | アーキテクチャ移行 (Next.js → Vite + Hono) | **DONE** |
 | 7 | Google Drive → GCS自動連携 | **DONE** |
 | 1 | Document AI + BigQuery基盤 | **DONE** |
-| 2 | dbtパイプライン | TODO |
+| 2 | dbtパイプライン | **DONE** |
 | 3 | キーワード検索チャット | TODO |
 | 4 | ベクトル検索 + Mastra統合 | TODO |
 | 5 | イベント抽出 + カレンダー登録 | TODO |
 | 6 | 文書種別構造化 | TODO |
 
 ### 次のアクション
-1. **スライス2**: dbtプロジェクト構造をセットアップし、テキスト抽出・チャンク化パイプラインを実装
-2. BigQuery Object Table (`raw_documents`) の作成とDocument AIテスト実行
-3. Cloud Run Job でdbt実行環境を構築
+1. **スライス3**: キーワード検索チャットを実装
+2. チャットUI（ChatWindow、MessageBubble）の構築
+3. BigQuery LIKE検索によるテキスト検索API
 
 ---
 
@@ -109,26 +109,30 @@
 
 ---
 
-## スライス2: dbtパイプライン - TODO
+## スライス2: dbtパイプライン - DONE
 
 **目標:** Document AIで抽出したテキストをチャンク化し、BigQueryテーブルに格納する。
 
-- [ ] **dbt:**
-    - [ ] dbtプロジェクト構造をセットアップ (`dbt/`)
-    - [ ] `staging/documents_text.sql` モデル実装（ML.PROCESS_DOCUMENT）
-    - [ ] `intermediate/document_chunks.sql` モデル実装（チャンク化、UUID生成）
-    - [ ] `marts/core/documents.sql` モデル実装（文書メタデータ）
-    - [ ] `marts/core/chunks.sql` モデル実装（チャンクテーブル）
-    - [ ] `exports/api_documents.sql` モデル実装（Cloud Storage JSON出力）
-    - [ ] UUID v4生成マクロ、チャンク化マクロ実装
-- [ ] **インフラ (IaC):**
-    - [ ] `tf/modules/cloud_run_job/` モジュール作成（dbt実行環境）
-    - [ ] dbt用Dockerイメージ作成
-- [ ] **バックエンド:**
-    - [ ] `POST /api/documents/process` をdbtジョブトリガーに更新
-    - [ ] Cloud Storage からAPI Data読み込み実装
-- [ ] **フロントエンド:**
-    - [ ] ドキュメント詳細ページ実装（チャンク一覧表示）
+- [x] **dbt:**
+    - [x] dbtプロジェクト構造をセットアップ (`dbt/`)
+    - [x] `stg_pdf_uploads__extracted_texts.sql` モデル実装（ML.PROCESS_DOCUMENT）
+    - [x] `int_extracted_texts__chunked.sql` モデル実装（チャンク化、MD5 ID生成）
+    - [x] `dim_documents.sql` モデル実装（文書メタデータ）
+    - [x] `fct_document_chunks.sql` モデル実装（チャンクテーブル）
+    - [x] `exp_api__documents.sql` モデル実装（Cloud Storage JSON出力）
+    - [x] UUID生成マクロ、チャンク化マクロ、GCSエクスポートマクロ実装
+- [x] **インフラ (IaC):**
+    - [x] `tf/modules/cloud_run_job/` モジュール作成（dbt実行環境）
+    - [x] dbt用Dockerイメージ作成
+    - [x] CI/CD: `build_dbt` ジョブ追加
+- [x] **バックエンド:**
+    - [x] `POST /api/documents/process` をdbtジョブトリガーに更新
+    - [x] `GET /api/documents/:id` 文書詳細API実装
+    - [x] Cloud Run Job起動クライアント実装
+- [x] **フロントエンド:**
+    - [x] DocumentDetail ページ実装
+    - [x] ChunkList コンポーネント実装
+    - [x] DocumentListにdetailリンク追加
 
 ---
 

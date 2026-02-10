@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { apiPost } from '@/lib/api'
 
 interface Document {
@@ -7,6 +8,7 @@ interface Document {
   content_type: string
   size: number
   updated: string
+  document_id?: string
 }
 
 interface DocumentListProps {
@@ -78,7 +80,13 @@ export default function DocumentList({ documents, onProcess }: DocumentListProps
                 </div>
                 <div className="min-w-0 flex-1 px-4">
                   <div className="truncate text-sm font-medium text-gray-900">
-                    {extractFileName(doc.uri)}
+                    {doc.document_id ? (
+                      <Link to={`/documents/${doc.document_id}`} className="hover:text-indigo-600">
+                        {extractFileName(doc.uri)}
+                      </Link>
+                    ) : (
+                      extractFileName(doc.uri)
+                    )}
                   </div>
                   <div className="mt-1 flex items-center text-sm text-gray-500">
                     <span>{formatSize(doc.size)}</span>

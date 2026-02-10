@@ -1,0 +1,32 @@
+name: 'school_agent'
+version: '1.0.0'
+
+profile: 'school_agent'
+
+model-paths: ["models"]
+test-paths: ["tests"]
+macro-paths: ["macros"]
+target-path: "target"
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+vars:
+  gcp_project_id: "{{ env_var('GCP_PROJECT_ID', 'lofilab') }}"
+  dataset_id: "school_agent"
+  api_data_bucket_name: "{{ env_var('API_DATA_BUCKET_NAME', 'school-agent-lofilab-api-data') }}"
+
+models:
+  school_agent:
+    staging:
+      +materialized: incremental
+      +schema: school_agent
+    intermediate:
+      +materialized: ephemeral
+    marts:
+      core:
+        +materialized: table
+        +schema: school_agent
+    exports:
+      +materialized: table
+      +schema: school_agent
