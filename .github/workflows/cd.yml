@@ -153,3 +153,25 @@ jobs:
       - name: Tofu Apply
         run: tofu apply -auto-approve -var="container_image=asia-northeast1-docker.pkg.dev/lofilab/utky-applications/school-agent@${{ needs.build_backend.outputs.digest }}" -var="dbt_container_image=asia-northeast1-docker.pkg.dev/lofilab/utky-applications/school-agent-dbt:${{ github.sha }}" 2>&1
         working-directory: ./tf/environments/production
+
+  dbt_test:
+    needs: [deploy]
+    runs-on: ubuntu-latest
+    environment: prod
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Configure Google Cloud credentials
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.SERVICE_ACCOUNT }}
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+      - name: Execute dbt test via Cloud Run Job
+        run: |
+          gcloud run jobs execute school-agent-dbt \
+            --args test \
+            --region asia-northeast1 \
+            --wait

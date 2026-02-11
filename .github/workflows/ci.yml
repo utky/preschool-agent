@@ -36,6 +36,22 @@ jobs:
       - name: Run tests
         run: npm test
 
+  dbt_validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dbt
+        run: pip install dbt-core dbt-bigquery
+      - name: dbt deps
+        working-directory: ./dbt
+        run: dbt deps
+      - name: dbt parse
+        working-directory: ./dbt
+        run: dbt parse
+
   tofu_plan:
     runs-on: ubuntu-latest
     environment: prod

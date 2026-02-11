@@ -51,6 +51,19 @@ if echo "$CHANGED_FILES" | grep -q "^tf/"; then
   fi
 fi
 
+# dbt/の変更を検出
+if echo "$CHANGED_FILES" | grep -q "^dbt/"; then
+  echo "Running dbt validation..."
+  if ! (cd dbt && dbt deps --quiet 2>&1 && dbt parse 2>&1); then
+    echo '{"decision": "block", "reason": "dbt parseが失敗しました。モデル定義を修正してください。"}'
+    exit 0
+  fi
+  if ! (cd dbt && dbt compile 2>&1); then
+    echo '{"decision": "block", "reason": "dbt compileが失敗しました。モデル定義を修正してください。"}'
+    exit 0
+  fi
+fi
+
 # gas/の変更を検出
 if echo "$CHANGED_FILES" | grep -q "^gas/"; then
   if [ -f "gas/package.json" ] && grep -q '"test"' gas/package.json; then

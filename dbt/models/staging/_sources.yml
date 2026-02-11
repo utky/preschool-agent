@@ -3,8 +3,8 @@ version: 2
 sources:
   - name: pdf_uploads
     description: "GCSバケット上のPDFファイルを参照するObject Table"
-    database: "{{ var('gcp_project_id') }}"
-    schema: "{{ var('dataset_id') }}"
+    database: "{{ env_var('GCP_PROJECT_ID', 'lofilab') }}"
+    schema: "{{ env_var('DATASET_ID', 'school_agent') }}"
     tables:
       - name: raw_documents
         description: "PDF UploadsバケットのObject Table（自動検出されたPDFファイルメタデータ）"

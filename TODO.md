@@ -19,10 +19,46 @@
 | 5 | イベント抽出 + カレンダー登録 | TODO |
 | 6 | 文書種別構造化 | TODO |
 
+### 最優先課題: dbtパイプラインが未稼働
+
+dbtモデル（5モデル、20テスト）は定義済みだが、BigQuery上で実行できない状態。
+
+#### 問題の根本原因
+`raw_documents` Object Table（dbtの唯一のソーステーブル）が **Terraformにもされておらず、BigQueryにも存在しない**。
+このテーブルがないため `dbt run` → `dbt test` の全工程が失敗する。
+
+#### 調査で判明した事実
+1. **スキーマ二重プレフィックス** (`school_agent_school_agent`) — **修正済み**
+   - `dbt/macros/generate_schema_name.sql` を追加し、カスタムスキーマをそのまま使用するよう変更
+2. **ソースYAMLのJinja二重展開問題** — **修正済み**
+   - `_sources.yml` の `database` で `{{ var(...) }}` が内部の `{{ env_var(...) }}` を再展開しなかった
+   - `env_var` を直接使用するよう修正
+3. **`raw_documents` Object Tableが未作成** — **未解決（ブロッカー）**
+   - Terraform (`tf/modules/bigquery/main.tf`) にデータセットとVertex AI接続は定義済み
+   - しかしObject Table本体とそれに必要なGCS接続リソースが未定義
+   - 必要なリソース:
+     - `google_bigquery_connection` (Cloud Resource接続、GCSアクセス用)
+     - `google_bigquery_table` (`external_data_configuration` でObject Table定義)
+     - 接続SAへの `roles/storage.objectViewer` 付与
+4. **CI/CDパイプライン** — **追加済み（未検証）**
+   - CI: `dbt_validate` ジョブ（`dbt parse`、BigQuery不要）
+   - CD: `dbt_test` ジョブ（deploy後にCloud Run Job経由で実行）
+5. **run-tests.sh hook** — **追加済み**
+   - `dbt/` 配下の変更時に `dbt parse` + `dbt compile` を自動実行
+
+#### 必要なアクション（優先順）
+1. **Terraformに `raw_documents` Object Tableを追加** → `dbt run` が通るようになる
+2. `dbt run` → `dbt test` をローカルで実行し全20テスト通過を確認
+3. featureブランチにpushしてCI `dbt_validate` ジョブの通過を確認
+4. mainマージ後にCD `dbt_test` ジョブの動作を確認
+
+---
+
 ### 次のアクション
-1. **スライス3**: キーワード検索チャットを実装
-2. チャットUI（ChatWindow、MessageBubble）の構築
-3. BigQuery LIKE検索によるテキスト検索API
+1. **最優先**: `raw_documents` Object Tableの作成（上記参照）
+2. **スライス3**: キーワード検索チャットを実装
+3. チャットUI（ChatWindow、MessageBubble）の構築
+4. BigQuery LIKE検索によるテキスト検索API
 
 ---
 
