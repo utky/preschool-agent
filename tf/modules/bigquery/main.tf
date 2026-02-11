@@ -70,7 +70,7 @@ resource "google_bigquery_table" "raw_documents" {
     metadata_cache_mode = "MANUAL"
 
     source_uris = [
-      "gs://${var.pdf_uploads_bucket_name}/*/*/*.pdf"
+      "gs://${var.pdf_uploads_bucket_name}/*.pdf"
     ]
   }
 
