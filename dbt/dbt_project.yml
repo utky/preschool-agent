@@ -21,12 +21,21 @@ models:
     staging:
       +materialized: incremental
       +schema: school_agent
+      +labels:
+        layer: staging
+        application: school-agent
     intermediate:
       +materialized: ephemeral
     marts:
       core:
         +materialized: table
         +schema: school_agent
+        +labels:
+          layer: marts
+          application: school-agent
     exports:
       +materialized: table
       +schema: school_agent
+      +labels:
+        layer: exports
+        application: school-agent

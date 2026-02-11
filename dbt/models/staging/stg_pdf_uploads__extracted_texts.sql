@@ -1,7 +1,13 @@
 {{
     config(
         materialized='incremental',
-        unique_key='uri'
+        unique_key='uri',
+        incremental_strategy='merge',
+        partition_by={
+            "field": "updated_at",
+            "data_type": "timestamp"
+        },
+        cluster_by=["uri"]
     )
 }}
 
