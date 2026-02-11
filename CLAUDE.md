@@ -91,6 +91,9 @@ cd frontend && npm run test # Frontend (Vitest)
 cd backend && npm run test  # Backend (Jest)
 cd gas && npm run test        # GAS (Jest)
 
+# dbt
+cd dbt && dbt parse
+
 # IaC（テスト相当）
 tofu -chdir=tf/environments/production/ validate
 tofu -chdir=tf/environments/production/ plan
@@ -101,6 +104,9 @@ tofu -chdir=tf/environments/production/ plan
 npm run build               # 全ワークスペース
 cd frontend && npm run build
 cd backend && npm run build
+
+# dbt
+cd dbt && dbt compile
 ```
 
 ### 開発サーバー
@@ -116,6 +122,7 @@ cd backend && npm run dev   # ポート3000
 - Google Cloud Storage: `gsutil` コマンド
 - BigQuery: `bq` コマンド
 - OpenTofu: `tofu` コマンド
+- dbt : `dbt` コマンド
 
 ## 重要ファイル
 - `TODO.md`: スライス計画とタスク管理
