@@ -54,3 +54,29 @@ resource "google_project_iam_member" "vertex_connection_documentai" {
   role    = "roles/documentai.apiUser"
   member  = "serviceAccount:${google_bigquery_connection.vertex.cloud_resource[0].service_account_id}"
 }
+
+# Object Table: GCSバケット上のPDFファイルメタデータ
+resource "google_bigquery_table" "raw_documents" {
+  project             = var.project_id
+  dataset_id          = google_bigquery_dataset.main.dataset_id
+  table_id            = "raw_documents"
+  deletion_protection = false
+  description         = "PDF UploadsバケットのObject Table（GCS上のPDFファイルメタデータを参照）"
+
+  external_data_configuration {
+    connection_id       = google_bigquery_connection.vertex.name
+    autodetect          = false
+    object_metadata     = "SIMPLE"
+    metadata_cache_mode = "MANUAL"
+
+    source_uris = [
+      "gs://${var.pdf_uploads_bucket_name}/*/*/*.pdf"
+    ]
+  }
+
+  depends_on = [
+    google_bigquery_dataset.main,
+    google_bigquery_connection.vertex,
+    google_storage_bucket_iam_member.vertex_connection_gcs
+  ]
+}

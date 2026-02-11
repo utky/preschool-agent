@@ -43,6 +43,11 @@ output "bigquery_vertex_connection_name" {
   description = "BigQuery Vertex AI connection name."
 }
 
+output "bigquery_raw_documents_table_id" {
+  value       = module.bigquery.raw_documents_table_id
+  description = "BigQuery raw_documents Object Table ID"
+}
+
 output "dbt_job_name" {
   value       = module.cloud_run_job.job_name
   description = "Cloud Run Job name for dbt."

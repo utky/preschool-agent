@@ -47,7 +47,10 @@ dbtモデル（5モデル、20テスト）は定義済みだが、BigQuery上で
    - `dbt/` 配下の変更時に `dbt parse` + `dbt compile` を自動実行
 
 #### 必要なアクション（優先順）
-1. **Terraformに `raw_documents` Object Tableを追加** → `dbt run` が通るようになる
+1. **Terraformに `raw_documents` Object Tableを追加** — **完了**
+   - `tf/modules/bigquery/main.tf` に `google_bigquery_table.raw_documents` を追加
+   - 既存の `google_bigquery_connection.vertex` を再利用
+   - `tofu validate` 通過済み
 2. `dbt run` → `dbt test` をローカルで実行し全20テスト通過を確認
 3. featureブランチにpushしてCI `dbt_validate` ジョブの通過を確認
 4. mainマージ後にCD `dbt_test` ジョブの動作を確認
