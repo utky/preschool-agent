@@ -62,6 +62,16 @@ resource "google_cloud_run_v2_job" "dbt" {
           name  = "API_DATA_BUCKET_NAME"
           value = var.api_data_bucket_name
         }
+
+        env {
+          name  = "VERTEX_CONNECTION_NAME"
+          value = var.vertex_connection_name
+        }
+
+        env {
+          name  = "DOCUMENT_AI_PROCESSOR_PATH"
+          value = var.document_ai_processor_path
+        }
       }
     }
   }

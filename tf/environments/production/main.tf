@@ -72,11 +72,13 @@ module "bigquery" {
 }
 
 module "cloud_run_job" {
-  source               = "../../modules/cloud_run_job"
-  project_id           = var.project_id
-  region               = var.region
-  container_image      = var.dbt_container_image
-  api_data_bucket_name = module.app.api_data_bucket_name
+  source                     = "../../modules/cloud_run_job"
+  project_id                 = var.project_id
+  region                     = var.region
+  container_image            = var.dbt_container_image
+  api_data_bucket_name       = module.app.api_data_bucket_name
+  vertex_connection_name     = module.bigquery.vertex_connection_name
+  document_ai_processor_path = module.document_ai.processor_name
 }
 
 module "monitoring" {

@@ -29,3 +29,13 @@ variable "dataset_id" {
   description = "BigQueryデータセットID"
   default     = "school_agent"
 }
+
+variable "vertex_connection_name" {
+  type        = string
+  description = "BigQuery Vertex AI接続の完全修飾名"
+}
+
+variable "document_ai_processor_path" {
+  type        = string
+  description = "Document AI OCRプロセッサーのリソース名"
+}
