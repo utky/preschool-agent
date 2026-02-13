@@ -28,15 +28,23 @@ WITH source AS (
 extracted AS (
     SELECT
         source.uri,
-        result.ml_process_document_result.text_segments[OFFSET(0)].text AS extracted_text,
+        JSON_VALUE(result.ml_generate_text_llm_result, '$.extracted_text') AS extracted_text,
         source.content_type,
         source.size,
         source.md5_hash,
         source.updated AS updated_at
     FROM source
-    CROSS JOIN ML.PROCESS_DOCUMENT(
-        MODEL `{{ var('gcp_project_id') }}.{{ var('dataset_id') }}.document_ocr_model`,
-        TABLE source
+    CROSS JOIN ML.GENERATE_TEXT(
+        MODEL `{{ var('gcp_project_id') }}.{{ var('dataset_id') }}.gemini_flash_model`,
+        TABLE source,
+        STRUCT(
+            'このPDFドキュメントのテキスト内容をすべて忠実に抽出してください。レイアウトや書式は無視し、プレーンテキストのみを返してください。' AS prompt,
+            'application/json' AS response_mime_type,
+            '{"type": "OBJECT", "properties": {"extracted_text": {"type": "STRING", "description": "PDFから抽出したテキスト全文"}}, "required": ["extracted_text"]}' AS response_schema,
+            TRUE AS flatten_json_output,
+            0.0 AS temperature,
+            8192 AS max_output_tokens
+        )
     ) AS result
 )
 

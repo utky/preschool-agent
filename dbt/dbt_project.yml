@@ -16,7 +16,6 @@ vars:
   dataset_id: "school_agent"
   api_data_bucket_name: "{{ env_var('API_DATA_BUCKET_NAME', 'school-agent-lofilab-api-data') }}"
   vertex_connection_name: "{{ env_var('VERTEX_CONNECTION_NAME', 'lofilab.asia-northeast1.school-agent-vertex-connection') }}"
-  document_ai_processor_path: "{{ env_var('DOCUMENT_AI_PROCESSOR_PATH', '') }}"
 
 on-run-start:
   - "{{ create_ocr_model() }}"

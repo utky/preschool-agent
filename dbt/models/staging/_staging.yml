@@ -2,7 +2,7 @@ version: 2
 
 models:
   - name: stg_pdf_uploads__extracted_texts
-    description: "Document AI OCRでPDFからテキストを抽出したステージングモデル"
+    description: "Gemini 2.5 FlashでPDFからテキストを抽出したステージングモデル"
     columns:
       - name: uri
         description: "GCS URI"
@@ -10,7 +10,7 @@ models:
           - unique
           - not_null
       - name: extracted_text
-        description: "Document AIで抽出されたテキスト"
+        description: "Gemini 2.5 Flashで抽出されたテキスト"
         data_tests:
           - not_null
       - name: content_type
