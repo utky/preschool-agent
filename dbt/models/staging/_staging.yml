@@ -21,3 +21,13 @@ models:
         description: "MD5ハッシュ"
       - name: updated_at
         description: "GCSオブジェクトの最終更新日時"
+
+  - name: stg_pdf_uploads__file_metadata
+    description: "GCS Object Tableのメタデータからオリジナルファイル名を抽出するモデル"
+    columns:
+      - name: uri
+        description: "GCS URI"
+      - name: original_filename
+        description: "オリジナルファイル名（メタデータからURLデコード済み）"
+      - name: updated_at
+        description: "GCSオブジェクトの最終更新日時"

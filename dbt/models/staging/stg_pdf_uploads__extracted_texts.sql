@@ -17,7 +17,8 @@ WITH source AS (
         content_type,
         size,
         md5_hash,
-        updated
+        updated,
+        'このPDFドキュメントの内容をMarkdown形式で忠実に抽出してください。見出し、表、箇条書き、強調などの書式を適切なMarkdown記法で再現してください。' AS prompt
     FROM {{ source('pdf_uploads', 'raw_documents') }}
     WHERE content_type = 'application/pdf'
     {% if is_incremental() %}
@@ -38,7 +39,6 @@ extracted AS (
         MODEL `{{ var('gcp_project_id') }}.{{ var('dataset_id') }}.gemini_flash_model`,
         TABLE source,
         STRUCT(
-            'このPDFドキュメントの内容をMarkdown形式で忠実に抽出してください。見出し、表、箇条書き、強調などの書式を適切なMarkdown記法で再現してください。' AS prompt,
             TRUE AS flatten_json_output,
             '{"generationConfig": {"temperature": 0.0, "maxOutputTokens": 8192, "responseMimeType": "application/json", "responseSchema": {"type": "OBJECT", "properties": {"extracted_markdown": {"type": "STRING", "description": "PDFから抽出したMarkdown形式のテキスト"}}, "required": ["extracted_markdown"]}}}' AS model_params
         )

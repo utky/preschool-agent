@@ -19,5 +19,7 @@ sources:
             description: "ファイルサイズ（バイト）"
           - name: md5_hash
             description: "MD5ハッシュ"
+          - name: metadata
+            description: "GCSオブジェクトメタデータ（JSON）"
           - name: updated
             description: "最終更新日時"

@@ -15,7 +15,7 @@ models:
           - unique
           - not_null
       - name: title
-        description: "文書タイトル（暫定: ファイル名）"
+        description: "文書タイトル（GCSメタデータのoriginal-filenameをURLデコード、フォールバック: URI末尾）"
         data_tests:
           - not_null
       - name: document_type
