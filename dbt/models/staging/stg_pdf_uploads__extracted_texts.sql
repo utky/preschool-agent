@@ -28,7 +28,7 @@ WITH source AS (
 extracted AS (
     SELECT
         source.uri,
-        JSON_VALUE(result.ml_generate_text_llm_result, '$.extracted_text') AS extracted_text,
+        JSON_VALUE(result.ml_generate_text_llm_result, '$.extracted_markdown') AS extracted_markdown,
         source.content_type,
         source.size,
         source.md5_hash,
@@ -38,16 +38,16 @@ extracted AS (
         MODEL `{{ var('gcp_project_id') }}.{{ var('dataset_id') }}.gemini_flash_model`,
         TABLE source,
         STRUCT(
-            'このPDFドキュメントのテキスト内容をすべて忠実に抽出してください。レイアウトや書式は無視し、プレーンテキストのみを返してください。' AS prompt,
+            'このPDFドキュメントの内容をMarkdown形式で忠実に抽出してください。見出し、表、箇条書き、強調などの書式を適切なMarkdown記法で再現してください。' AS prompt,
             TRUE AS flatten_json_output,
-            '{"generationConfig": {"temperature": 0.0, "maxOutputTokens": 8192, "responseMimeType": "application/json", "responseSchema": {"type": "OBJECT", "properties": {"extracted_text": {"type": "STRING", "description": "PDFから抽出したテキスト全文"}}, "required": ["extracted_text"]}}}' AS model_params
+            '{"generationConfig": {"temperature": 0.0, "maxOutputTokens": 8192, "responseMimeType": "application/json", "responseSchema": {"type": "OBJECT", "properties": {"extracted_markdown": {"type": "STRING", "description": "PDFから抽出したMarkdown形式のテキスト"}}, "required": ["extracted_markdown"]}}}' AS model_params
         )
     ) AS result
 )
 
 SELECT
     uri,
-    extracted_text,
+    extracted_markdown,
     content_type,
     size,
     md5_hash,

@@ -9,8 +9,8 @@ models:
         data_tests:
           - unique
           - not_null
-      - name: extracted_text
-        description: "Gemini 2.5 Flashで抽出されたテキスト"
+      - name: extracted_markdown
+        description: "Gemini 2.5 FlashでMarkdown形式で抽出されたテキスト"
         data_tests:
           - not_null
       - name: content_type

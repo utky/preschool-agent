@@ -2,7 +2,7 @@ version: 2
 
 models:
   - name: int_extracted_texts__chunked
-    description: "抽出テキストを2000文字ごとにチャンク分割した中間モデル"
+    description: "抽出Markdownテキストを2000文字ごとにチャンク分割した中間モデル"
     columns:
       - name: document_id
         description: "文書ID（URIのMD5ハッシュ）"
