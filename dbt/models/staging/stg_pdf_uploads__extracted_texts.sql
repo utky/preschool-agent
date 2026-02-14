@@ -39,11 +39,8 @@ extracted AS (
         TABLE source,
         STRUCT(
             'このPDFドキュメントのテキスト内容をすべて忠実に抽出してください。レイアウトや書式は無視し、プレーンテキストのみを返してください。' AS prompt,
-            'application/json' AS response_mime_type,
-            '{"type": "OBJECT", "properties": {"extracted_text": {"type": "STRING", "description": "PDFから抽出したテキスト全文"}}, "required": ["extracted_text"]}' AS response_schema,
             TRUE AS flatten_json_output,
-            0.0 AS temperature,
-            8192 AS max_output_tokens
+            '{"generationConfig": {"temperature": 0.0, "maxOutputTokens": 8192, "responseMimeType": "application/json", "responseSchema": {"type": "OBJECT", "properties": {"extracted_text": {"type": "STRING", "description": "PDFから抽出したテキスト全文"}}, "required": ["extracted_text"]}}}' AS model_params
         )
     ) AS result
 )
