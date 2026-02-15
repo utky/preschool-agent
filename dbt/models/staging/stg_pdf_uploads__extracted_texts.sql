@@ -21,14 +21,24 @@ WITH generated AS (
         ml_generate_text_llm_result
     FROM ML.GENERATE_TEXT(
         MODEL `{{ var('gcp_project_id') }}.{{ var('dataset_id') }}.gemini_flash_model`,
-        TABLE {{ source('pdf_uploads', 'raw_documents') }},
+        (
+            SELECT *
+            FROM {{ source('pdf_uploads', 'raw_documents') }}
+            WHERE content_type = 'application/pdf'
+            {% if var('date', none) is not none and var('hour', none) is not none %}
+                AND updated >= TIMESTAMP('{{ var("date") }}T{{ var("hour") }}:00:00Z')
+                AND updated < TIMESTAMP_ADD(TIMESTAMP('{{ var("date") }}T{{ var("hour") }}:00:00Z'), INTERVAL 1 HOUR)
+            {% endif %}
+            {% if is_incremental() %}
+                AND uri NOT IN (SELECT uri FROM {{ this }})
+            {% endif %}
+        ),
         STRUCT(
             'このPDFドキュメントの内容をMarkdown形式で忠実に抽出してください。見出し、表、箇条書き、強調などの書式を適切なMarkdown記法で再現してください。' AS prompt,
             TRUE AS flatten_json_output,
             '{"generationConfig": {"temperature": 0.0, "maxOutputTokens": 8192, "responseMimeType": "application/json", "responseSchema": {"type": "OBJECT", "properties": {"extracted_markdown": {"type": "STRING", "description": "PDFから抽出したMarkdown形式のテキスト"}}, "required": ["extracted_markdown"]}}}' AS model_params
         )
     )
-    WHERE content_type = 'application/pdf'
 )
 
 SELECT
@@ -39,6 +49,3 @@ SELECT
     md5_hash,
     updated AS updated_at
 FROM generated
-{% if is_incremental() %}
-WHERE uri NOT IN (SELECT uri FROM {{ this }})
-{% endif %}

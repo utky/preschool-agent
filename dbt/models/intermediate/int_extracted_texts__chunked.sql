@@ -12,7 +12,7 @@ WITH source AS (
         size,
         md5_hash,
         updated_at,
-        TO_HEX(MD5(uri)) AS document_id,
+        REGEXP_EXTRACT(uri, r'/([^/]+)\.pdf$') AS document_id,
         LENGTH(extracted_markdown) AS text_length
     FROM {{ ref('stg_pdf_uploads__extracted_texts') }}
 ),
@@ -29,7 +29,7 @@ chunk_indices AS (
 
 SELECT
     document_id,
-    TO_HEX(MD5(CONCAT(uri, CAST(chunk_index AS STRING)))) AS chunk_id,
+    TO_HEX(MD5(CONCAT(REGEXP_EXTRACT(uri, r'/([^/]+)\.pdf$'), CAST(chunk_index AS STRING)))) AS chunk_id,
     uri,
     chunk_index,
     CASE

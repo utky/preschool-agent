@@ -1,0 +1,78 @@
+main:
+  params: [args]
+  steps:
+    - init:
+        assign:
+          - project_id: $${sys.get_env("GOOGLE_CLOUD_PROJECT_ID")}
+          - job_name: ${job_name}
+          - job_location: ${region}
+          - input_date: $${default(map.get(args, "date"), null)}
+          - input_hour: $${default(map.get(args, "hour"), null)}
+
+    - route:
+        switch:
+          - condition: $${input_date != null and input_hour != null}
+            assign:
+              - target_date: $${input_date}
+              - target_hour: $${input_hour}
+            next: log_start
+        next: compute_default
+
+    - compute_default:
+        assign:
+          - now_epoch: $${int(sys.now())}
+          - prev_hour_epoch: $${now_epoch - (now_epoch % 3600) - 3600}
+          - prev_hour_str: $${time.format(prev_hour_epoch)}
+          - target_date: $${text.substring(prev_hour_str, 0, 10)}
+          - target_hour: $${text.substring(prev_hour_str, 11, 13)}
+
+    - log_start:
+        call: sys.log
+        args:
+          text: $${"dbt job starting: date=" + target_date + " hour=" + target_hour}
+          severity: INFO
+
+    - run_job:
+        try:
+          call: googleapis.run.v1.namespaces.jobs.run
+          args:
+            name: $${"namespaces/" + project_id + "/jobs/" + job_name}
+            location: $${job_location}
+            body:
+              overrides:
+                containerOverrides:
+                  args:
+                    - "run"
+                    - "--vars"
+                    - $${"{\"date\": \"" + target_date + "\", \"hour\": \"" + target_hour + "\"}"}
+                timeout: "600s"
+          result: job_execution
+        retry:
+          predicate: $${retry_predicate}
+          max_retries: 3
+          backoff:
+            initial_delay: 30
+            max_delay: 300
+            multiplier: 2
+
+    - log_done:
+        call: sys.log
+        args:
+          text: $${"dbt job completed: date=" + target_date + " hour=" + target_hour}
+          severity: INFO
+
+    - finish:
+        return:
+          date: $${target_date}
+          hour: $${target_hour}
+          execution: $${job_execution}
+
+retry_predicate:
+  params: [e]
+  steps:
+    - check:
+        switch:
+          - condition: $${e.code == 503 or e.code == 429}
+            return: true
+    - default:
+        return: false

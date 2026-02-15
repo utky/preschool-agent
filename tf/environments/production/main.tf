@@ -88,3 +88,10 @@ module "monitoring" {
   alert_email                       = var.alert_email
   # デフォルト: 2048 バイト/秒 (2KB/s)
 }
+
+module "scheduler" {
+  source       = "../../modules/scheduler"
+  project_id   = var.project_id
+  region       = var.region
+  dbt_job_name = module.cloud_run_job.job_name
+}
