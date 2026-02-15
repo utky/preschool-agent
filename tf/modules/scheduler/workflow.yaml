@@ -29,14 +29,14 @@ main:
     - log_start:
         call: sys.log
         args:
-          text: $${"dbt job starting: date=" + target_date + " hour=" + target_hour}
+          text: '$${"dbt job starting: date=" + target_date + " hour=" + target_hour}'
           severity: INFO
 
     - run_job:
         try:
           call: googleapis.run.v1.namespaces.jobs.run
           args:
-            name: $${"namespaces/" + project_id + "/jobs/" + job_name}
+            name: '$${"namespaces/" + project_id + "/jobs/" + job_name}'
             location: $${job_location}
             body:
               overrides:
@@ -44,7 +44,7 @@ main:
                   args:
                     - "run"
                     - "--vars"
-                    - $${"{\"date\": \"" + target_date + "\", \"hour\": \"" + target_hour + "\"}"}
+                    - '$${"{\"date\": \"" + target_date + "\", \"hour\": \"" + target_hour + "\"}"}'
                 timeout: "600s"
           result: job_execution
         retry:
@@ -58,7 +58,7 @@ main:
     - log_done:
         call: sys.log
         args:
-          text: $${"dbt job completed: date=" + target_date + " hour=" + target_hour}
+          text: '$${"dbt job completed: date=" + target_date + " hour=" + target_hour}'
           severity: INFO
 
     - finish:
