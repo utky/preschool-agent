@@ -9,8 +9,17 @@ resource "google_cloud_run_v2_job_iam_member" "workflow_invoker" {
   project  = var.project_id
   location = var.region
   name     = var.dbt_job_name
-  role     = "roles/run.invoker"
+  # v2 API で overrides（containerOverrides）を使うには runWithOverrides 権限が必要なため
+  # roles/run.invoker（run.jobs.run のみ）ではなく roles/run.developer を使用する
+  role     = "roles/run.developer"
   member   = "serviceAccount:${google_service_account.workflow.email}"
+}
+
+# Workflow SA → Cloud Run オペレーション状態確認権限（v2 API のポーリングに必要）
+resource "google_project_iam_member" "workflow_run_viewer" {
+  project = var.project_id
+  role    = "roles/run.viewer"
+  member  = "serviceAccount:${google_service_account.workflow.email}"
 }
 
 # Workflow SA → ログ書き込み権限

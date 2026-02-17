@@ -34,10 +34,9 @@ main:
 
     - run_job:
         try:
-          call: googleapis.run.v1.namespaces.jobs.run
+          call: googleapis.run.v2.projects.locations.jobs.run
           args:
-            name: '$${"namespaces/" + project_id + "/jobs/" + job_name}'
-            location: $${job_location}
+            name: '$${"projects/" + project_id + "/locations/" + job_location + "/jobs/" + job_name}'
             body:
               overrides:
                 containerOverrides:
