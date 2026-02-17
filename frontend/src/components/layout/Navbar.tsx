@@ -17,6 +17,9 @@ export default function Navbar() {
             <Link to="/documents" className="text-gray-600 hover:text-gray-900 text-sm font-medium">
               Documents
             </Link>
+            <Link to="/chat" className="text-gray-600 hover:text-gray-900 text-sm font-medium">
+              Chat
+            </Link>
           </div>
 
           <div className="flex justify-center">
