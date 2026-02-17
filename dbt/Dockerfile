@@ -7,4 +7,4 @@ COPY . .
 RUN dbt deps
 
 ENTRYPOINT ["dbt"]
-CMD ["run"]
+CMD ["build"]
