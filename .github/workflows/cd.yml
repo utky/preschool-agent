@@ -68,7 +68,9 @@ jobs:
           context: ./dbt
           file: ./dbt/Dockerfile
           push: true
-          tags: asia-northeast1-docker.pkg.dev/lofilab/utky-applications/school-agent-dbt:${{ github.sha }}
+          tags: |
+            asia-northeast1-docker.pkg.dev/lofilab/utky-applications/school-agent-dbt:${{ github.sha }}
+            asia-northeast1-docker.pkg.dev/lofilab/utky-applications/school-agent-dbt:latest
           cache-from: type=gha,scope=dbt
           cache-to: type=gha,mode=max,scope=dbt
 
