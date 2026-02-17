@@ -40,7 +40,7 @@ heading_sections AS (
         SPLIT(
             REGEXP_REPLACE(
                 CONCAT('\n', extracted_markdown),
-                r'\n(#{2,3} )',
+                r'\n(#{1,3} )',
                 '\n<<<HSPLIT>>>\n\\1'
             ),
             '<<<HSPLIT>>>'
@@ -77,23 +77,28 @@ classified_paragraphs AS (
     FROM section_paragraphs
 ),
 
+-- 前の行と種別が変わったらisland境界
+island_lag AS (
+    SELECT
+        *,
+        CASE
+            WHEN block_type != LAG(block_type, 1, '') OVER (
+                PARTITION BY document_id, section_index
+                ORDER BY para_index
+            ) THEN 1
+            ELSE 0
+        END AS is_new_island
+    FROM classified_paragraphs
+),
+
 island_boundaries AS (
     SELECT
         *,
-        -- 前の行と種別が変わったらisland境界
-        SUM(
-            CASE
-                WHEN block_type != LAG(block_type, 1, '') OVER (
-                    PARTITION BY document_id, section_index
-                    ORDER BY para_index
-                ) THEN 1
-                ELSE 0
-            END
-        ) OVER (
+        SUM(is_new_island) OVER (
             PARTITION BY document_id, section_index
             ORDER BY para_index
         ) AS island_id
-    FROM classified_paragraphs
+    FROM island_lag
 ),
 
 -- 同一islandの段落をマージ（テーブル行は\nで結合、テキストは\n\nで結合）
