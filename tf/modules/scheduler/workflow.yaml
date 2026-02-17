@@ -41,11 +41,10 @@ main:
             body:
               overrides:
                 containerOverrides:
-                  args:
-                    - "run"
-                    - "--vars"
-                    - '$${"{\"date\": \"" + target_date + "\", \"hour\": \"" + target_hour + "\"}"}'
-                timeout: "600s"
+                  - args:
+                      - "run"
+                      - "--vars"
+                      - '$${"{\"date\": \"" + target_date + "\", \"hour\": \"" + target_hour + "\"}"}'
           result: job_execution
         retry:
           predicate: $${retry_predicate}
