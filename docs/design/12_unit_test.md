@@ -2,7 +2,7 @@
 
 ## 概要
 
-TDD（テスト駆動開発）ワークフローを確立し、Claude Codeのhookとサブエージェントを活用してテスト品質を担保する。
+TDD（テスト駆動開発）ワークフローを確立し、Claude Codeのhookとスキルを活用してテスト品質を担保する。
 
 ## テストフレームワーク
 
@@ -144,14 +144,14 @@ tofu -chdir=tf/environments/production/ plan
 
 1. **テスタビリティ重視**: 純粋関数とインタフェース分離を優先
 2. **テストファースト**: 実装前にテストを書く
-3. **レビュー必須**: test-reviewerサブエージェントでレビュー
+3. **レビュー必須**: `/test-reviewer` スキルでレビュー
 4. **全テスト通過**: テストがパスするまで実装を続ける
 
 ### TDD手順
 
 1. インタフェース設計（型定義）
 2. テスト作成（`*.test.ts`）
-3. テストレビュー（test-reviewer承認まで改善）
+3. テストレビュー（`/test-reviewer` で承認まで改善）
 4. 実装（テストがグリーンになるまで）
 
 ### テストコマンド
@@ -181,9 +181,9 @@ tofu -chdir=tf/environments/production/ plan
 
 ---
 
-## test-reviewer サブエージェント
+## test-reviewer スキル
 
-`.claude/agents/test-reviewer.md` に定義されたテストレビュー専門エージェント。
+`.claude/skills/test-reviewer/SKILL.md` に定義されたテストレビュースキル（スラッシュコマンド `/test-reviewer`）。
 
 ### レビュー基準
 
