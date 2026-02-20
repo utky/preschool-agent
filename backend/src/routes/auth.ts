@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import { setCookie, deleteCookie, getCookie } from 'hono/cookie'
 import { createToken, verifyToken, getUserFromPayload } from '../lib/jwt.js'
+import { logger } from '../lib/logger.js'
 import type { GoogleUserInfo, User } from '../types/auth.js'
 
 const auth = new Hono()
@@ -47,7 +48,7 @@ auth.get('/callback/google', async (c) => {
   const baseUrl = getBaseUrl(c)
 
   if (error) {
-    console.error('OAuth error:', error)
+    logger.error({ 'oauth.step': 'callback', 'oauth.error': error }, 'OAuth error received')
     return c.redirect(getFrontendUrl('/login?error=oauth_error'))
   }
 
@@ -73,8 +74,8 @@ auth.get('/callback/google', async (c) => {
     })
 
     if (!tokenResponse.ok) {
-      const errorText = await tokenResponse.text()
-      console.error('Token exchange failed:', errorText)
+      await tokenResponse.text()
+      logger.error({ 'oauth.step': 'token_exchange' }, 'Token exchange failed')
       return c.redirect(getFrontendUrl('/login?error=token_exchange_failed'))
     }
 
@@ -90,14 +91,14 @@ auth.get('/callback/google', async (c) => {
     )
 
     if (!userInfoResponse.ok) {
-      console.error('Failed to get user info')
+      logger.error({ 'oauth.step': 'user_info' }, 'Failed to get user info')
       return c.redirect(getFrontendUrl('/login?error=user_info_failed'))
     }
 
     const googleUser = (await userInfoResponse.json()) as GoogleUserInfo
 
     if (!googleUser.email_verified) {
-      console.log('Email not verified:', googleUser.email)
+      logger.warn({ reason: 'email_not_verified' }, 'Authentication rejected')
       return c.redirect(getFrontendUrl('/login?error=email_not_verified'))
     }
 
@@ -105,7 +106,7 @@ auth.get('/callback/google', async (c) => {
       ALLOWED_USER_EMAILS.length > 0 &&
       !ALLOWED_USER_EMAILS.includes(googleUser.email)
     ) {
-      console.log('User not in allowed list:', googleUser.email)
+      logger.warn({ reason: 'user_not_in_allowed_list' }, 'Authorization rejected')
       return c.redirect(getFrontendUrl('/login?error=not_allowed'))
     }
 
@@ -127,7 +128,7 @@ auth.get('/callback/google', async (c) => {
 
     return c.redirect(getFrontendUrl('/'))
   } catch (err) {
-    console.error('OAuth callback error:', err)
+    logger.error({ err, 'oauth.step': 'callback' }, 'OAuth callback error')
     return c.redirect(getFrontendUrl('/login?error=callback_failed'))
   }
 })
