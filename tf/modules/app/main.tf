@@ -172,6 +172,13 @@ resource "google_project_iam_member" "cloud_run_bigquery_data_viewer" {
   member  = "serviceAccount:${google_service_account.default.email}"
 }
 
+# BigQuery 接続利用権限（ML.GENERATE_EMBEDDING でVertex AI接続を使用するため）
+resource "google_project_iam_member" "cloud_run_bigquery_connection_user" {
+  project = var.project_id
+  role    = "roles/bigquery.connectionUser"
+  member  = "serviceAccount:${google_service_account.default.email}"
+}
+
 # Secret Managerへのアクセス権限を付与
 #resource "google_project_iam_member" "secret_accessor" {
 #  project = var.project_id
