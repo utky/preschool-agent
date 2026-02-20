@@ -149,6 +149,29 @@ resource "google_storage_bucket_iam_member" "backend_read_pdf_uploads" {
   member = "serviceAccount:${google_service_account.default.email}"
 }
 
+# --- Vertex AI / BigQuery 権限（Mastraエージェント用） ---
+
+# Vertex AI (Gemini) 呼び出し権限
+resource "google_project_iam_member" "cloud_run_vertex_user" {
+  project = var.project_id
+  role    = "roles/aiplatform.user"
+  member  = "serviceAccount:${google_service_account.default.email}"
+}
+
+# BigQueryジョブ実行権限
+resource "google_project_iam_member" "cloud_run_bigquery_job_user" {
+  project = var.project_id
+  role    = "roles/bigquery.jobUser"
+  member  = "serviceAccount:${google_service_account.default.email}"
+}
+
+# BigQueryデータ読み取り権限
+resource "google_project_iam_member" "cloud_run_bigquery_data_viewer" {
+  project = var.project_id
+  role    = "roles/bigquery.dataViewer"
+  member  = "serviceAccount:${google_service_account.default.email}"
+}
+
 # Secret Managerへのアクセス権限を付与
 #resource "google_project_iam_member" "secret_accessor" {
 #  project = var.project_id
@@ -358,6 +381,21 @@ resource "google_cloud_run_v2_service" "default" {
       env {
         name  = "API_DATA_BUCKET_NAME"
         value = google_storage_bucket.api_data.name
+      }
+
+      env {
+        name  = "GCP_PROJECT_ID"
+        value = var.project_id
+      }
+
+      env {
+        name  = "GCP_REGION"
+        value = var.region
+      }
+
+      env {
+        name  = "BIGQUERY_DATASET_ID"
+        value = "school_agent"
       }
     }
   }

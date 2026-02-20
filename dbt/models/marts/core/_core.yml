@@ -55,6 +55,10 @@ models:
         description: "チャンクテキスト"
         data_tests:
           - not_null
+      - name: chunk_embedding
+        description: "768次元のベクトル埋め込み（FLOAT64配列、COSINE Vector Index付き）"
+        data_tests:
+          - not_null
       - name: title
         description: "文書タイトル（冗長: RAG用）"
       - name: document_type

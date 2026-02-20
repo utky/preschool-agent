@@ -1,15 +1,11 @@
 import { jest, describe, it, expect, beforeEach } from '@jest/globals'
-import type { ChatSource } from '../types/chat.js'
 
-// chat-search モック設定
-const mockExtractKeywords = jest.fn<(message: string) => readonly string[]>()
-const mockSearchChunks = jest.fn<(keywords: readonly string[]) => Promise<readonly ChatSource[]>>()
-const mockFormatSearchResponse = jest.fn<(keywords: readonly string[], sources: readonly ChatSource[]) => string>()
-
-jest.unstable_mockModule('../lib/chat-search.js', () => ({
-  extractKeywords: mockExtractKeywords,
-  searchChunks: mockSearchChunks,
-  formatSearchResponse: mockFormatSearchResponse,
+// chatAgent モック設定
+const mockGenerate = jest.fn<(...args: unknown[]) => Promise<unknown>>()
+jest.unstable_mockModule('../agents/chat-agent.js', () => ({
+  chatAgent: {
+    generate: mockGenerate,
+  },
 }))
 
 // auth ミドルウェアをバイパス
@@ -59,34 +55,111 @@ describe('POST /api/chat', () => {
     expect(res.status).toBe(400)
   })
 
-  it('should return search results for valid message', async () => {
-    const sources: ChatSource[] = [
-      { document_id: 'doc1', title: '給食だより.pdf', chunk_text: '今月の給食', chunk_index: 0 },
+  it('should return agent response with sources for valid message', async () => {
+    const toolResults = [
+      {
+        toolName: 'vectorSearch',
+        result: {
+          results: [
+            {
+              chunk_id: 'chunk1',
+              document_id: 'doc1',
+              title: '給食だより.pdf',
+              chunk_text: '今月の給食メニュー',
+              chunk_index: 0,
+              distance: 0.15,
+            },
+          ],
+        },
+      },
     ]
-    mockExtractKeywords.mockReturnValue(['給食'])
-    mockSearchChunks.mockResolvedValue(sources)
-    mockFormatSearchResponse.mockReturnValue('1件のチャンクが見つかりました。')
+    mockGenerate.mockResolvedValue({
+      text: '今月の給食メニューは以下の通りです。',
+      toolResults,
+    })
 
     const { default: chat } = await import('./chat.js')
     const res = await chat.request('/', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: '給食' }),
+      body: JSON.stringify({ message: '給食のメニューを教えて' }),
     })
 
     expect(res.status).toBe(200)
-    const body = await res.json()
-    expect(body).toEqual({
-      response: '1件のチャンクが見つかりました。',
-      sources,
+    const body = await res.json() as { response: string; sources: unknown[] }
+    expect(body.response).toBe('今月の給食メニューは以下の通りです。')
+    expect(body.sources).toEqual([
+      {
+        document_id: 'doc1',
+        title: '給食だより.pdf',
+        chunk_text: '今月の給食メニュー',
+        chunk_index: 0,
+      },
+    ])
+    expect(mockGenerate).toHaveBeenCalledWith('給食のメニューを教えて')
+  })
+
+  it('should return empty sources when agent does not use tools', async () => {
+    mockGenerate.mockResolvedValue({
+      text: 'お手伝いできることがあればお聞きください。',
+      toolResults: [],
     })
-    expect(mockExtractKeywords).toHaveBeenCalledWith('給食')
-    expect(mockSearchChunks).toHaveBeenCalledWith(['給食'])
+
+    const { default: chat } = await import('./chat.js')
+    const res = await chat.request('/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: 'こんにちは' }),
+    })
+
+    expect(res.status).toBe(200)
+    const body = await res.json() as { response: string; sources: unknown[] }
+    expect(body.response).toBe('お手伝いできることがあればお聞きください。')
+    expect(body.sources).toEqual([])
+  })
+
+  it('should ignore non-vectorSearch tool results', async () => {
+    mockGenerate.mockResolvedValue({
+      text: '応答テキスト',
+      toolResults: [
+        {
+          toolName: 'someOtherTool',
+          result: { data: 'something' },
+        },
+      ],
+    })
+
+    const { default: chat } = await import('./chat.js')
+    const res = await chat.request('/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: 'テスト' }),
+    })
+
+    expect(res.status).toBe(200)
+    const body = await res.json() as { response: string; sources: unknown[] }
+    expect(body.sources).toEqual([])
+  })
+
+  it('should handle undefined toolResults', async () => {
+    mockGenerate.mockResolvedValue({
+      text: '応答テキスト',
+    })
+
+    const { default: chat } = await import('./chat.js')
+    const res = await chat.request('/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: 'テスト' }),
+    })
+
+    expect(res.status).toBe(200)
+    const body = await res.json() as { response: string; sources: unknown[] }
+    expect(body.sources).toEqual([])
   })
 
   it('should return 500 on internal error', async () => {
-    mockExtractKeywords.mockReturnValue(['給食'])
-    mockSearchChunks.mockRejectedValue(new Error('BigQuery error'))
+    mockGenerate.mockRejectedValue(new Error('LLM error'))
 
     const { default: chat } = await import('./chat.js')
     const res = await chat.request('/', {

@@ -5,7 +5,10 @@
             "field": "publish_date",
             "data_type": "date"
         },
-        cluster_by=["document_id", "document_type"]
+        cluster_by=["document_id", "document_type"],
+        post_hook=[
+            "CREATE VECTOR INDEX IF NOT EXISTS fct_document_chunks_embedding_idx ON {{ this }}(chunk_embedding) OPTIONS(distance_type='COSINE', index_type='IVF', ivf_options='{\"num_lists\":32}')"
+        ]
     )
 }}
 
@@ -14,8 +17,9 @@ WITH chunks AS (
         chunk_id,
         document_id,
         chunk_index,
-        chunk_text
-    FROM {{ ref('int_extracted_texts__chunked') }}
+        chunk_text,
+        chunk_embedding
+    FROM {{ ref('int_document_chunks__embedded') }}
 ),
 
 documents AS (
@@ -32,6 +36,7 @@ SELECT
     c.document_id,
     c.chunk_index,
     c.chunk_text,
+    c.chunk_embedding,
     -- RAG用冗長メタデータ（JOINなしで参照可能にする）
     d.title,
     d.document_type,

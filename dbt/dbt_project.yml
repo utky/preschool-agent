@@ -20,6 +20,7 @@ vars:
 on-run-start:
   - "{{ create_ocr_model() }}"
   - "{{ create_url_decode_udf() }}"
+  - "{{ create_embedding_model() }}"
 
 models:
   school_agent:

@@ -21,3 +21,28 @@ models:
         description: "チャンクテキスト"
         data_tests:
           - not_null
+
+  - name: int_document_chunks__embedded
+    description: "チャンクにVertex AI text-embedding-005でベクトル埋め込みを生成した中間モデル"
+    columns:
+      - name: chunk_id
+        description: "チャンクID"
+        data_tests:
+          - not_null
+          - unique
+      - name: document_id
+        description: "文書ID"
+        data_tests:
+          - not_null
+      - name: chunk_index
+        description: "チャンクの順序インデックス"
+        data_tests:
+          - not_null
+      - name: chunk_text
+        description: "チャンクテキスト"
+        data_tests:
+          - not_null
+      - name: chunk_embedding
+        description: "768次元のベクトル埋め込み（FLOAT64配列）"
+        data_tests:
+          - not_null
