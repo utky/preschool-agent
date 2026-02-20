@@ -53,5 +53,13 @@ secrets.auto.tfvars
 # voltagent
 .voltagent
 
+# dbt
+dbt/.user.yml
+dbt/target/
+dbt/dbt_packages/
+
+# logs
+logs/
+
 # input pdf
 *.pdf
