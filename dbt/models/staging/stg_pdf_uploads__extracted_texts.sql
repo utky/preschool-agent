@@ -19,7 +19,8 @@ WITH generated AS (
         md5_hash,
         metadata,
         updated,
-        ml_generate_text_llm_result
+        ml_generate_text_llm_result,
+        ml_generate_text_status
     FROM ML.GENERATE_TEXT(
         MODEL `{{ var('gcp_project_id') }}.{{ var('dataset_id') }}.gemini_flash_model`,
         (
@@ -49,8 +50,12 @@ SELECT
         (SELECT value FROM UNNEST(metadata) WHERE name = 'original-filename')
     ) AS original_filename,
     JSON_VALUE(ml_generate_text_llm_result, '$.extracted_markdown') AS extracted_markdown,
+    ml_generate_text_llm_result,
+    ml_generate_text_status,
     content_type,
     size,
     md5_hash,
     updated AS updated_at
 FROM generated
+WHERE ml_generate_text_status = ''
+  AND JSON_VALUE(ml_generate_text_llm_result, '$.extracted_markdown') IS NOT NULL

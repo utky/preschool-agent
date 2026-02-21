@@ -19,6 +19,10 @@ models:
         description: "Gemini 2.5 FlashでMarkdown形式で抽出されたテキスト"
         data_tests:
           - not_null
+      - name: ml_generate_text_llm_result
+        description: "Gemini生レスポンスJSON（デバッグ用）"
+      - name: ml_generate_text_status
+        description: "ML.GENERATE_TEXTのステータス（空文字列=成功）"
       - name: content_type
         description: "MIMEタイプ"
       - name: size
