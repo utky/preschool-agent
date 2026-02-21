@@ -1,4 +1,6 @@
 import { Link } from 'react-router-dom'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import type { ChatMessage } from '@/types/chat'
 
 interface MessageBubbleProps {
@@ -22,7 +24,15 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
             : 'bg-white text-gray-800 shadow-sm border border-gray-200'
         }`}
       >
-        <p className="whitespace-pre-wrap text-sm">{message.content}</p>
+        {isUser ? (
+          <p className="whitespace-pre-wrap text-sm">{message.content}</p>
+        ) : (
+          <div className="prose prose-sm max-w-none prose-p:my-1 prose-headings:my-2 prose-ul:my-1 prose-li:my-0.5 prose-pre:bg-gray-100 prose-pre:text-gray-800 prose-code:text-indigo-700 prose-code:bg-indigo-50 prose-code:px-1 prose-code:rounded">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              {message.content}
+            </ReactMarkdown>
+          </div>
+        )}
 
         {uniqueSources.length > 0 && (
           <div className="mt-2 pt-2 border-t border-gray-200">
