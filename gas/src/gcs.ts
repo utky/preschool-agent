@@ -1,22 +1,12 @@
 import { CONFIG } from './config'
 import { getAccessToken } from './auth'
 
-function formatDatePath(date: Date): string {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  const hour = String(date.getHours()).padStart(2, '0')
-  return `${year}-${month}-${day}/${hour}`
-}
-
 export function uploadToGcs(
   fileId: string,
   fileName: string,
-  blob: GoogleAppsScript.Base.Blob,
-  modifiedTime: Date
+  blob: GoogleAppsScript.Base.Blob
 ): { success: boolean; gcsPath?: string; error?: string } {
-  const datePath = formatDatePath(modifiedTime)
-  const gcsPath = `${datePath}/${fileId}.pdf`
+  const gcsPath = fileName
   // XML API を使用（x-goog-meta-* ヘッダーでカスタムメタデータを付与するため）
   const url = `https://storage.googleapis.com/${CONFIG.GCS_BUCKET_NAME}/${encodeURIComponent(gcsPath)}`
 
@@ -60,9 +50,8 @@ export function uploadToGcs(
   return { success: false, error: lastError }
 }
 
-export function checkFileExistsInGcs(fileId: string): boolean {
-  const prefix = encodeURIComponent('')
-  const url = `https://storage.googleapis.com/storage/v1/b/${CONFIG.GCS_BUCKET_NAME}/o?prefix=${prefix}&matchGlob=**/${fileId}.pdf`
+export function checkFileExistsInGcs(fileName: string): boolean {
+  const url = `https://storage.googleapis.com/storage/v1/b/${CONFIG.GCS_BUCKET_NAME}/o?matchGlob=${encodeURIComponent(fileName)}`
 
   const options: GoogleAppsScript.URL_Fetch.URLFetchRequestOptions = {
     method: 'get',

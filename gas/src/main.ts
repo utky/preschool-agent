@@ -28,7 +28,7 @@ function syncDriveToGcs(): SyncResult {
   for (const file of files) {
     try {
       // GCSに既に存在する場合はアップロードをスキップし、アーカイブに移動
-      if (checkFileExistsInGcs(file.id)) {
+      if (checkFileExistsInGcs(file.name)) {
         console.log(`File already exists in GCS: ${file.name} (${file.id})`)
         moveFileToArchive(file.id)
         result.skipped++
@@ -37,7 +37,7 @@ function syncDriveToGcs(): SyncResult {
 
       console.log(`Processing file: ${file.name} (${file.id})`)
       const blob = getFileContent(file.id)
-      const uploadResult = uploadToGcs(file.id, file.name, blob, file.modifiedTime)
+      const uploadResult = uploadToGcs(file.id, file.name, blob)
 
       if (uploadResult.success) {
         console.log(`Successfully uploaded to: ${uploadResult.gcsPath}`)

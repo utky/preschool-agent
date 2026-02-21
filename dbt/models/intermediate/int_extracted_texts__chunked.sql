@@ -19,7 +19,7 @@ WITH source AS (
         size,
         md5_hash,
         updated_at,
-        REGEXP_EXTRACT(uri, r'/([^/]+)\.pdf$') AS document_id
+        document_id
     FROM {{ ref('stg_pdf_uploads__extracted_texts') }}
 ),
 

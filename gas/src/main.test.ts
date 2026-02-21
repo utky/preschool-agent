@@ -71,6 +71,10 @@ describe('syncDriveToGcs', () => {
 
     expect(result.processed).toBe(2)
     expect(result.skipped).toBe(0)
+    expect(mockCheckFileExistsInGcs).toHaveBeenCalledWith('a.pdf')
+    expect(mockCheckFileExistsInGcs).toHaveBeenCalledWith('b.pdf')
+    expect(mockUploadToGcs).toHaveBeenCalledWith('f1', 'a.pdf', expect.anything())
+    expect(mockUploadToGcs).toHaveBeenCalledWith('f2', 'b.pdf', expect.anything())
     expect(mockMoveFileToArchive).toHaveBeenCalledTimes(2)
     expect(mockMoveFileToArchive).toHaveBeenCalledWith('f1')
     expect(mockMoveFileToArchive).toHaveBeenCalledWith('f2')
@@ -84,6 +88,7 @@ describe('syncDriveToGcs', () => {
 
     expect(result.skipped).toBe(1)
     expect(result.processed).toBe(0)
+    expect(mockCheckFileExistsInGcs).toHaveBeenCalledWith('a.pdf')
     expect(mockMoveFileToArchive).toHaveBeenCalledWith('f1')
     expect(mockUploadToGcs).not.toHaveBeenCalled()
   })

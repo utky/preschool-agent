@@ -9,6 +9,10 @@ models:
         data_tests:
           - unique
           - not_null
+      - name: document_id
+        description: "Google DriveファイルID（GCSメタデータから取得）"
+        data_tests:
+          - not_null
       - name: original_filename
         description: "オリジナルファイル名（メタデータからURLデコード済み）"
       - name: extracted_markdown

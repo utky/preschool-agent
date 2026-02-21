@@ -44,6 +44,7 @@ WITH generated AS (
 
 SELECT
     uri,
+    (SELECT value FROM UNNEST(metadata) WHERE name = 'drive-file-id') AS document_id,
     `{{ var('gcp_project_id') }}.{{ var('dataset_id') }}.url_decode`(
         (SELECT value FROM UNNEST(metadata) WHERE name = 'original-filename')
     ) AS original_filename,
