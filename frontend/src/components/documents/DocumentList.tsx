@@ -1,6 +1,5 @@
-import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { apiPost } from '@/lib/api'
+import { apiGet } from '@/lib/api'
 
 interface Document {
   uri: string
@@ -9,28 +8,14 @@ interface Document {
   size: number
   updated: string
   document_id?: string
+  title?: string
 }
 
 interface DocumentListProps {
   documents: Document[]
-  onProcess?: (uri: string) => void
 }
 
-export default function DocumentList({ documents, onProcess }: DocumentListProps) {
-  const [processing, setProcessing] = useState<string | null>(null)
-
-  const handleProcess = async (uri: string) => {
-    setProcessing(uri)
-    try {
-      await apiPost('/api/documents/process', { uri })
-      onProcess?.(uri)
-    } catch (error) {
-      console.error('Failed to process document:', error)
-    } finally {
-      setProcessing(null)
-    }
-  }
-
+export default function DocumentList({ documents }: DocumentListProps) {
   const formatSize = (bytes: number) => {
     if (bytes < 1024) return `${bytes} B`
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
@@ -49,7 +34,21 @@ export default function DocumentList({ documents, onProcess }: DocumentListProps
 
   const extractFileName = (uri: string) => {
     const parts = uri.split('/')
-    return parts[parts.length - 1]
+    return decodeURIComponent(parts[parts.length - 1])
+  }
+
+  const getDisplayName = (doc: Document) => {
+    if (doc.title) return doc.title
+    return extractFileName(doc.uri)
+  }
+
+  const handleDownload = async (uri: string) => {
+    try {
+      const data = await apiGet<{ url: string }>(`/api/documents/download?uri=${encodeURIComponent(uri)}`)
+      window.open(data.url, '_blank')
+    } catch (error) {
+      console.error('Failed to get download URL:', error)
+    }
   }
 
   if (documents.length === 0) {
@@ -82,36 +81,28 @@ export default function DocumentList({ documents, onProcess }: DocumentListProps
                   <div className="truncate text-sm font-medium text-gray-900">
                     {doc.document_id ? (
                       <Link to={`/documents/${doc.document_id}`} className="hover:text-indigo-600">
-                        {extractFileName(doc.uri)}
+                        {getDisplayName(doc)}
                       </Link>
                     ) : (
-                      extractFileName(doc.uri)
+                      getDisplayName(doc)
                     )}
                   </div>
                   <div className="mt-1 flex items-center text-sm text-gray-500">
                     <span>{formatSize(doc.size)}</span>
-                    <span className="mx-2">•</span>
+                    <span className="mx-2">&bull;</span>
                     <span>{formatDate(doc.updated)}</span>
                   </div>
                 </div>
               </div>
               <div>
                 <button
-                  onClick={() => handleProcess(doc.uri)}
-                  disabled={processing === doc.uri}
-                  className="inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  onClick={() => handleDownload(doc.uri)}
+                  className="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-700 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
                 >
-                  {processing === doc.uri ? (
-                    <>
-                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                      </svg>
-                      Processing...
-                    </>
-                  ) : (
-                    'Process'
-                  )}
+                  <svg className="-ml-0.5 mr-1.5 h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  Open
                 </button>
               </div>
             </div>

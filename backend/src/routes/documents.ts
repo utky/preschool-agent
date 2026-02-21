@@ -1,8 +1,8 @@
 import { Hono } from 'hono'
+import { Storage } from '@google-cloud/storage'
 import { requireAuth } from '../middleware/auth.js'
 import { getApiData } from '../lib/storage.js'
 import { listDocuments } from '../lib/bigquery.js'
-import { triggerDbtJob } from '../lib/cloud-run-job.js'
 import type { DocumentMetadata, DocumentChunk } from '../types/documents.js'
 
 const documents = new Hono()
@@ -19,14 +19,29 @@ documents.get('/', async (c) => {
   }
 })
 
-documents.post('/process', async (c) => {
-  const result = await triggerDbtJob()
-
-  if (result.success) {
-    return c.json({ success: true, executionId: result.executionId })
-  } else {
-    return c.json({ error: result.error }, 500)
+documents.get('/download', async (c) => {
+  const uri = c.req.query('uri')
+  if (!uri) {
+    return c.json({ error: 'uri parameter is required' }, 400)
   }
+
+  const match = uri.match(/^gs:\/\/([^/]+)\/(.+)$/)
+  if (!match) {
+    return c.json({ error: 'Invalid GCS URI' }, 400)
+  }
+
+  const [, bucketName, fileName] = match
+  const storage = new Storage()
+  const [signedUrl] = await storage
+    .bucket(bucketName)
+    .file(fileName)
+    .getSignedUrl({
+      version: 'v4',
+      action: 'read',
+      expires: Date.now() + 15 * 60 * 1000, // 15分
+    })
+
+  return c.json({ url: signedUrl })
 })
 
 documents.get('/:id', async (c) => {

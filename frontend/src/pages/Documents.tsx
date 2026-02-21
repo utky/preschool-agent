@@ -8,6 +8,8 @@ interface Document {
   content_type: string
   size: number
   updated: string
+  document_id?: string
+  title?: string
 }
 
 interface DocumentsResponse {
@@ -36,10 +38,6 @@ export default function Documents() {
   useEffect(() => {
     fetchDocuments()
   }, [])
-
-  const handleProcessComplete = () => {
-    fetchDocuments()
-  }
 
   if (isLoading) {
     return (
@@ -83,7 +81,7 @@ export default function Documents() {
           </div>
         </div>
       ) : (
-        <DocumentList documents={documents} onProcess={handleProcessComplete} />
+        <DocumentList documents={documents} />
       )}
     </div>
   )
