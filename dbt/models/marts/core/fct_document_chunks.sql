@@ -7,7 +7,15 @@
         },
         cluster_by=["document_id", "document_type"],
         post_hook=[
-            "CREATE VECTOR INDEX IF NOT EXISTS fct_document_chunks_embedding_idx ON {{ this }}(chunk_embedding) OPTIONS(distance_type='COSINE', index_type='IVF', ivf_options='{\"num_lists\":32}')"
+            """
+            BEGIN
+              IF (SELECT COUNT(*) FROM {{ this }}) >= 5000 THEN
+                CREATE VECTOR INDEX IF NOT EXISTS fct_document_chunks_embedding_idx
+                  ON {{ this }}(chunk_embedding)
+                  OPTIONS(distance_type='COSINE', index_type='IVF', ivf_options='{\"num_lists\":32}');
+              END IF;
+            END;
+            """
         ]
     )
 }}
