@@ -24,7 +24,7 @@ WITH chunks AS (
 
 file_metadata AS (
     SELECT uri, original_filename
-    FROM {{ ref('stg_pdf_uploads__file_metadata') }}
+    FROM {{ ref('stg_pdf_uploads__extracted_texts') }}
 )
 
 SELECT

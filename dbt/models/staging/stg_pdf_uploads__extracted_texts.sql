@@ -17,6 +17,7 @@ WITH generated AS (
         content_type,
         size,
         md5_hash,
+        metadata,
         updated,
         ml_generate_text_llm_result
     FROM ML.GENERATE_TEXT(
@@ -43,6 +44,9 @@ WITH generated AS (
 
 SELECT
     uri,
+    `{{ var('gcp_project_id') }}.{{ var('dataset_id') }}.url_decode`(
+        (SELECT value FROM UNNEST(metadata) WHERE name = 'original-filename')
+    ) AS original_filename,
     JSON_VALUE(ml_generate_text_llm_result, '$.extracted_markdown') AS extracted_markdown,
     content_type,
     size,
