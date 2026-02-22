@@ -8,21 +8,29 @@ const chat = new Hono()
 
 chat.use('*', requireAuth)
 
-/** toolResultsからChatSource形式のソース一覧を抽出する */
+const SEARCH_TOOL_NAMES = ['vectorSearch', 'titleSearch', 'keywordSearch'] as const
+
+/** toolResultsからChatSource形式のソース一覧を抽出する（重複排除付き） */
 function extractSources(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   toolResults: readonly any[]
 ): readonly ChatSource[] {
+  const seen = new Set<string>()
   const sources: ChatSource[] = []
+
   for (const tr of toolResults) {
-    if (tr.toolName === 'vectorSearch' && tr.result?.results) {
+    if (SEARCH_TOOL_NAMES.includes(tr.toolName) && tr.result?.results) {
       for (const r of tr.result.results) {
-        sources.push({
-          document_id: r.document_id,
-          title: r.title,
-          chunk_text: r.chunk_text,
-          chunk_index: r.chunk_index,
-        })
+        const key = `${r.document_id}:${r.chunk_index}`
+        if (!seen.has(key)) {
+          seen.add(key)
+          sources.push({
+            document_id: r.document_id,
+            title: r.title,
+            chunk_text: r.chunk_text,
+            chunk_index: r.chunk_index,
+          })
+        }
       }
     }
   }

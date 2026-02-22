@@ -118,7 +118,7 @@ describe('POST /api/chat', () => {
     expect(body.sources).toEqual([])
   })
 
-  it('should ignore non-vectorSearch tool results', async () => {
+  it('should ignore non-search tool results', async () => {
     mockGenerate.mockResolvedValue({
       text: '応答テキスト',
       toolResults: [
@@ -139,6 +139,111 @@ describe('POST /api/chat', () => {
     expect(res.status).toBe(200)
     const body = await res.json() as { response: string; sources: unknown[] }
     expect(body.sources).toEqual([])
+  })
+
+  it('should include titleSearch results in sources', async () => {
+    const toolResults = [
+      {
+        toolName: 'titleSearch',
+        result: {
+          results: [
+            {
+              document_id: 'doc2',
+              title: 'R8-2月給食献立表.pdf',
+              chunk_text: '2月の献立',
+              chunk_index: 0,
+            },
+          ],
+        },
+      },
+    ]
+    mockGenerate.mockResolvedValue({ text: '給食の献立はこちらです。', toolResults })
+
+    const { default: chat } = await import('./chat.js')
+    const res = await chat.request('/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: '給食の献立を教えて' }),
+    })
+
+    expect(res.status).toBe(200)
+    const body = await res.json() as { response: string; sources: unknown[] }
+    expect(body.sources).toEqual([
+      { document_id: 'doc2', title: 'R8-2月給食献立表.pdf', chunk_text: '2月の献立', chunk_index: 0 },
+    ])
+  })
+
+  it('should include keywordSearch results in sources', async () => {
+    const toolResults = [
+      {
+        toolName: 'keywordSearch',
+        result: {
+          results: [
+            {
+              document_id: 'doc3',
+              title: 'たんぽぽ通信.pdf',
+              chunk_text: '給食は12時から',
+              chunk_index: 1,
+            },
+          ],
+        },
+      },
+    ]
+    mockGenerate.mockResolvedValue({ text: '給食の時間は12時です。', toolResults })
+
+    const { default: chat } = await import('./chat.js')
+    const res = await chat.request('/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: '給食は何時から？' }),
+    })
+
+    expect(res.status).toBe(200)
+    const body = await res.json() as { response: string; sources: unknown[] }
+    expect(body.sources).toEqual([
+      { document_id: 'doc3', title: 'たんぽぽ通信.pdf', chunk_text: '給食は12時から', chunk_index: 1 },
+    ])
+  })
+
+  it('should deduplicate sources from multiple tools', async () => {
+    const toolResults = [
+      {
+        toolName: 'titleSearch',
+        result: {
+          results: [
+            { document_id: 'doc1', title: '給食献立表.pdf', chunk_text: '1月の献立', chunk_index: 0 },
+          ],
+        },
+      },
+      {
+        toolName: 'keywordSearch',
+        result: {
+          results: [
+            // 同じ document_id + chunk_index → 重複
+            { document_id: 'doc1', title: '給食献立表.pdf', chunk_text: '1月の献立', chunk_index: 0 },
+            // 異なる chunk_index → 追加
+            { document_id: 'doc1', title: '給食献立表.pdf', chunk_text: '2月の献立', chunk_index: 1 },
+          ],
+        },
+      },
+    ]
+    mockGenerate.mockResolvedValue({ text: '献立をまとめました。', toolResults })
+
+    const { default: chat } = await import('./chat.js')
+    const res = await chat.request('/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: '献立を教えて' }),
+    })
+
+    expect(res.status).toBe(200)
+    const body = await res.json() as { response: string; sources: unknown[] }
+    // 重複を除いて2件
+    expect(body.sources).toHaveLength(2)
+    expect(body.sources).toEqual([
+      { document_id: 'doc1', title: '給食献立表.pdf', chunk_text: '1月の献立', chunk_index: 0 },
+      { document_id: 'doc1', title: '給食献立表.pdf', chunk_text: '2月の献立', chunk_index: 1 },
+    ])
   })
 
   it('should handle undefined toolResults', async () => {
