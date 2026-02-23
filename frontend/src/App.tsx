@@ -6,6 +6,7 @@ import Login from '@/pages/Login'
 import Documents from '@/pages/Documents'
 import DocumentDetail from '@/pages/DocumentDetail'
 import Chat from '@/pages/Chat'
+import Events from '@/pages/Events'
 
 function App() {
   return (
@@ -17,6 +18,7 @@ function App() {
           <Route path="/documents" element={<Documents />} />
           <Route path="/documents/:id" element={<DocumentDetail />} />
           <Route path="/chat" element={<Chat />} />
+          <Route path="/events" element={<Events />} />
         </Route>
       </Routes>
     </AuthProvider>

@@ -8,6 +8,7 @@ import auth from './routes/auth.js'
 import health from './routes/health.js'
 import documents from './routes/documents.js'
 import chat from './routes/chat.js'
+import calendar from './routes/calendar.js'
 import { logger } from './lib/logger.js'
 import { getFrontendIndex } from './lib/storage.js'
 
@@ -21,6 +22,7 @@ app.route('/api/auth', auth)
 app.route('/api/health', health)
 app.route('/api/documents', documents)
 app.route('/api/chat', chat)
+app.route('/api/calendar', calendar)
 
 app.get('/', async (c) => {
   try {
