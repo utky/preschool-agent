@@ -11,7 +11,7 @@
 WITH source AS (
     SELECT
         document_id,
-        CONCAT('保育園PDFから行事予定を全て抽出してください。\n\n', extracted_markdown) AS prompt
+        CONCAT('PDFから日付が指定されたイベントや予定を全て抽出してください。以下のキーワードが出現する場合は特に予定に関する記述である可能性が高いです。\n\n来月、日時、行事予定、日にち、令和、提出\n\n', extracted_markdown) AS prompt
     FROM {{ ref('stg_pdf_uploads__extracted_texts') }}
     {% if is_incremental() %}
       WHERE document_id NOT IN (SELECT DISTINCT document_id FROM {{ this }})
