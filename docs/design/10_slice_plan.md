@@ -504,7 +504,26 @@ dbt/
      const [contents] = await file.download();
      return contents.toString();
    }
+
+   // BigQuery EXPORT DATA は documents_000000000000.json のような連番ファイルを生成するため、
+   // prefix に一致する全ファイルを結合して返す（prod のみ）
+   export async function getApiDataFiles(prefix: string, devFallback: string): Promise<string> {
+     if (process.env.NODE_ENV === 'development') {
+       return getApiData(devFallback)
+     }
+     const bucket = storage.bucket('school-agent-prod-api-data');
+     const [files] = await bucket.getFiles({ prefix });
+     const parts = await Promise.all(files.map(async (f) => {
+       const [d] = await f.download();
+       return d.toString();
+     }));
+     return parts.join('\n');
+   }
    ```
+
+   **Note**: dbt の `EXPORT DATA` は URI にワイルドカード（`documents_*.json`）が必須。
+   BigQuery は `documents_000000000000.json` のような連番ファイルを出力するため、
+   バックエンドは prefix 一致で全ファイルを読み込んで結合する。
 3. **GET /api/documents/{id}/chunks**: チャンク一覧を取得（最適化）
    - **Cloud Storageから`chunks/{document_id}.json`を読み込んで返却**
 
@@ -748,6 +767,7 @@ PDFから予定を抽出し、ワンタップでGoogleカレンダーに登録�
    - クラスタ: `event_type`, `source_table`
 2. **calendar_sync_history.sql**: カレンダー登録履歴
    - `event_hash`で重複防止（家族全体で1回のみ登録可能）
+   - BigQuery 互換のため `FROM (SELECT 1) WHERE FALSE` パターンを使用（`WHERE FALSE` 単体は BigQuery 非対応）
 3. **exports/api_events.sql**:
    ```sql
    {{ config(
