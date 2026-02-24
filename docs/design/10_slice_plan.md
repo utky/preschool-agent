@@ -607,6 +607,18 @@ dbt/
 
 ## スライス4: ベクトル検索 + Mastra統合（3週間）
 
+**ステータス**: DONE（実装完了）
+**コミット**: `9a287b8` feat(slice4): ベクトル検索 + Mastraエージェント統合
+
+> **設計書との差分（実際の実装）:**
+> | 設計書の記述 | 実際の実装 |
+> |---|---|
+> | `intermediate/embeddings.sql` | `intermediate/int_document_chunks__embedded.sql` |
+> | `marts/core/chunks.sql` | `fct_document_chunks.sql`（Vector Index は post_hook で実装） |
+> | `agents/chat.ts` | `agents/chat-agent.ts` |
+> | `agents/tools/vector-search.ts` | `agents/tools/vector-search-tool.ts` |
+> | LLM: gpt-4o-mini / gemini-2.0-flash-001 | Vertex AI `gemini-2.5-flash` |
+
 ### 目標
 自然言語でのセマンティック検索を可能にし、MastraでLLMエージェントを統合する。
 
@@ -708,6 +720,14 @@ dbt/
 ---
 
 ## スライス5: イベント抽出 + カレンダー登録（2週間）
+
+**ステータス**: DONE（実装完了）
+**コミット**: `afb0e3e` feat(slice5): イベント自動抽出 + カレンダー自動登録
+
+> **設計書との差分（実際の実装）:**
+> | 設計書の記述 | 実際の実装 |
+> |---|---|
+> | `exports/api_events.sql` | `exports/exp_api__events.sql` |
 
 ### 目標
 PDFから予定を抽出し、ワンタップでGoogleカレンダーに登録できる機能を実装。

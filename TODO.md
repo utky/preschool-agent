@@ -15,8 +15,8 @@
 | 1 | Document AI + BigQuery基盤 | **DONE** |
 | 2 | dbtパイプライン | **DONE** |
 | 3 | キーワード検索チャット | **DONE** |
-| 4 | ベクトル検索 + Mastra統合 | TODO |
-| 5 | イベント抽出 + カレンダー登録 | TODO |
+| 4 | ベクトル検索 + Mastra統合 | **DONE** |
+| 5 | イベント抽出 + カレンダー登録 | **DONE** |
 | 6 | 文書種別構造化 | TODO |
 
 ### 最優先課題: dbtパイプラインが未稼働
@@ -59,7 +59,7 @@ dbtモデル（5モデル、20テスト）は定義済みだが、BigQuery上で
 
 ### 次のアクション
 1. **最優先**: `raw_documents` Object Tableの作成（上記参照）
-2. **スライス4**: ベクトル検索 + Mastra統合を実装
+2. **次のスライス**: スライス6（文書種別構造化）
 
 ---
 
@@ -189,38 +189,68 @@ dbtモデル（5モデル、20テスト）は定義済みだが、BigQuery上で
 
 ---
 
-## スライス4: ベクトル検索 + Mastra統合 - TODO
+## リファクタリング: shared-types パッケージ導入 - TODO
 
-**目標:** 自然言語でのセマンティック検索を可能にし、MastraでLLMエージェントを統合する。
+**目標:** frontendとbackendで重複している型定義を `packages/shared-types/` に集約し、保守性を向上させる。
 
-- [ ] **dbt:**
-    - [ ] Vertex AI Embeddingモデル定義
-    - [ ] `intermediate/embeddings.sql` モデル実装（ML.GENERATE_EMBEDDING）
-    - [ ] `marts/core/chunks.sql` に`chunk_embedding`カラム追加
-    - [ ] Vector Index作成
-- [ ] **バックエンド:**
-    - [ ] Mastraエージェント実装（`agents/chat.ts`）
-    - [ ] vectorSearchツール実装（BigQuery VECTOR_SEARCH）
-    - [ ] `POST /api/chat` をMastra統合に更新
+**背景:** `chat.ts`, `events.ts`, `documents.ts` の3ファイルが frontend/backend で完全に重複。詳細: `docs/design/13_shared_types.md`
+
+- [ ] `packages/shared-types/` ディレクトリ作成（`package.json`, `tsconfig.json`, `src/`）
+- [ ] ルート `package.json` の `workspaces` に `"packages/*"` を追加
+- [ ] ルート `tsconfig.json` の `references` に `packages/shared-types` を追加
+- [ ] 重複型定義（chat, events, documents）を `packages/shared-types/src/` に移動
+- [ ] `frontend/package.json`, `backend/package.json` に依存を追加
+- [ ] frontend/backend の import を `@preschool/shared-types` に変更
+- [ ] `npm run build` 全ワークスペース通過確認
 
 ---
 
-## スライス5: イベント抽出 + カレンダー登録 - TODO
+## スライス4: ベクトル検索 + Mastra統合 - DONE
+
+**目標:** 自然言語でのセマンティック検索を可能にし、MastraでLLMエージェントを統合する。
+
+**コミット:** `9a287b8` feat(slice4): ベクトル検索 + Mastraエージェント統合
+
+> **実装ファイル注記:**
+> - `intermediate/embeddings.sql` → 実際は `int_document_chunks__embedded.sql`
+> - `marts/core/chunks.sql` → 実際は `fct_document_chunks.sql`（Vector Index は post_hook で実装）
+> - `agents/chat.ts` → 実際は `agents/chat-agent.ts`
+> - `agents/tools/vector-search.ts` → 実際は `agents/tools/vector-search-tool.ts`
+> - LLM: gpt-4o-mini / gemini-2.0-flash-001 → 実際は Vertex AI `gemini-2.5-flash`
+
+- [x] **dbt:**
+    - [x] Vertex AI Embeddingモデル定義
+    - [x] `intermediate/embeddings.sql` モデル実装（ML.GENERATE_EMBEDDING）
+    - [x] `marts/core/chunks.sql` に`chunk_embedding`カラム追加
+    - [x] Vector Index作成
+- [x] **バックエンド:**
+    - [x] Mastraエージェント実装（`agents/chat.ts`）
+    - [x] vectorSearchツール実装（BigQuery VECTOR_SEARCH）
+    - [x] `POST /api/chat` をMastra統合に更新
+
+---
+
+## スライス5: イベント抽出 + カレンダー登録 - DONE
 
 **目標:** PDFから予定を抽出し、ワンタップでGoogleカレンダーに登録できる機能を実装。
 
-- [ ] **dbt:**
-    - [ ] `marts/core/events.sql` モデル実装
-    - [ ] `calendar_sync_history` モデル実装
-    - [ ] `exports/api_events.sql` モデル実装
-- [ ] **バックエンド:**
-    - [ ] `GET /api/calendar/events` エンドポイント実装
-    - [ ] `POST /api/calendar/sync` エンドポイント実装
-    - [ ] Google Calendar API連携実装
-- [ ] **フロントエンド:**
-    - [ ] Events ページ実装
-    - [ ] EventCard コンポーネント実装
-    - [ ] 楽観的UI更新実装
+**コミット:** `afb0e3e` feat(slice5): イベント自動抽出 + カレンダー自動登録
+
+> **実装ファイル注記:**
+> - `exports/api_events.sql` → 実際は `exports/exp_api__events.sql`
+
+- [x] **dbt:**
+    - [x] `marts/core/events.sql` モデル実装
+    - [x] `calendar_sync_history` モデル実装
+    - [x] `exports/api_events.sql` モデル実装
+- [x] **バックエンド:**
+    - [x] `GET /api/calendar/events` エンドポイント実装
+    - [x] `POST /api/calendar/sync` エンドポイント実装
+    - [x] Google Calendar API連携実装
+- [x] **フロントエンド:**
+    - [x] Events ページ実装
+    - [x] EventCard コンポーネント実装
+    - [x] 楽観的UI更新実装
 
 ---
 
