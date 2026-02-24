@@ -8,6 +8,7 @@ export interface DocumentMetadata {
   readonly size: number
   readonly total_chunks: number
   readonly updated_at: string
+  readonly signed_url?: string
 }
 
 export interface DocumentChunk {

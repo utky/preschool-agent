@@ -1,8 +1,7 @@
 import { Hono } from 'hono'
 import { Storage } from '@google-cloud/storage'
 import { requireAuth } from '../middleware/auth.js'
-import { getApiData } from '../lib/storage.js'
-import { listDocuments } from '../lib/bigquery.js'
+import { getApiData, parseNdJson } from '../lib/storage.js'
 import type { DocumentMetadata, DocumentChunk } from '../types/documents.js'
 
 const documents = new Hono()
@@ -10,13 +9,9 @@ const documents = new Hono()
 documents.use('*', requireAuth)
 
 documents.get('/', async (c) => {
-  try {
-    const data = await getApiData('documents.json')
-    return c.json(JSON.parse(data))
-  } catch {
-    const docs = await listDocuments()
-    return c.json({ documents: docs })
-  }
+  const data = await getApiData('documents.json')
+  const documents = parseNdJson<DocumentMetadata>(data)
+  return c.json({ documents })
 })
 
 documents.get('/download', async (c) => {
@@ -48,21 +43,36 @@ documents.get('/:id', async (c) => {
   const id = c.req.param('id')
 
   try {
+    // documents.json (NDJSON) からドキュメントを検索
     const docData = await getApiData('documents.json')
-    const { documents: docs } = JSON.parse(docData) as { documents: DocumentMetadata[] }
+    const docs = parseNdJson<DocumentMetadata>(docData)
     const document = docs.find((d) => d.document_id === id)
 
     if (!document) {
       return c.json({ error: 'Document not found' }, 404)
     }
 
+    // GCS V4署名URL生成（1時間有効）
+    const match = document.uri.match(/^gs:\/\/([^/]+)\/(.+)$/)
+    let signed_url: string | undefined
+    if (match) {
+      const [, bucket, file] = match
+      const [url] = await new Storage().bucket(bucket).file(file).getSignedUrl({
+        version: 'v4',
+        action: 'read',
+        expires: Date.now() + 60 * 60 * 1000,
+      })
+      signed_url = url
+    }
+
+    // chunks.json (NDJSON) からchunksを取得
     const chunksData = await getApiData('chunks.json')
-    const { chunks: allChunks } = JSON.parse(chunksData) as { chunks: DocumentChunk[] }
+    const allChunks = parseNdJson<DocumentChunk>(chunksData)
     const chunks = allChunks
       .filter((chunk) => chunk.document_id === id)
       .sort((a, b) => a.chunk_index - b.chunk_index)
 
-    return c.json({ document, chunks })
+    return c.json({ document: { ...document, signed_url }, chunks })
   } catch {
     return c.json({ error: 'Document not found' }, 404)
   }

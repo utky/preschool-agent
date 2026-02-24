@@ -62,7 +62,19 @@ export default function DocumentDetail() {
       </Link>
 
       <div className="bg-white shadow rounded-lg p-6 mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">{document.title}</h1>
+        <div className="flex items-start justify-between gap-4 mb-2">
+          <h1 className="text-2xl font-bold text-gray-900">{document.title}</h1>
+          {document.signed_url && (
+            <a
+              href={document.signed_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 shrink-0"
+            >
+              Open PDF
+            </a>
+          )}
+        </div>
         <div className="flex flex-wrap gap-4 text-sm text-gray-500">
           <span>{formatSize(document.size)}</span>
           <span>{document.total_chunks} chunks</span>

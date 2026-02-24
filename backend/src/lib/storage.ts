@@ -22,6 +22,14 @@ export async function getFrontendIndex(): Promise<string> {
   return contents.toString()
 }
 
+// NDJSONを解析してオブジェクト配列を返す
+export function parseNdJson<T>(data: string): T[] {
+  return data
+    .split('\n')
+    .filter((line) => line.trim().length > 0)
+    .map((line) => JSON.parse(line) as T)
+}
+
 export async function getApiData(filename: string): Promise<string> {
   if (process.env.NODE_ENV === 'development') {
     const localPath = join(process.cwd(), 'data', filename)
