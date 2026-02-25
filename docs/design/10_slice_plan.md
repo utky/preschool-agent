@@ -747,6 +747,10 @@ dbt/
 > | 設計書の記述 | 実際の実装 |
 > |---|---|
 > | `exports/api_events.sql` | `exports/exp_api__events.sql` |
+> | `marts/core/events.sql` | `marts/core/fct_events.sql`（fact table命名規則） |
+> | `event_type` カラムあり | `event_type` 削除（使い道なし） |
+> | 日付のみ | `event_time`（HH:MM）追加 |
+> | カード形式UI | 表形式UI（EventTable）＋出典ドキュメントリンク |
 
 ### 目標
 PDFから予定を抽出し、ワンタップでGoogleカレンダーに登録できる機能を実装。
@@ -754,86 +758,53 @@ PDFから予定を抽出し、ワンタップでGoogleカレンダーに登録�
 ### 実装内容
 
 #### dbt
-**新規作成するファイル**:
-- `dbt/models/marts/core/events.sql`
+**ファイル**:
+- `dbt/models/marts/core/fct_events.sql` - イベント抽出（event_time追加、event_type削除）
 - `dbt/models/marts/core/calendar_sync_history.sql` - カレンダー登録履歴
-- `dbt/models/exports/api_events.sql`
+- `dbt/models/exports/exp_api__events.sql` - API用JSON出力
 
 **主要な実装**:
-1. **events.sql**:
-   - LLMで文書種別ごとにイベントを抽出
-   - `event_type`, `event_date`, `event_title`, `event_description`
+1. **fct_events.sql**:
+   - LLMで文書から日付・時刻つきイベントを抽出
+   - `event_date`（DATE）、`event_time`（TIME、nullable）、`event_title`, `event_description`
    - パーティション: `event_date`
-   - クラスタ: `event_type`, `source_table`
+   - `event_type` は削除（使い道がないため）
 2. **calendar_sync_history.sql**: カレンダー登録履歴
-   - `event_hash`で重複防止（家族全体で1回のみ登録可能）
-   - BigQuery 互換のため `FROM (SELECT 1) WHERE FALSE` パターンを使用（`WHERE FALSE` 単体は BigQuery 非対応）
-3. **exports/api_events.sql**:
-   ```sql
-   {{ config(
-       materialized='table',
-       post_hook=[
-           "EXPORT DATA OPTIONS(
-               uri='gs://school-agent-prod-api-data/events.json',
-               format='JSON',
-               overwrite=true
-           ) AS SELECT * FROM {{ this }}"
-       ]
-   ) }}
-
-   SELECT e.*, d.title AS document_title
-   FROM {{ ref('events') }} e
-   LEFT JOIN {{ ref('documents') }} d ON e.document_id = d.document_id
-   WHERE e.event_date >= CURRENT_DATE()
-     AND MD5(CONCAT(e.event_type, CAST(e.event_date AS STRING), e.event_title))
-         NOT IN (SELECT event_hash FROM {{ ref('calendar_sync_history') }})
-   ORDER BY e.event_date ASC;
-   ```
+3. **exp_api__events.sql**:
+   - `fct_events`＋`dim_documents`（document_title）＋`calendar_sync_history`を結合
+   - `event_time`（HH:MM文字列）、`document_title` を含む
 
 #### バックエンド（Hono）
-**新規作成するファイル**:
+**ファイル**:
 - `backend/src/routes/calendar.ts`
-- `backend/src/lib/calendar.ts` - Google Calendar API連携
+- `backend/src/lib/calendar.ts` - Google Calendar API連携（buildCalendarEventTimes純粋関数）
 
 **主要な実装**:
-1. **GET /api/calendar/events**: 未登録イベント一覧を取得（最適化）
-   - **Cloud Storageから`events.json`を読み込んで返却**
-   - ローカル開発時: `data/events.json`から読み込み
-2. **POST /api/calendar/sync**: イベントをGoogleカレンダーに登録
-   - Google Calendar APIで`events.insert`
-   - BigQueryに`calendar_sync_history`を記録
-   - 重複防止（`event_hash`のユニーク制約）
-   - **登録後、dbtジョブをトリガーして`events.json`を更新**（オプション）
+1. **GET /api/calendar/events**: Cloud Storageから`events/*.json`を読み込んで返却
+2. **POST /api/calendar/sync**: BigQueryの`fct_events`テーブルから未同期イベントを取得しGoogle Calendarに登録
+   - `event_time`がある場合はtimed event（1時間）、ない場合はall-day event
 
 #### フロントエンド（React）
-**新規作成するファイル**:
+**ファイル**:
 - `frontend/src/pages/Events.tsx`
-- `frontend/src/components/events/EventCard.tsx`
+- `frontend/src/components/events/EventTable.tsx` - 表形式（EventCardから変更）
+- `frontend/src/components/events/EventCard.tsx` - 残存（event_type削除）
 
 **主要な実装**:
-1. **イベント一覧ページ**: カードベースのレイアウト
-   - イベント日付、タイトル、詳細
-   - 「カレンダーに追加」ボタン
+1. **イベント一覧ページ**: 表形式レイアウト（日付 | 時刻 | タイトル | 文書 | 同期）
+   - document_titleを出典ドキュメントへのリンクとして表示
    - 登録済みバッジ（✓）
-2. **楽観的UI更新**: ボタンクリック→即座にUIを更新→バックグラウンドで同期
-
-### E2E体験
-- ユーザーが`/events`ページにアクセス
-- 直近の予定がカードで表示される
-- 「カレンダーに追加」ボタンをクリック
-- Googleカレンダーにイベントが登録される
-- UIが即座に「登録済み」に更新
 
 ### 検証方法
-1. BigQuery Consoleで`SELECT * FROM events`を実行
-2. フロントエンドでイベント一覧が表示されることを確認
-3. 「カレンダーに追加」ボタンをクリック
-4. Googleカレンダーでイベントが登録されていることを確認
-5. 同じイベントを再度登録しようとした場合、「登録済み」と表示されることを確認
+1. `cd dbt && dbt parse` - SQL構文エラーなし
+2. BigQuery Consoleで`SELECT * FROM fct_events`を実行
+3. フロントエンドでイベント一覧が表形式で表示されることを確認
+4. 文書リンクをクリックして対象ドキュメントページに遷移することを確認
+5. 「今すぐ同期」ボタンをクリックしてGoogleカレンダーにイベントが登録されることを確認
 
 ### 重要ファイル
-- `dbt/models/marts/core/events.sql` - イベント抽出
-- `dbt/models/exports/api_events.sql` - API用JSON出力
+- `dbt/models/marts/core/fct_events.sql` - イベント抽出
+- `dbt/models/exports/exp_api__events.sql` - API用JSON出力
 - `backend/src/routes/calendar.ts` - カレンダーAPI
 - `backend/src/lib/storage.ts` - Cloud Storage読み込み
 - `frontend/src/pages/Events.tsx` - イベント一覧ページ
