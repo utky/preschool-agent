@@ -12,4 +12,5 @@ SELECT
     CAST(NULL AS STRING) AS calendar_event_id,
     CAST(NULL AS TIMESTAMP) AS synced_at,
     CAST(NULL AS STRING) AS synced_by
+FROM (SELECT 1)
 WHERE FALSE  -- dbt は何も書き込まない（バックエンドが INSERT する）

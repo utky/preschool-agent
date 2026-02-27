@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
 import { Storage } from '@google-cloud/storage'
 import { requireAuth } from '../middleware/auth.js'
-import { getApiData, parseNdJson } from '../lib/storage.js'
+import { getApiData, getApiDataFiles, parseNdJson } from '../lib/storage.js'
 import type { DocumentMetadata, DocumentChunk } from '../types/documents.js'
 
 const documents = new Hono()
@@ -9,7 +9,7 @@ const documents = new Hono()
 documents.use('*', requireAuth)
 
 documents.get('/', async (c) => {
-  const data = await getApiData('documents.json')
+  const data = await getApiDataFiles('documents_', 'documents.json')
   const documents = parseNdJson<DocumentMetadata>(data)
   return c.json({ documents })
 })
@@ -43,8 +43,8 @@ documents.get('/:id', async (c) => {
   const id = c.req.param('id')
 
   try {
-    // documents.json (NDJSON) からドキュメントを検索
-    const docData = await getApiData('documents.json')
+    // documents_*.json (NDJSON) からドキュメントを検索
+    const docData = await getApiDataFiles('documents_', 'documents.json')
     const docs = parseNdJson<DocumentMetadata>(docData)
     const document = docs.find((d) => d.document_id === id)
 
@@ -65,8 +65,8 @@ documents.get('/:id', async (c) => {
       signed_url = url
     }
 
-    // chunks.json (NDJSON) からchunksを取得
-    const chunksData = await getApiData('chunks.json')
+    // chunks_*.json (NDJSON) からchunksを取得
+    const chunksData = await getApiDataFiles('chunks_', 'chunks.json')
     const allChunks = parseNdJson<DocumentChunk>(chunksData)
     const chunks = allChunks
       .filter((chunk) => chunk.document_id === id)

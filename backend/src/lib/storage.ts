@@ -44,3 +44,20 @@ export async function getApiData(filename: string): Promise<string> {
   const [contents] = await file.download()
   return contents.toString()
 }
+
+// BigQuery EXPORT DATA は連番ファイル（例: documents_000000000000.json）を生成するため、
+// prefix に一致する全ファイルを結合して返す（prod のみ）
+export async function getApiDataFiles(prefix: string, devFallback: string): Promise<string> {
+  if (process.env.NODE_ENV === 'development') {
+    return getApiData(devFallback)
+  }
+  const bucket = storage.bucket(API_DATA_BUCKET_NAME)
+  const [files] = await bucket.getFiles({ prefix })
+  const parts = await Promise.all(
+    files.map(async (f) => {
+      const [d] = await f.download()
+      return d.toString()
+    }),
+  )
+  return parts.join('\n')
+}

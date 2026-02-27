@@ -2,7 +2,7 @@
     config(
         materialized='table',
         post_hook=[
-            "EXPORT DATA OPTIONS(uri='gs://{{ var(\"api_data_bucket_name\") }}/chunks.json', format='JSON', overwrite=true) AS SELECT chunk_id, document_id, chunk_index, chunk_text, title, document_type, publish_date FROM {{ this }}"
+            "EXPORT DATA OPTIONS(uri='gs://{{ var(\"api_data_bucket_name\") }}/chunks_*.json', format='JSON', overwrite=true) AS SELECT chunk_id, document_id, chunk_index, chunk_text, title, document_type, publish_date FROM {{ this }}"
         ]
     )
 }}
