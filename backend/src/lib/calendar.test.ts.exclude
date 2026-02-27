@@ -20,15 +20,17 @@ jest.unstable_mockModule('@google-cloud/bigquery', () => ({
 // Google Calendar API モック
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const mockEventsInsert = jest.fn<(...args: any[]) => any>()
-jest.unstable_mockModule('@googleapis/calendar', () => ({
-  calendar: jest.fn(() => ({
-    events: {
-      insert: mockEventsInsert,
+jest.unstable_mockModule('googleapis', () => ({
+  google: {
+    calendar: jest.fn(() => ({
+      events: {
+        insert: mockEventsInsert,
+      },
+    })),
+    auth: {
+      GoogleAuth: jest.fn(() => ({})),
     },
-  })),
-}))
-jest.unstable_mockModule('google-auth-library', () => ({
-  GoogleAuth: jest.fn(() => ({})),
+  },
 }))
 
 const mockUnsyncedEvent: CalendarEvent = {

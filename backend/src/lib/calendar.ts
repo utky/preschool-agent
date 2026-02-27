@@ -1,5 +1,6 @@
 import { BigQuery } from '@google-cloud/bigquery'
-import { google } from 'googleapis'
+import { calendar } from '@googleapis/calendar'
+import { GoogleAuth } from 'google-auth-library'
 import type { CalendarEvent, CalendarSyncResult } from '../types/events.js'
 
 const bigquery = new BigQuery()
@@ -50,10 +51,12 @@ export async function getUnsyncedEvents(): Promise<CalendarEvent[]> {
 
 /** Google Calendar にイベントを作成し、calendar_event_id を返す */
 export async function createCalendarEvent(event: CalendarEvent, calendarId: string): Promise<string> {
-  const auth = new google.auth.GoogleAuth({
+  const auth = new GoogleAuth({
     scopes: ['https://www.googleapis.com/auth/calendar'],
   })
-  const cal = google.calendar({ version: 'v3', auth })
+  // google-auth-library v9とv10の型互換性のためにキャスト
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const cal = calendar({ version: 'v3', auth: auth as any })
 
   const times = buildCalendarEventTimes(event)
   const response = await cal.events.insert({
