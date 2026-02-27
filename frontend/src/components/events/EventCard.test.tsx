@@ -6,8 +6,9 @@ import type { CalendarEvent } from '@/types/events'
 const mockSyncedEvent: CalendarEvent = {
   event_id: 'abc123',
   document_id: 'doc1',
+  document_title: '令和8年度春の行事予定',
   event_date: '2026-04-01',
-  event_type: '入園式',
+  event_time: '10:00',
   event_title: '入園式',
   event_description: '春の入園式を行います。',
   extracted_at: '2026-02-01T00:00:00Z',
@@ -19,8 +20,9 @@ const mockSyncedEvent: CalendarEvent = {
 const mockUnsyncedEvent: CalendarEvent = {
   event_id: 'def456',
   document_id: 'doc1',
+  document_title: '令和8年度春の行事予定',
   event_date: '2026-05-01',
-  event_type: '遠足',
+  event_time: null,
   event_title: '春の遠足',
   event_description: '公園への遠足を実施します。',
   extracted_at: '2026-02-01T00:00:00Z',
@@ -33,8 +35,7 @@ describe('EventCard', () => {
   it('should render event title and description', () => {
     render(<EventCard event={mockSyncedEvent} />)
 
-    // event_title と event_type が同じ「入園式」のため getAllByText を使用
-    expect(screen.getAllByText('入園式').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getByText('入園式')).toBeInTheDocument()
     expect(screen.getByText('春の入園式を行います。')).toBeInTheDocument()
   })
 
@@ -45,12 +46,16 @@ describe('EventCard', () => {
     expect(screen.getByText(/2026年4月1日/)).toBeInTheDocument()
   })
 
-  it('should display event type as a color tag', () => {
+  it('should display event_time when set', () => {
     render(<EventCard event={mockSyncedEvent} />)
 
-    // event_type と event_title が同じ「入園式」なので複数存在する
-    const elements = screen.getAllByText('入園式')
-    expect(elements.length).toBeGreaterThanOrEqual(1)
+    expect(screen.getByText('10:00')).toBeInTheDocument()
+  })
+
+  it('should not display time when event_time is null', () => {
+    render(<EventCard event={mockUnsyncedEvent} />)
+
+    expect(screen.queryByText('10:00')).not.toBeInTheDocument()
   })
 
   it('should show synced badge when is_synced is true', () => {

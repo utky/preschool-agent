@@ -31,6 +31,41 @@ models:
       - name: updated_at
         description: "GCSオブジェクトの最終更新日時"
 
+  - name: fct_events
+    description: "PDFから抽出したイベント・行事予定のファクトテーブル"
+    columns:
+      - name: event_id
+        description: "イベントID（document_id + event_date + event_titleのMD5ハッシュ）"
+        data_tests:
+          - unique
+          - not_null
+      - name: document_id
+        description: "抽出元文書ID"
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_documents')
+                field: document_id
+      - name: event_date
+        description: "イベント日付（DATE型）"
+        data_tests:
+          - not_null
+      - name: event_time
+        description: "イベント開始時刻（TIME型、HH:MM形式、時刻が不明な場合はNULL）"
+      - name: event_title
+        description: "イベントタイトル"
+        data_tests:
+          - not_null
+      - name: event_description
+        description: "イベント詳細説明"
+        data_tests:
+          - not_null
+      - name: extracted_at
+        description: "LLM抽出日時"
+        data_tests:
+          - not_null
+
   - name: fct_document_chunks
     description: "文書チャンクのファクトテーブル（RAG用）"
     columns:

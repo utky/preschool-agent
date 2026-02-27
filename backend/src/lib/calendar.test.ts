@@ -36,8 +36,9 @@ jest.unstable_mockModule('googleapis', () => ({
 const mockUnsyncedEvent: CalendarEvent = {
   event_id: 'abc123',
   document_id: 'doc1',
+  document_title: 'テスト文書',
   event_date: '2026-04-01',
-  event_type: '入園式',
+  event_time: null,
   event_title: '入園式',
   event_description: '春の入園式を行います',
   extracted_at: '2026-02-01T00:00:00Z',
@@ -45,6 +46,36 @@ const mockUnsyncedEvent: CalendarEvent = {
   calendar_event_id: null,
   synced_at: null,
 }
+
+const mockTimedEvent: CalendarEvent = {
+  ...mockUnsyncedEvent,
+  event_id: 'timed123',
+  event_time: '09:30',
+  event_title: '入園式（時刻あり）',
+}
+
+describe('buildCalendarEventTimes', () => {
+  it('should return date-based times when event_time is null', async () => {
+    const { buildCalendarEventTimes } = await import('./calendar.js')
+    const result = buildCalendarEventTimes(mockUnsyncedEvent)
+
+    expect(result.start).toEqual({ date: '2026-04-01' })
+    expect(result.end).toEqual({ date: '2026-04-01' })
+  })
+
+  it('should return dateTime-based times when event_time is set', async () => {
+    const { buildCalendarEventTimes } = await import('./calendar.js')
+    const result = buildCalendarEventTimes(mockTimedEvent)
+
+    expect(result.start).toEqual({
+      dateTime: '2026-04-01T09:30:00+09:00',
+      timeZone: 'Asia/Tokyo',
+    })
+    // 終了は開始の1時間後
+    expect(result.end).toHaveProperty('dateTime')
+    expect(result.end).toHaveProperty('timeZone', 'Asia/Tokyo')
+  })
+})
 
 describe('getUnsyncedEvents', () => {
   beforeEach(() => {
@@ -73,6 +104,16 @@ describe('getUnsyncedEvents', () => {
     expect(result).toEqual([])
   })
 
+  it('should query fct_events table', async () => {
+    mockQuery.mockResolvedValue([[]])
+
+    const { getUnsyncedEvents } = await import('./calendar.js')
+    await getUnsyncedEvents()
+
+    const callArgs = mockQuery.mock.calls[0]![0] as { query: string }
+    expect(callArgs.query).toContain('fct_events')
+  })
+
   it('should query with is_synced = false condition', async () => {
     mockQuery.mockResolvedValue([[]])
 
@@ -92,7 +133,7 @@ describe('createCalendarEvent', () => {
     process.env.GOOGLE_CALENDAR_ID = calendarId
   })
 
-  it('should create an all-day event and return calendar event id', async () => {
+  it('should create an all-day event when event_time is null', async () => {
     mockEventsInsert.mockResolvedValue({ data: { id: 'gcal_event_123' } })
 
     const { createCalendarEvent } = await import('./calendar.js')
@@ -106,8 +147,23 @@ describe('createCalendarEvent', () => {
     }
     expect(callArgs.calendarId).toBe(calendarId)
     expect(callArgs.requestBody.summary).toBe('入園式')
-    expect(callArgs.requestBody.start.date).toBe('2026-04-01')
-    expect(callArgs.requestBody.end.date).toBe('2026-04-01')
+    expect(callArgs.requestBody.start).toEqual({ date: '2026-04-01' })
+    expect(callArgs.requestBody.end).toEqual({ date: '2026-04-01' })
+  })
+
+  it('should create a timed event when event_time is set', async () => {
+    mockEventsInsert.mockResolvedValue({ data: { id: 'gcal_timed_456' } })
+
+    const { createCalendarEvent } = await import('./calendar.js')
+    const result = await createCalendarEvent(mockTimedEvent, calendarId)
+
+    expect(result).toBe('gcal_timed_456')
+    const callArgs = mockEventsInsert.mock.calls[0]![0] as {
+      requestBody: { start: { dateTime: string; timeZone: string }; end: { dateTime: string; timeZone: string } }
+    }
+    expect(callArgs.requestBody.start.dateTime).toBe('2026-04-01T09:30:00+09:00')
+    expect(callArgs.requestBody.start.timeZone).toBe('Asia/Tokyo')
+    expect(callArgs.requestBody.end.timeZone).toBe('Asia/Tokyo')
   })
 
   it('should throw error when calendar API fails', async () => {

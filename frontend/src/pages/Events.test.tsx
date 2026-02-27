@@ -15,8 +15,9 @@ const mockEventsResponse: EventsResponse = {
     {
       event_id: 'abc123',
       document_id: 'doc1',
+      document_title: '令和8年度春の行事予定',
       event_date: '2026-04-01',
-      event_type: '入園式',
+      event_time: '10:00',
       event_title: '入園式',
       event_description: '春の入園式',
       extracted_at: '2026-02-01T00:00:00Z',
@@ -27,8 +28,9 @@ const mockEventsResponse: EventsResponse = {
     {
       event_id: 'def456',
       document_id: 'doc1',
+      document_title: '令和8年度春の行事予定',
       event_date: '2026-05-01',
-      event_type: '遠足',
+      event_time: null,
       event_title: '春の遠足',
       event_description: '公園への遠足',
       extracted_at: '2026-02-01T00:00:00Z',
@@ -70,14 +72,13 @@ describe('Events', () => {
     expect(document.querySelector('.animate-spin')).toBeInTheDocument()
   })
 
-  it('should display event cards after loading', async () => {
+  it('should display events in table after loading', async () => {
     vi.mocked(apiGet).mockResolvedValue(mockEventsResponse)
 
     renderEvents()
 
     await waitFor(() => {
-      // event_type と event_title が同じ「入園式」のため getAllByText を使用
-      expect(screen.getAllByText('入園式').length).toBeGreaterThanOrEqual(1)
+      expect(screen.getByText('入園式')).toBeInTheDocument()
       expect(screen.getByText('春の遠足')).toBeInTheDocument()
     })
     expect(apiGet).toHaveBeenCalledWith('/api/calendar/events')
@@ -111,7 +112,7 @@ describe('Events', () => {
     renderEvents()
 
     await waitFor(() => {
-      expect(screen.getAllByText('入園式').length).toBeGreaterThanOrEqual(1)
+      expect(screen.getByText('入園式')).toBeInTheDocument()
     })
 
     const syncButton = screen.getByRole('button', { name: /今すぐ同期/ })
@@ -129,6 +130,17 @@ describe('Events', () => {
 
     await waitFor(() => {
       expect(screen.getByText('登録済み')).toBeInTheDocument()
+    })
+  })
+
+  it('should display document title as link', async () => {
+    vi.mocked(apiGet).mockResolvedValue(mockEventsResponse)
+
+    renderEvents()
+
+    await waitFor(() => {
+      const links = screen.getAllByRole('link', { name: '令和8年度春の行事予定' })
+      expect(links.length).toBeGreaterThanOrEqual(1)
     })
   })
 })

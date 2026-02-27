@@ -27,8 +27,9 @@ const mockEvents: CalendarEvent[] = [
   {
     event_id: 'abc123',
     document_id: 'doc1',
+    document_title: '令和8年度春の行事予定',
     event_date: '2026-04-01',
-    event_type: '入園式',
+    event_time: '10:00',
     event_title: '入園式',
     event_description: '春の入園式',
     extracted_at: '2026-02-01T00:00:00Z',
@@ -39,8 +40,9 @@ const mockEvents: CalendarEvent[] = [
   {
     event_id: 'def456',
     document_id: 'doc1',
+    document_title: '令和8年度春の行事予定',
     event_date: '2026-05-01',
-    event_type: '遠足',
+    event_time: null,
     event_title: '春の遠足',
     event_description: '公園への遠足',
     extracted_at: '2026-02-01T00:00:00Z',
