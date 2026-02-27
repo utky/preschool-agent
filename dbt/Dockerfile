@@ -7,4 +7,4 @@ COPY . .
 RUN dbt deps
 
 ENTRYPOINT ["dbt"]
-CMD ["build"]
+CMD ["build", "--no-use-colors"]

@@ -178,6 +178,6 @@ jobs:
       - name: Execute dbt test via Cloud Run Job
         run: |
           gcloud run jobs execute school-agent-dbt \
-            --args test \
+            --args 'test,--no-use-colors' \
             --region asia-northeast1 \
             --wait
