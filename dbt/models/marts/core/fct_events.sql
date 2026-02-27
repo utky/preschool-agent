@@ -45,7 +45,7 @@ unnested AS (
     FROM generated g, UNNEST(JSON_QUERY_ARRAY(g.ml_generate_text_llm_result, '$.events')) ev
 )
 SELECT
-    TO_HEX(MD5(CONCAT(document_id, event_date_str, event_title))) AS event_id,
+    TO_HEX(MD5(CONCAT(document_id, event_date_str, COALESCE(event_time_str, ''), event_title))) AS event_id,
     document_id,
     SAFE.PARSE_DATE('%Y-%m-%d', event_date_str) AS event_date,
     IF(event_time_str IS NOT NULL, SAFE.PARSE_TIME('%H:%M', event_time_str), NULL) AS event_time,
