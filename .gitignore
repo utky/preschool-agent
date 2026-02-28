@@ -63,3 +63,6 @@ logs/
 
 # input pdf
 *.pdf
+
+# data file
+document_type_rules.csv 
