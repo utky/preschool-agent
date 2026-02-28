@@ -32,3 +32,8 @@ output "gas_service_account_email" {
   value       = google_service_account.gas.email
   description = "The email of the GAS service account."
 }
+
+output "seeds_bucket_name" {
+  value       = google_storage_bucket.seeds.name
+  description = "The name of the seeds GCS bucket."
+}

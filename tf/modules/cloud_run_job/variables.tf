@@ -39,3 +39,8 @@ variable "document_ai_processor_path" {
   type        = string
   description = "Document AI OCRプロセッサーのリソース名"
 }
+
+variable "seeds_bucket_name" {
+  type        = string
+  description = "dbt seed ファイル用 GCS バケット名"
+}

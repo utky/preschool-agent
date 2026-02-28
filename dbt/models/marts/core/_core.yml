@@ -21,9 +21,10 @@ models:
       - name: document_type
         description: "LLMによる文書種別分類（Slice 6で実装済み）"
         data_tests:
-          - accepted_values:
-              values: [journal, photo_album, monthly_announcement, monthly_lunch_schedule, monthly_lunch_info, uncategorized]
-              quote: false
+          - relationships:
+              arguments:
+                to: source('config', 'document_type_rules')
+                field: document_type
               config:
                 where: "document_type is not null"
       - name: publish_date

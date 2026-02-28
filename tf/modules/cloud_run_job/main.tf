@@ -72,6 +72,11 @@ resource "google_cloud_run_v2_job" "dbt" {
           name  = "DOCUMENT_AI_PROCESSOR_PATH"
           value = var.document_ai_processor_path
         }
+
+        env {
+          name  = "SEEDS_BUCKET_NAME"
+          value = var.seeds_bucket_name
+        }
       }
     }
   }

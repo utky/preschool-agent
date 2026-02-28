@@ -1,3 +1,8 @@
+# プロジェクト情報（BigQuery service agent のプロジェクト番号取得用）
+data "google_project" "project" {
+  project_id = var.project_id
+}
+
 # サービスアカウントの作成
 resource "google_service_account" "default" {
   account_id   = "${var.app_name}-cloud-run-sa"
@@ -98,6 +103,23 @@ resource "google_storage_bucket_iam_member" "backend_read_api_data" {
   bucket = google_storage_bucket.api_data.name
   role   = "roles/storage.objectViewer"
   member = "serviceAccount:${google_service_account.default.email}"
+}
+
+# --- Seeds用Cloud Storageバケット ---
+
+resource "google_storage_bucket" "seeds" {
+  name          = "${var.app_name}-${var.project_id}-seeds"
+  location      = var.region
+  force_destroy = false
+
+  uniform_bucket_level_access = true
+}
+
+# 通常の外部テーブル用: BigQuery service agent に読み取り権限を付与
+resource "google_storage_bucket_iam_member" "seeds_bigquery_reader" {
+  bucket = google_storage_bucket.seeds.name
+  role   = "roles/storage.objectViewer"
+  member = "serviceAccount:service-${data.google_project.project.number}@gcp-sa-bigquery.iam.gserviceaccount.com"
 }
 
 # --- PDF Uploads用Cloud Storageバケット ---

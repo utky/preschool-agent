@@ -16,18 +16,13 @@ vars:
   dataset_id: "school_agent"
   api_data_bucket_name: "{{ env_var('API_DATA_BUCKET_NAME', 'school-agent-lofilab-api-data') }}"
   vertex_connection_name: "{{ env_var('VERTEX_CONNECTION_NAME', 'lofilab.asia-northeast1.school-agent-vertex-connection') }}"
+  seeds_bucket_name: "{{ env_var('SEEDS_BUCKET_NAME', 'school-agent-lofilab-seeds') }}"
 
 on-run-start:
   - "{{ create_ocr_model() }}"
   - "{{ create_url_decode_udf() }}"
   - "{{ create_embedding_model() }}"
-
-seeds:
-  school_agent:
-    +schema: school_agent
-    +labels:
-      layer: seeds
-      application: school-agent
+  - "{{ create_document_type_rules_table() }}"
 
 models:
   school_agent:

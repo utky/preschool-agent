@@ -1,6 +1,28 @@
 version: 2
 
 sources:
+  - name: config
+    description: "GCS 上の設定ファイルを参照する外部テーブル"
+    database: "{{ env_var('GCP_PROJECT_ID', 'lofilab') }}"
+    schema: "{{ env_var('DATASET_ID', 'school_agent') }}"
+    tables:
+      - name: document_type_rules
+        description: "文書種別分類レジストリ（GCS: gs://{seeds_bucket}/document_type_rules.csv）"
+        columns:
+          - name: document_type
+            data_tests:
+              - unique
+              - not_null
+          - name: label_ja
+            data_tests:
+              - not_null
+          - name: description
+            data_tests:
+              - not_null
+          - name: sort_order
+            data_tests:
+              - not_null
+
   - name: pdf_uploads
     description: "GCSバケット上のPDFファイルを参照するObject Table"
     database: "{{ env_var('GCP_PROJECT_ID', 'lofilab') }}"
