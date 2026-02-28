@@ -811,94 +811,76 @@ PDFから予定を抽出し、ワンタップでGoogleカレンダーに登録�
 
 ---
 
-## スライス6: 文書種別構造化（2週間）
+## スライス6: 文書種別分類（縮小版）
+
+**ステータス**: DONE（実装完了）
+
+> **設計変更（縮小版）:**
+> 元の設計（文書種別ごとの専用テーブル・ページ）から縮小し、以下に絞り込んで実装した。
+> - **実装済み**: LLMによる文書分類（`document_type` + `publish_date`）→ `dim_documents` に直接埋め込み
+> - **保留**: 型別構造化テーブル（`journal.sql`等）および専用ページ（`Journal.tsx`等）
+>
+> **設計方針: Option B（dim_documents を incremental 化）**
+> 別モデルを作らず、`dim_documents` 自体を incremental にして分類ロジックを直接埋め込む。
 
 ### 目標
-各文書種別（journal, photo_album, monthly_lunch_schedule等）に特化したテーブルとビューを実装。
+LLMによる文書分類（`document_type` + `publish_date`）を `dim_documents` に実装し、Documents UI に種別フィルタ・日付ソートを追加する。
 
 ### 実装内容
 
 #### dbt
-**新規作成するファイル**:
+**変更するファイル**:
+- `dbt/models/marts/core/dim_documents.sql` - incremental 化 + LLM 分類追加
+- `dbt/models/marts/core/_core.yml` - accepted_values テスト追加
+
+**主要な実装**:
+1. **dim_documents.sql の incremental 化**:
+   - `materialized='table'` → `materialized='incremental'`
+   - `unique_key='document_id'`, `incremental_strategy='merge'`
+   - 新規文書のみ `ML.GENERATE_TEXT` で LLM 分類を実行
+2. **LLM プロンプト**: ファイル名から種別・発行日を判定
+   - 種別: `journal | photo_album | monthly_announcement | monthly_lunch_schedule | monthly_lunch_info | uncategorized`
+   - 発行日: `YYYY-MM-DD`（年月のみの場合は月初日）
+
+#### フロントエンド（React）
+**変更するファイル**:
+- `frontend/src/pages/Documents.tsx` - 種別フィルタ・publish_date 降順ソート追加
+- `frontend/src/components/documents/DocumentList.tsx` - 種別バッジ・発行日表示追加
+
+**主要な実装**:
+1. **種別フィルタ**: 取得した documents から `document_type` のユニーク値を抽出しセレクトで絞り込み
+2. **ソート**: デフォルトを `publish_date` 降順に変更（null は末尾）
+3. **種別バッジ**: 日本語ラベル表示（`journal` → 日誌、等）
+4. **発行日表示**: `2026年3月` 形式（null の場合は updated_at を表示）
+
+### 保留事項
+以下は将来のスライスで実装予定：
 - `dbt/models/marts/document_types/journal.sql`
 - `dbt/models/marts/document_types/photo_album.sql`
 - `dbt/models/marts/document_types/monthly_announcement.sql`
 - `dbt/models/marts/document_types/monthly_lunch_schedule.sql`
 - `dbt/models/marts/document_types/monthly_lunch_info.sql`
-- `dbt/models/marts/document_types/uncategorized.sql`
-
-**主要な実装**:
-1. **文書種別分類**: LLMでタイトルから種別を判定
-2. **journal.sql**:
-   - `sections` (ARRAY<STRUCT<...>>)
-   - `article_number`, `japanese_era`, `weekday`
-3. **photo_album.sql**:
-   - `photo_ids` (ARRAY<STRING>)
-   - `sections`, `schedule`, `announcements`
-4. **monthly_lunch_schedule.sql**:
-   - `daily_menus` (ARRAY<STRUCT<...>>)
-   - 栄養情報（11項目）
-5. その他の文書種別テーブル
-
-#### dbt JSON出力（APIレスポンス最適化）
-**新規作成するファイル**:
-- `dbt/models/exports/api_journal.sql`
-- `dbt/models/exports/api_lunch_schedule.sql`
-- その他の文書種別用エクスポートモデル
-
-**主要な実装**:
-```sql
--- exports/api_journal.sql
-{{ config(
-    materialized='table',
-    post_hook=[
-        "EXPORT DATA OPTIONS(
-            uri='gs://school-agent-prod-api-data/journal.json',
-            format='JSON',
-            overwrite=true
-        ) AS SELECT * FROM {{ this }}"
-    ]
-) }}
-
-SELECT * FROM {{ ref('journal') }}
-ORDER BY publish_date DESC;
-```
-
-#### バックエンド（Hono）
-**新規作成するファイル**:
 - `backend/src/routes/document-types.ts`
-
-**主要な実装**（最適化）:
-1. **GET /api/documents/{type}**: 文書種別ごとのエンドポイント
-   - `/api/documents/journal` - Cloud Storageから`journal.json`を読み込み
-   - `/api/documents/photo-album` - Cloud Storageから`photo_album.json`を読み込み
-   - `/api/documents/lunch-schedule` - Cloud Storageから`lunch_schedule.json`を読み込み
-   - BigQueryクエリ不要（全てCloud Storage経由）
-
-#### フロントエンド（React）
-**新規作成するファイル**:
 - `frontend/src/pages/Journal.tsx`
 - `frontend/src/pages/LunchSchedule.tsx`
 
-**主要な実装**:
-1. **文書種別ごとの詳細ページ**: 最適化されたレイアウト
-   - journal: セクション別表示
-   - lunch_schedule: カレンダー形式の献立表示
-
-### E2E体験
-- ユーザーが`/journal`ページにアクセス
-- 日誌一覧が表示される
-- 日誌詳細でセクション別に内容が表示される
-
 ### 検証方法
-1. BigQuery Consoleで各文書種別テーブルをクエリ
-2. フロントエンドで文書種別ごとのページにアクセス
-3. 正しくフォーマットされた内容が表示されることを確認
+```bash
+# dbt 構文チェック
+cd dbt && dbt parse
+
+# dim_documents のみをフルリフレッシュでビルド（LLM 呼び出し発生）
+dbt build --select dim_documents --full-refresh
+
+# フロントエンド TypeScript コンパイル
+cd frontend && npm run build
+```
 
 ### 重要ファイル
-- `dbt/models/marts/document_types/*.sql` - 文書種別テーブル
-- `backend/src/routes/document-types.ts` - 文書種別API
-- `frontend/src/pages/Journal.tsx` - 日誌ページ
+- `dbt/models/marts/core/dim_documents.sql` - incremental 化 + LLM 分類
+- `dbt/models/marts/core/_core.yml` - accepted_values テスト
+- `frontend/src/pages/Documents.tsx` - 種別フィルタ
+- `frontend/src/components/documents/DocumentList.tsx` - バッジ表示
 
 ---
 
