@@ -822,6 +822,10 @@ PDFから予定を抽出し、ワンタップでGoogleカレンダーに登録�
 >
 > **設計方針: Option B（dim_documents を incremental 化）**
 > 別モデルを作らず、`dim_documents` 自体を incremental にして分類ロジックを直接埋め込む。
+>
+> **追加変更: dbt seeds → GCS 外部テーブル移行**
+> `document_type_rules.csv` を dbt seeds からリポジトリ外（GCS）に移動し、BigQuery 通常外部テーブルとして参照する。
+> 幼稚園固有の設定データをコードから分離してオペレーションチームが管理できる構成にする。
 
 ### 目標
 LLMによる文書分類（`document_type` + `publish_date`）を `dim_documents` に実装し、Documents UI に種別フィルタ・日付ソートを追加する。
@@ -830,8 +834,18 @@ LLMによる文書分類（`document_type` + `publish_date`）を `dim_documents
 
 #### dbt
 **変更するファイル**:
-- `dbt/models/marts/core/dim_documents.sql` - incremental 化 + LLM 分類追加
-- `dbt/models/marts/core/_core.yml` - accepted_values テスト追加
+- `dbt/models/marts/core/dim_documents.sql` - incremental 化 + LLM 分類追加（`ref` → `source('config', 'document_type_rules')`）
+- `dbt/models/marts/core/_core.yml` - `accepted_values` → `relationships` テスト（外部テーブル参照）
+- `dbt/models/staging/_sources.yml` - `config` source 追加（外部テーブル定義）
+- `dbt/dbt_project.yml` - `seeds_bucket_name` var 追加、`on-run-start` に外部テーブル作成マクロ追加、seeds セクション削除
+
+**削除するファイル**:
+- `dbt/seeds/document_type_rules.csv`
+- `dbt/seeds/_seeds.yml`
+
+**新規作成するファイル**:
+- `dbt/macros/create_document_type_rules_table.sql` - GCS 外部テーブルを `CREATE EXTERNAL TABLE IF NOT EXISTS` で作成
+- `dbt/tests/assert_document_type_rules_complete.sql` - 必須 6 種別の存在確認
 
 **主要な実装**:
 1. **dim_documents.sql の incremental 化**:
@@ -841,6 +855,15 @@ LLMによる文書分類（`document_type` + `publish_date`）を `dim_documents
 2. **LLM プロンプト**: ファイル名から種別・発行日を判定
    - 種別: `journal | photo_album | monthly_announcement | monthly_lunch_schedule | monthly_lunch_info | uncategorized`
    - 発行日: `YYYY-MM-DD`（年月のみの場合は月初日）
+3. **外部テーブル**: GCS の CSV ファイルを BigQuery 外部テーブルとして参照（通常の外部テーブル、接続不要）
+
+#### Terraform
+**変更するファイル**:
+- `tf/modules/app/main.tf` - seeds バケット（`{app_name}-{project_id}-seeds`）+ BigQuery service agent IAM 追加
+- `tf/modules/app/outputs.tf` - `seeds_bucket_name` output 追加
+- `tf/modules/cloud_run_job/main.tf` - `SEEDS_BUCKET_NAME` 環境変数追加
+- `tf/modules/cloud_run_job/variables.tf` - `seeds_bucket_name` variable 追加
+- `tf/environments/production/main.tf` - `module.app.seeds_bucket_name` を cloud_run_job モジュールに渡す
 
 #### フロントエンド（React）
 **変更するファイル**:
@@ -852,6 +875,11 @@ LLMによる文書分類（`document_type` + `publish_date`）を `dim_documents
 2. **ソート**: デフォルトを `publish_date` 降順に変更（null は末尾）
 3. **種別バッジ**: 日本語ラベル表示（`journal` → 日誌、等）
 4. **発行日表示**: `2026年3月` 形式（null の場合は updated_at を表示）
+
+#### ユーザー操作（初回・更新時）
+```bash
+gsutil cp document_type_rules.csv gs://school-agent-{project_id}-seeds/document_type_rules.csv
+```
 
 ### 保留事項
 以下は将来のスライスで実装予定：
@@ -869,6 +897,10 @@ LLMによる文書分類（`document_type` + `publish_date`）を `dim_documents
 # dbt 構文チェック
 cd dbt && dbt parse
 
+# Terraform 変更検証（バケット追加・環境変数追加）
+tofu -chdir=tf/environments/production/ validate
+tofu -chdir=tf/environments/production/ plan
+
 # dim_documents のみをフルリフレッシュでビルド（LLM 呼び出し発生）
 dbt build --select dim_documents --full-refresh
 
@@ -878,7 +910,10 @@ cd frontend && npm run build
 
 ### 重要ファイル
 - `dbt/models/marts/core/dim_documents.sql` - incremental 化 + LLM 分類
-- `dbt/models/marts/core/_core.yml` - accepted_values テスト
+- `dbt/models/marts/core/_core.yml` - relationships テスト（外部テーブル参照）
+- `dbt/macros/create_document_type_rules_table.sql` - GCS 外部テーブル作成
+- `dbt/models/staging/_sources.yml` - config source 定義
+- `tf/modules/app/main.tf` - seeds バケット
 - `frontend/src/pages/Documents.tsx` - 種別フィルタ
 - `frontend/src/components/documents/DocumentList.tsx` - バッジ表示
 
