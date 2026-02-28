@@ -40,7 +40,7 @@ source AS (
             'ファイル名: ', COALESCE(fm.original_filename, REGEXP_EXTRACT(c.uri, r'/([^/]+)$')), '\n\n',
             '文書種別の定義:\n',
             r.rules_text
-        ) AS content
+        ) AS prompt
     FROM {{ ref('int_extracted_texts__chunked') }} c
     LEFT JOIN {{ ref('stg_pdf_uploads__extracted_texts') }} fm ON c.uri = fm.uri
     CROSS JOIN rules_agg r
