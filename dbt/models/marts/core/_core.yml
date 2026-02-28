@@ -29,6 +29,10 @@ models:
                 where: "document_type is not null"
       - name: publish_date
         description: "LLMによる発行日抽出（Slice 6で実装済み）"
+        data_tests:
+          - not_null:
+              config:
+                where: "document_type != 'uncategorized'"
       - name: content_type
         description: "MIMEタイプ"
       - name: size
