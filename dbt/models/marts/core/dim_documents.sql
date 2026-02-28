@@ -11,7 +11,19 @@
     )
 }}
 
-WITH source AS (
+-- 文書種別ルールを seeds から集約してプロンプト文字列を生成
+-- ※ JSON schema の enum 値は document_type_rules.document_type と一致させること
+WITH rules_agg AS (
+    SELECT
+        STRING_AGG(
+            CONCAT('- ', document_type, ': ', description),
+            '\n'
+            ORDER BY sort_order
+        ) AS rules_text
+    FROM {{ ref('document_type_rules') }}
+),
+
+source AS (
     -- 新規文書のみ（incremental 時）
     SELECT
         c.document_id,
@@ -22,24 +34,20 @@ WITH source AS (
         MAX(c.size) AS size,
         MAX(c.md5_hash) AS md5_hash,
         MAX(c.updated_at) AS updated_at,
-        -- LLM プロンプト: ファイル名から文書種別と発行日を判定
+        -- seeds から動的に構築した分類ルールをプロンプトに埋め込む
         CONCAT(
             '以下のファイル名から幼稚園・保育園の文書種別と発行日を判定してください。\n',
             'ファイル名: ', COALESCE(fm.original_filename, REGEXP_EXTRACT(c.uri, r'/([^/]+)$')), '\n\n',
             '文書種別の定義:\n',
-            '- journal: 日誌・園日誌\n',
-            '- photo_album: フォトアルバム・写真集\n',
-            '- monthly_announcement: 園だより・クラスだより・月間お知らせ\n',
-            '- monthly_lunch_schedule: 給食献立表・給食スケジュール\n',
-            '- monthly_lunch_info: 給食だより・給食情報\n',
-            '- uncategorized: その他'
+            r.rules_text
         ) AS content
     FROM {{ ref('int_extracted_texts__chunked') }} c
     LEFT JOIN {{ ref('stg_pdf_uploads__extracted_texts') }} fm ON c.uri = fm.uri
+    CROSS JOIN rules_agg r
     {% if is_incremental() %}
     WHERE c.document_id NOT IN (SELECT DISTINCT document_id FROM {{ this }})
     {% endif %}
-    GROUP BY c.document_id, c.uri, fm.original_filename
+    GROUP BY c.document_id, c.uri, fm.original_filename, r.rules_text
 ),
 
 generated AS (
@@ -59,6 +67,7 @@ generated AS (
         TABLE source,
         STRUCT(
             TRUE AS flatten_json_output,
+            -- enum 値は seeds/document_type_rules.csv の document_type カラムと一致させること
             '{"generationConfig":{"temperature":0.0,"maxOutputTokens":256,"responseMimeType":"application/json","responseSchema":{"type":"OBJECT","properties":{"document_type":{"type":"STRING","enum":["journal","photo_album","monthly_announcement","monthly_lunch_schedule","monthly_lunch_info","uncategorized"]},"publish_date":{"type":"STRING","nullable":true}},"required":["document_type"]}}}' AS model_params
         )
     )

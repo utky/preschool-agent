@@ -1,0 +1,23 @@
+version: 2
+
+seeds:
+  - name: document_type_rules
+    description: "文書種別分類レジストリ。LLMプロンプトのルール定義と日本語ラベルを一元管理する。"
+    columns:
+      - name: document_type
+        description: "文書種別キー（LLM出力値・JSONスキーマ enum と一致させること）"
+        data_tests:
+          - unique
+          - not_null
+      - name: label_ja
+        description: "日本語表示ラベル（フロントエンドのバッジ表示用）"
+        data_tests:
+          - not_null
+      - name: description
+        description: "LLMプロンプトに埋め込む種別説明文"
+        data_tests:
+          - not_null
+      - name: sort_order
+        description: "プロンプト内での表示順序"
+        data_tests:
+          - not_null
