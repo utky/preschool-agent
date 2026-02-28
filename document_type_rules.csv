@@ -1,0 +1,7 @@
+document_type,label_ja,description,sort_order
+journal,たちばな誌,一般的なお知らせ。「R8 たちばな誌　No.85」などのファイル名で識別できる。Rは年号の頭文字。No.XXは年間の発行通番。,1
+photo_album,たんぽぽ通信,写真メインのお知らせ。「R8 たんぽぽ通信 02.27」などのファイル名で識別できる。Rは年号の頭文字。02.27はMM.DD形式の発行日,2
+monthly_announcement,各月のお知らせ,月次のお知らせ。「1月のお知らせ」などのファイル名で識別できる。,3
+monthly_lunch_schedule,給食献立表,月次の献立表。「R8 2月給食献立表」などのファイル名で識別できる。Rは年号の頭文字。,4
+monthly_lunch_info,給食だより,月次の給食方針の説明。「R7 給食だより　11月号」などのファイル名で識別できる。Rは年号の頭文字。,5
+uncategorized,その他,未定義文書の分類先。,6
