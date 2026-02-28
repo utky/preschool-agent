@@ -2,17 +2,37 @@ import { Link } from 'react-router-dom'
 import { apiGet } from '@/lib/api'
 
 interface Document {
+  document_id: string
   uri: string
-  generation: string
+  title: string
+  document_type: string | null
+  publish_date: string | null
   content_type: string
   size: number
-  updated: string
-  document_id?: string
-  title?: string
+  total_chunks: number
+  updated_at: string
 }
 
 interface DocumentListProps {
   documents: Document[]
+}
+
+const DOCUMENT_TYPE_LABELS: Record<string, string> = {
+  journal: '日誌',
+  photo_album: 'フォトアルバム',
+  monthly_announcement: '園だより',
+  monthly_lunch_schedule: '給食献立表',
+  monthly_lunch_info: '給食便り',
+  uncategorized: 'その他',
+}
+
+const DOCUMENT_TYPE_COLORS: Record<string, string> = {
+  journal: 'bg-blue-100 text-blue-800',
+  photo_album: 'bg-pink-100 text-pink-800',
+  monthly_announcement: 'bg-green-100 text-green-800',
+  monthly_lunch_schedule: 'bg-orange-100 text-orange-800',
+  monthly_lunch_info: 'bg-yellow-100 text-yellow-800',
+  uncategorized: 'bg-gray-100 text-gray-600',
 }
 
 export default function DocumentList({ documents }: DocumentListProps) {
@@ -22,24 +42,17 @@ export default function DocumentList({ documents }: DocumentListProps) {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
   }
 
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('ja-JP', {
+  // publish_date（YYYY-MM-DD）を「2026年3月」形式で表示、null なら updated_at の日時を表示
+  const formatPublishDate = (publishDate: string | null, updatedAt: string) => {
+    if (publishDate) {
+      const d = new Date(`${publishDate}T00:00:00`)
+      return d.toLocaleDateString('ja-JP', { year: 'numeric', month: 'long' })
+    }
+    return new Date(updatedAt).toLocaleDateString('ja-JP', {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
     })
-  }
-
-  const extractFileName = (uri: string) => {
-    const parts = uri.split('/')
-    return decodeURIComponent(parts[parts.length - 1])
-  }
-
-  const getDisplayName = (doc: Document) => {
-    if (doc.title) return doc.title
-    return extractFileName(doc.uri)
   }
 
   const handleDownload = async (uri: string) => {
@@ -78,19 +91,24 @@ export default function DocumentList({ documents }: DocumentListProps) {
                   </svg>
                 </div>
                 <div className="min-w-0 flex-1 px-4">
-                  <div className="truncate text-sm font-medium text-gray-900">
-                    {doc.document_id ? (
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="truncate text-sm font-medium text-gray-900">
                       <Link to={`/documents/${doc.document_id}`} className="hover:text-indigo-600">
-                        {getDisplayName(doc)}
+                        {doc.title}
                       </Link>
-                    ) : (
-                      getDisplayName(doc)
+                    </span>
+                    {/* 文書種別バッジ */}
+                    {doc.document_type && (
+                      <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${DOCUMENT_TYPE_COLORS[doc.document_type] ?? 'bg-gray-100 text-gray-600'}`}>
+                        {DOCUMENT_TYPE_LABELS[doc.document_type] ?? doc.document_type}
+                      </span>
                     )}
                   </div>
                   <div className="mt-1 flex items-center text-sm text-gray-500">
                     <span>{formatSize(doc.size)}</span>
                     <span className="mx-2">&bull;</span>
-                    <span>{formatDate(doc.updated)}</span>
+                    {/* publish_date があれば「2026年3月」形式、なければ updated_at */}
+                    <span>{formatPublishDate(doc.publish_date, doc.updated_at)}</span>
                   </div>
                 </div>
               </div>

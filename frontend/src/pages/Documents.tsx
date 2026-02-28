@@ -1,25 +1,37 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { apiGet } from '@/lib/api'
 import DocumentList from '@/components/documents/DocumentList'
 
 interface Document {
+  document_id: string
   uri: string
-  generation: string
+  title: string
+  document_type: string | null
+  publish_date: string | null
   content_type: string
   size: number
-  updated: string
-  document_id?: string
-  title?: string
+  total_chunks: number
+  updated_at: string
 }
 
 interface DocumentsResponse {
   documents: Document[]
 }
 
+const DOCUMENT_TYPE_LABELS: Record<string, string> = {
+  journal: '日誌',
+  photo_album: 'フォトアルバム',
+  monthly_announcement: '園だより',
+  monthly_lunch_schedule: '給食献立表',
+  monthly_lunch_info: '給食便り',
+  uncategorized: 'その他',
+}
+
 export default function Documents() {
   const [documents, setDocuments] = useState<Document[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [selectedType, setSelectedType] = useState<string>('all')
 
   const fetchDocuments = async () => {
     try {
@@ -38,6 +50,32 @@ export default function Documents() {
   useEffect(() => {
     fetchDocuments()
   }, [])
+
+  // ユニークな document_type の一覧（null を除く）
+  const documentTypes = useMemo(() => {
+    const types = new Set<string>()
+    for (const doc of documents) {
+      if (doc.document_type) types.add(doc.document_type)
+    }
+    return Array.from(types).sort()
+  }, [documents])
+
+  // フィルタ + publish_date 降順ソート（null は末尾）
+  const filteredDocuments = useMemo(() => {
+    const filtered =
+      selectedType === 'all'
+        ? documents
+        : documents.filter((doc) => doc.document_type === selectedType)
+
+    return [...filtered].sort((a, b) => {
+      if (a.publish_date && b.publish_date) {
+        return b.publish_date.localeCompare(a.publish_date)
+      }
+      if (a.publish_date) return -1
+      if (b.publish_date) return 1
+      return b.updated_at.localeCompare(a.updated_at)
+    })
+  }, [documents, selectedType])
 
   if (isLoading) {
     return (
@@ -67,6 +105,35 @@ export default function Documents() {
         </button>
       </div>
 
+      {/* 種別フィルタ */}
+      {documentTypes.length > 0 && (
+        <div className="mb-4 flex flex-wrap gap-2">
+          <button
+            onClick={() => setSelectedType('all')}
+            className={`rounded-full px-3 py-1 text-sm font-medium ${
+              selectedType === 'all'
+                ? 'bg-indigo-600 text-white'
+                : 'bg-white text-gray-700 ring-1 ring-inset ring-gray-300 hover:bg-gray-50'
+            }`}
+          >
+            すべて
+          </button>
+          {documentTypes.map((type) => (
+            <button
+              key={type}
+              onClick={() => setSelectedType(type)}
+              className={`rounded-full px-3 py-1 text-sm font-medium ${
+                selectedType === type
+                  ? 'bg-indigo-600 text-white'
+                  : 'bg-white text-gray-700 ring-1 ring-inset ring-gray-300 hover:bg-gray-50'
+              }`}
+            >
+              {DOCUMENT_TYPE_LABELS[type] ?? type}
+            </button>
+          ))}
+        </div>
+      )}
+
       {error ? (
         <div className="rounded-md bg-red-50 p-4">
           <div className="flex">
@@ -81,7 +148,7 @@ export default function Documents() {
           </div>
         </div>
       ) : (
-        <DocumentList documents={documents} />
+        <DocumentList documents={filteredDocuments} />
       )}
     </div>
   )

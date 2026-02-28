@@ -19,9 +19,15 @@ models:
         data_tests:
           - not_null
       - name: document_type
-        description: "文書種別（Slice 6で分類実装予定、暫定NULL）"
+        description: "LLMによる文書種別分類（Slice 6で実装済み）"
+        data_tests:
+          - accepted_values:
+              values: [journal, photo_album, monthly_announcement, monthly_lunch_schedule, monthly_lunch_info, uncategorized]
+              quote: false
+              config:
+                where: "document_type is not null"
       - name: publish_date
-        description: "発行日（Slice 6で抽出実装予定、暫定NULL）"
+        description: "LLMによる発行日抽出（Slice 6で実装済み）"
       - name: content_type
         description: "MIMEタイプ"
       - name: size
