@@ -41,7 +41,8 @@ main:
               overrides:
                 containerOverrides:
                   - args:
-                      - "run"
+                      - "build"
+                      - "--no-use-colors"
                       - "--vars"
                       - '$${"{\"date\": \"" + target_date + "\", \"hour\": \"" + target_hour + "\"}"}'
           result: job_execution
