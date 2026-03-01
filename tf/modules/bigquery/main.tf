@@ -4,6 +4,21 @@ resource "google_project_service" "bigquery" {
   service = "bigquery.googleapis.com"
 }
 
+# プロジェクト情報（BigQuery service agent のプロジェクト番号取得用）
+data "google_project" "project" {
+  project_id = var.project_id
+}
+
+# Seedsバケット: BigQuery service agent に読み取り権限を付与
+# BQ データセット作成後に実行することで service agent の存在を保証する
+resource "google_storage_bucket_iam_member" "seeds_bigquery_reader" {
+  bucket = var.seeds_bucket_name
+  role   = "roles/storage.objectViewer"
+  member = "serviceAccount:service-${data.google_project.project.number}@gcp-sa-bigquery.iam.gserviceaccount.com"
+
+  depends_on = [google_bigquery_dataset.main]
+}
+
 resource "google_project_service" "bigquery_connection" {
   project = var.project_id
   service = "bigqueryconnection.googleapis.com"

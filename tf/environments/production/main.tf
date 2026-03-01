@@ -69,6 +69,7 @@ module "bigquery" {
   project_id              = var.project_id
   location                = var.region
   pdf_uploads_bucket_name = module.app.pdf_uploads_bucket_name
+  seeds_bucket_name       = module.app.seeds_bucket_name
 }
 
 module "cloud_run_job" {

@@ -25,3 +25,8 @@ variable "pdf_uploads_bucket_name" {
   type        = string
   description = "PDF Uploadsバケット名"
 }
+
+variable "seeds_bucket_name" {
+  type        = string
+  description = "Seedsバケット名"
+}
