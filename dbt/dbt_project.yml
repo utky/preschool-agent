@@ -17,6 +17,7 @@ vars:
   api_data_bucket_name: "{{ env_var('API_DATA_BUCKET_NAME', 'school-agent-lofilab-api-data') }}"
   vertex_connection_name: "{{ env_var('VERTEX_CONNECTION_NAME', 'lofilab.asia-northeast1.school-agent-vertex-connection') }}"
   seeds_bucket_name: "{{ env_var('SEEDS_BUCKET_NAME', 'school-agent-lofilab-seeds') }}"
+  seeds_connection_name: "{{ env_var('SEEDS_CONNECTION_NAME', 'lofilab.asia-northeast1.school-agent-seeds-connection') }}"
 
 on-run-start:
   - "{{ create_ocr_model() }}"

@@ -44,3 +44,8 @@ variable "seeds_bucket_name" {
   type        = string
   description = "dbt seed ファイル用 GCS バケット名"
 }
+
+variable "seeds_connection_name" {
+  type        = string
+  description = "Seeds BigLake接続の完全修飾名"
+}

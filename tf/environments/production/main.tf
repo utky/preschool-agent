@@ -81,6 +81,7 @@ module "cloud_run_job" {
   vertex_connection_name     = module.bigquery.vertex_connection_name
   document_ai_processor_path = module.document_ai.processor_name
   seeds_bucket_name          = module.app.seeds_bucket_name
+  seeds_connection_name      = module.bigquery.seeds_connection_name
 }
 
 module "monitoring" {

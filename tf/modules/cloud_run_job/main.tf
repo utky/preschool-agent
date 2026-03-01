@@ -77,6 +77,11 @@ resource "google_cloud_run_v2_job" "dbt" {
           name  = "SEEDS_BUCKET_NAME"
           value = var.seeds_bucket_name
         }
+
+        env {
+          name  = "SEEDS_CONNECTION_NAME"
+          value = var.seeds_connection_name
+        }
       }
     }
   }

@@ -17,3 +17,8 @@ output "raw_documents_table_id" {
   value       = google_bigquery_table.raw_documents.table_id
   description = "Object Table（raw_documents）のテーブルID"
 }
+
+output "seeds_connection_name" {
+  value       = "${var.project_id}.${var.location}.${google_bigquery_connection.seeds.connection_id}"
+  description = "Seeds BigLake接続の完全修飾名"
+}
