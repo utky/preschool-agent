@@ -25,6 +25,34 @@ resource "google_project_iam_member" "dbt_bigquery_connection_user" {
   member  = "serviceAccount:${google_service_account.dbt.email}"
 }
 
+locals {
+  seeds_connection_parts    = split(".", var.seeds_connection_name)
+  seeds_connection_location = local.seeds_connection_parts[1]
+  seeds_connection_id       = local.seeds_connection_parts[2]
+
+  vertex_connection_parts    = split(".", var.vertex_connection_name)
+  vertex_connection_location = local.vertex_connection_parts[1]
+  vertex_connection_id       = local.vertex_connection_parts[2]
+}
+
+# seedsコネクションのdelegate権限（CREATE EXTERNAL TABLE WITH CONNECTIONに必要）
+resource "google_bigquery_connection_iam_member" "dbt_seeds_connection_admin" {
+  project       = var.project_id
+  location      = local.seeds_connection_location
+  connection_id = local.seeds_connection_id
+  role          = "roles/bigquery.connectionAdmin"
+  member        = "serviceAccount:${google_service_account.dbt.email}"
+}
+
+# vertexコネクションのdelegate権限（CREATE MODEL REMOTE WITH CONNECTIONに必要）
+resource "google_bigquery_connection_iam_member" "dbt_vertex_connection_admin" {
+  project       = var.project_id
+  location      = local.vertex_connection_location
+  connection_id = local.vertex_connection_id
+  role          = "roles/bigquery.connectionAdmin"
+  member        = "serviceAccount:${google_service_account.dbt.email}"
+}
+
 # API Dataバケットへの書き込み権限
 resource "google_storage_bucket_iam_member" "dbt_write_api_data" {
   bucket = var.api_data_bucket_name
