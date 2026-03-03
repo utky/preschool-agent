@@ -77,6 +77,58 @@ models:
         data_tests:
           - not_null
 
+  - name: fct_calendar_sync_history
+    description: "Googleカレンダー同期履歴（バックエンドが直接 INSERT、dbt はスキーマ管理のみ）"
+    columns:
+      - name: event_id
+        description: "同期したイベントID"
+        data_tests:
+          - unique
+          - not_null
+      - name: calendar_event_id
+        description: "Google Calendar 側のイベントID"
+        data_tests:
+          - not_null
+      - name: synced_at
+        description: "同期日時"
+        data_tests:
+          - not_null
+      - name: synced_by
+        description: "同期実行者（'backend'固定）"
+
+  - name: fct_events_with_sync
+    description: "イベントに同期状態を結合したマート（exp_api__events 向け）"
+    columns:
+      - name: event_id
+        description: "イベントID"
+        data_tests:
+          - unique
+          - not_null
+      - name: document_id
+        description: "抽出元文書ID"
+        data_tests:
+          - not_null
+      - name: event_date
+        description: "イベント日付（DATE型）"
+        data_tests:
+          - not_null
+      - name: event_time
+        description: "イベント開始時刻（TIME型、nullable）"
+      - name: event_title
+        description: "イベントタイトル"
+        data_tests:
+          - not_null
+      - name: event_description
+        description: "イベント詳細説明"
+        data_tests:
+          - not_null
+      - name: document_title
+        description: "抽出元文書タイトル"
+      - name: calendar_event_id
+        description: "Google Calendar 側のイベントID（未同期時はNULL）"
+      - name: synced_at
+        description: "同期日時（未同期時はNULL）"
+
   - name: fct_document_chunks
     description: "文書チャンクのファクトテーブル（RAG用）"
     columns:

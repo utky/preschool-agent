@@ -41,7 +41,7 @@ export async function getUnsyncedEvents(): Promise<CalendarEvent[]> {
       CAST(h.synced_at AS STRING) AS synced_at
     FROM \`${DATASET_ID}.fct_events\` e
     LEFT JOIN \`${DATASET_ID}.dim_documents\` d ON e.document_id = d.document_id
-    LEFT JOIN \`${DATASET_ID}.calendar_sync_history\` h ON e.event_id = h.event_id
+    LEFT JOIN \`${DATASET_ID}.fct_calendar_sync_history\` h ON e.event_id = h.event_id
     WHERE h.event_id IS NULL
     ORDER BY e.event_date ASC
   `
@@ -75,9 +75,9 @@ export async function createCalendarEvent(event: CalendarEvent, calendarId: stri
   return id
 }
 
-/** BigQuery の calendar_sync_history テーブルに同期記録を INSERT する */
+/** BigQuery の fct_calendar_sync_history テーブルに同期記録を INSERT する */
 export async function recordSync(eventId: string, calendarEventId: string): Promise<void> {
-  const table = bigquery.dataset(DATASET_ID).table('calendar_sync_history')
+  const table = bigquery.dataset(DATASET_ID).table('fct_calendar_sync_history')
   await table.insert([
     {
       event_id: eventId,
