@@ -61,7 +61,7 @@ module "document_ai" {
   source     = "../../modules/document_ai"
   project_id = var.project_id
   # Document AI OCR は asia-northeast1 未対応のため us を使用
-  location   = "us"
+  location = "us"
 }
 
 module "bigquery" {
@@ -85,10 +85,10 @@ module "cloud_run_job" {
 }
 
 module "monitoring" {
-  source                            = "../../modules/monitoring"
-  project_id                        = var.project_id
-  frontend_bucket_name              = module.app.frontend_bucket_name
-  alert_email                       = var.alert_email
+  source               = "../../modules/monitoring"
+  project_id           = var.project_id
+  frontend_bucket_name = module.app.frontend_bucket_name
+  alert_email          = var.alert_email
   # デフォルト: 2048 バイト/秒 (2KB/s)
 }
 

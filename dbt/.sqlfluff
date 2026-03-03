@@ -1,0 +1,10 @@
+[sqlfluff]
+dialect = bigquery
+templater = dbt
+
+[sqlfluff:templater:dbt]
+project_dir = ./
+
+[sqlfluff:indentation]
+indent_unit = space
+tab_space_size = 4

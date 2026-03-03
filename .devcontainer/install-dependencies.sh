@@ -18,7 +18,7 @@ echo "source \$HOME/.tenv.completion.bash" >> ~/.bashrc
 tenv tofu install
 
 # dbt
-pip install dbt-core dbt-bigquery
+pip install dbt-core dbt-bigquery sqlfluff sqlfluff-templater-dbt
 cd dbt/; dbt deps; cd -
 
 # gcloud認証
