@@ -26,17 +26,20 @@ documents.get('/download', async (c) => {
   }
 
   const [, bucketName, fileName] = match
-  const storage = new Storage()
-  const [signedUrl] = await storage
-    .bucket(bucketName)
-    .file(fileName)
-    .getSignedUrl({
-      version: 'v4',
-      action: 'read',
-      expires: Date.now() + 15 * 60 * 1000, // 15分
-    })
-
-  return c.json({ url: signedUrl })
+  try {
+    const storage = new Storage()
+    const [signedUrl] = await storage
+      .bucket(bucketName)
+      .file(fileName)
+      .getSignedUrl({
+        version: 'v4',
+        action: 'read',
+        expires: Date.now() + 15 * 60 * 1000, // 15分
+      })
+    return c.json({ url: signedUrl })
+  } catch {
+    return c.json({ error: 'File not found or signing failed' }, 404)
+  }
 })
 
 documents.get('/:id', async (c) => {

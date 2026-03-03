@@ -190,6 +190,13 @@ resource "google_project_iam_member" "cloud_run_bigquery_connection_user" {
   member  = "serviceAccount:${google_service_account.default.email}"
 }
 
+# Cloud Run SAが GCS v4 署名URL を生成できるよう、自SAへのToken Creator権限を付与
+resource "google_service_account_iam_member" "cloud_run_sa_token_creator" {
+  service_account_id = google_service_account.default.name
+  role               = "roles/iam.serviceAccountTokenCreator"
+  member             = "serviceAccount:${google_service_account.default.email}"
+}
+
 # Secret Managerへのアクセス権限を付与
 #resource "google_project_iam_member" "secret_accessor" {
 #  project = var.project_id
