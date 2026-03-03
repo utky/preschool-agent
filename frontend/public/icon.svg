@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- 背景 -->
+  <rect width="512" height="512" rx="80" fill="#f97316"/>
+  <!-- ランドセル本体 -->
+  <rect x="136" y="200" width="240" height="220" rx="20" fill="#ffffff"/>
+  <!-- ランドセル上部フラップ -->
+  <rect x="136" y="160" width="240" height="80" rx="16" fill="#fed7aa"/>
+  <!-- ランドセル肩ベルト左 -->
+  <rect x="156" y="130" width="40" height="90" rx="16" fill="#fdba74"/>
+  <!-- ランドセル肩ベルト右 -->
+  <rect x="316" y="130" width="40" height="90" rx="16" fill="#fdba74"/>
+  <!-- ランドセル中央バックル -->
+  <rect x="228" y="225" width="56" height="36" rx="8" fill="#fed7aa"/>
+  <rect x="240" y="233" width="32" height="20" rx="4" fill="#f97316"/>
+  <!-- ランドセルポケット -->
+  <rect x="176" y="295" width="160" height="100" rx="12" fill="#f3f4f6"/>
+  <rect x="236" y="325" width="40" height="24" rx="6" fill="#d1d5db"/>
+</svg>
