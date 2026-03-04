@@ -25,6 +25,67 @@
     ]
   },
   "permissions": {
-    "defaultMode": "plan"
+    "defaultMode": "plan",
+    "allow": [
+      "Bash(git:*)",
+      "Bash(ls:*)",
+      "Bash(npm:*)",
+      "Bash(npx:*)",
+      "Bash(find:*)",
+      "Bash(tree:*)",
+      "Bash(chmod:*)",
+      "Bash(lsof:*)",
+      "Bash(tail:*)",
+      "Bash(grep:*)",
+      "Bash(gh run list:*)",
+      "Bash(gh workflow:*)",
+      "Bash(gh run view:*)",
+      "Bash(gh secret list:*)",
+      "Bash(gh variable list:*)",
+      "Bash(gh run watch:*)",
+      "Bash(tofu -chdir=tf/environments/production/ plan)",
+      "Bash(docker build:*)",
+      "Bash(pip:*)",
+      "Bash(dbt parse:*)",
+      "Bash(dbt test:*)",
+      "Bash(dbt list:*)",
+      "Bash(dbt compile:*)",
+      "Bash(NODE_OPTIONS='--experimental-vm-modules' jest:*)",
+      "Bash(NODE_OPTIONS='--experimental-vm-modules' npx jest:*)",
+      "Bash(node:*)",
+      "Bash(npx tsc:*)",
+      "Bash(tofu fmt:*)",
+      "Bash(sqlfluff:*)",
+      "Bash(printf:*)",
+      "Bash(sort:*)",
+
+      // gcloud
+      "Bash(gcloud iam service-accounts list:*)",
+      "Bash(gcloud alpha monitoring policies conditions list:*)",
+      "Bash(gcloud alpha monitoring incidents list:*)",
+      "Bash(gcloud monitoring policies list:*)",
+      "Bash(gcloud workflows executions list:*)",
+      "Bash(gcloud workflows executions describe:*)",
+      "Bash(gcloud run jobs get-iam-policy:*)",
+      "Bash(gcloud run jobs describe:*)",
+      "Bash(gcloud artifacts docker images list:*)",
+
+      // web
+      "WebSearch",
+      "WebFetch(domain:docs.cloud.google.com)",
+      "WebFetch(domain:registry.terraform.io)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:docs.getdbt.com)",
+      "WebFetch(domain:docs.google.com)",
+      "WebFetch(domain:codelabs.developers.google.com)",
+      "WebFetch(domain:medium.com)",
+      "WebFetch(domain:mastra.ai)",
+      "WebFetch(domain:future-architect.github.io)",
+
+      // skills
+      "Skill(test-reviewer)",
+      "Skill(dbt-designer)"
+
+    ]
   }
 }
