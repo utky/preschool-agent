@@ -78,14 +78,13 @@ Claude Code応答完了時に自動でテストを実行する。テスト失敗
 
 ```bash
 git add <関連ファイル>
-git commit -m "$(cat <<'EOF'
+git commit -F - <<'EOF'
 feat(sliceN): スライスの簡潔な説明
 
 - 主要な変更点1
 - 主要な変更点2
 - 主要な変更点3
 EOF
-)"
 ```
 
 ## コマンドリファレンス
