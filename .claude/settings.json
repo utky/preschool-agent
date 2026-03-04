@@ -59,7 +59,6 @@
       "Bash(printf:*)",
       "Bash(sort:*)",
 
-      // gcloud
       "Bash(gcloud iam service-accounts list:*)",
       "Bash(gcloud alpha monitoring policies conditions list:*)",
       "Bash(gcloud alpha monitoring incidents list:*)",
@@ -70,7 +69,6 @@
       "Bash(gcloud run jobs describe:*)",
       "Bash(gcloud artifacts docker images list:*)",
 
-      // web
       "WebSearch",
       "WebFetch(domain:docs.cloud.google.com)",
       "WebFetch(domain:registry.terraform.io)",
@@ -82,7 +80,6 @@
       "WebFetch(domain:mastra.ai)",
       "WebFetch(domain:future-architect.github.io)",
 
-      // skills
       "Skill(test-reviewer)",
       "Skill(dbt-designer)"
 
