@@ -24,7 +24,7 @@ app.route('/api/documents', documents)
 app.route('/api/chat', chat)
 app.route('/api/calendar', calendar)
 
-app.get('/', async (c) => {
+app.get('*', async (c) => {
   try {
     const html = await getFrontendIndex()
     return c.html(html)
