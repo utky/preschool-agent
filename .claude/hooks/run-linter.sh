@@ -70,7 +70,7 @@ if [ "$EXT" = "sql" ]; then
     exit 0
   fi
 
-  LINT_OUTPUT=$(sqlfluff lint "$FILE_PATH" 2>&1) || LINT_EXIT=$?
+  LINT_OUTPUT=$(sqlfluff lint --config "${CLAUDE_PROJECT_DIR}/dbt/.sqlfluff" "$FILE_PATH" 2>&1) || LINT_EXIT=$?
   if [ "${LINT_EXIT:-0}" -ne 0 ]; then
     block_with_reason "SQLfluffエラーがあります。修正してください。
 

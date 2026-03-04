@@ -27,6 +27,9 @@ on-run-start:
 
 models:
   school_agent:
+    +persist_docs:
+      relation: true
+      columns: true
     staging:
       +materialized: incremental
       +schema: school_agent
