@@ -22,34 +22,71 @@ WITH generated AS (
         ml_generate_text_llm_result,
         ml_generate_text_status
     FROM ML.GENERATE_TEXT(
-        MODEL `{{ var('gcp_project_id') }}.{{ var('dataset_id') }}.gemini_flash_model`,
+        model `{{ var('gcp_project_id') }}.{{ var('dataset_id') }}.gemini_flash_model`,
         (
             SELECT *
             FROM {{ source('pdf_uploads', 'raw_documents') }}
-            WHERE content_type = 'application/pdf'
-            {% if var('date', none) is not none and var('hour', none) is not none %}
-                AND updated >= TIMESTAMP('{{ var("date") }}T{{ var("hour") }}:00:00Z')
-                AND updated < TIMESTAMP_ADD(TIMESTAMP('{{ var("date") }}T{{ var("hour") }}:00:00Z'), INTERVAL 1 HOUR)
-            {% endif %}
-            {% if is_incremental() %}
-                AND uri NOT IN (SELECT uri FROM {{ this }})
-            {% endif %}
+            WHERE
+                content_type = 'application/pdf'
+                {% if var('date', none) is not none and var('hour', none) is not none %}
+
+                    AND updated >= TIMESTAMP('{{ var("date") }}T{{ var("hour") }}:00:00Z')
+                    AND updated
+                    < TIMESTAMP_ADD(TIMESTAMP('{{ var("date") }}T{{ var("hour") }}:00:00Z'), INTERVAL 1 HOUR)
+
+                {% endif %}
+                {% if is_incremental() %}
+                    AND uri NOT IN (SELECT existing.uri FROM {{ this }} AS existing)
+                {% endif %}
         ),
         STRUCT(
-            'このPDFドキュメントの内容をMarkdown形式で忠実に抽出してください。見出し、表、箇条書き、強調などの書式を適切なMarkdown記法で再現してください。' AS prompt,
+            CONCAT(
+                'このPDFドキュメントの内容をMarkdown形式で忠実に抽出してください。',
+                '見出し、表、箇条書き、強調などの書式を適切なMarkdown記法で再現してください。'
+            ) AS prompt,
             TRUE AS flatten_json_output,
-            '{"generationConfig": {"temperature": 0.0, "maxOutputTokens": 8192, "responseMimeType": "application/json", "responseSchema": {"type": "OBJECT", "properties": {"extracted_markdown": {"type": "STRING", "description": "PDFから抽出したMarkdown形式のテキスト"}}, "required": ["extracted_markdown"]}}}' AS model_params
+            '''
+            {
+              "generationConfig": {
+                "temperature": 0.0,
+                "maxOutputTokens": 8192,
+                "thinkingConfig": {
+                  "thinkingBudget": 0
+                },
+                "responseMimeType": "application/json",
+                "responseSchema": {
+                  "type": "OBJECT",
+                  "properties": {
+                    "extracted_markdown": {
+                      "type": "STRING",
+                      "description": "PDFから抽出したMarkdown形式のテキスト"
+                    }
+                  },
+                  "required": [
+                    "extracted_markdown"
+                  ]
+                }
+              }
+            }
+            ''' AS model_params
         )
     )
 )
 
 SELECT
     uri,
-    (SELECT value FROM UNNEST(metadata) WHERE name = 'drive-file-id') AS document_id,
+    (
+        SELECT value FROM UNNEST(metadata)
+        WHERE name = 'drive-file-id')
+        AS document_id,
     `{{ var('gcp_project_id') }}.{{ var('dataset_id') }}.url_decode`(
-        (SELECT value FROM UNNEST(metadata) WHERE name = 'original-filename')
+        (
+            SELECT value FROM UNNEST(metadata)
+            WHERE name = 'original-filename'
+        )
     ) AS original_filename,
-    JSON_VALUE(ml_generate_text_llm_result, '$.extracted_markdown') AS extracted_markdown,
+    JSON_VALUE(ml_generate_text_llm_result, '$.extracted_markdown')
+        AS extracted_markdown,
     ml_generate_text_llm_result,
     ml_generate_text_status,
     content_type,
@@ -57,5 +94,8 @@ SELECT
     md5_hash,
     updated AS updated_at
 FROM generated
-WHERE ml_generate_text_status = ''
-  AND JSON_VALUE(ml_generate_text_llm_result, '$.extracted_markdown') IS NOT NULL
+WHERE
+    ml_generate_text_status = ''
+    AND JSON_VALUE(
+        ml_generate_text_llm_result, '$.extracted_markdown'
+    ) IS NOT NULL

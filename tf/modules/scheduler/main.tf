@@ -11,8 +11,8 @@ resource "google_cloud_run_v2_job_iam_member" "workflow_invoker" {
   name     = var.dbt_job_name
   # v2 API で overrides（containerOverrides）を使うには runWithOverrides 権限が必要なため
   # roles/run.invoker（run.jobs.run のみ）ではなく roles/run.developer を使用する
-  role     = "roles/run.developer"
-  member   = "serviceAccount:${google_service_account.workflow.email}"
+  role   = "roles/run.developer"
+  member = "serviceAccount:${google_service_account.workflow.email}"
 }
 
 # Workflow SA → Cloud Run オペレーション状態確認権限（v2 API のポーリングに必要）
@@ -53,7 +53,7 @@ resource "google_workflows_workflow" "dbt_scheduler" {
 resource "google_cloud_scheduler_job" "dbt_hourly" {
   name             = "${var.app_name}-dbt-hourly"
   description      = "dbt ワークフローを毎時実行"
-  schedule         = "0 * * * *"
+  schedule         = "0 6,12,18 * * *"
   time_zone        = "Asia/Tokyo"
   region           = var.region
   attempt_deadline = "600s"

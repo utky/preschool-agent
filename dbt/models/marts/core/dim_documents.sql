@@ -23,7 +23,7 @@ WITH rules_agg AS (
     FROM {{ source('config', 'document_type_rules') }}
 ),
 
-source AS (
+source AS (  -- noqa: ST03
     -- 新規文書のみ（incremental 時）
     SELECT
         c.document_id,
@@ -41,11 +41,11 @@ source AS (
             '文書種別の定義:\n',
             r.rules_text
         ) AS prompt
-    FROM {{ ref('int_extracted_texts__chunked') }} c
-    LEFT JOIN {{ ref('stg_pdf_uploads__extracted_texts') }} fm ON c.uri = fm.uri
-    CROSS JOIN rules_agg r
+    FROM {{ ref('int_extracted_texts__chunked') }} AS c
+    LEFT JOIN {{ ref('stg_pdf_uploads__extracted_texts') }} AS fm ON c.uri = fm.uri
+    CROSS JOIN rules_agg AS r
     {% if is_incremental() %}
-    WHERE c.document_id NOT IN (SELECT DISTINCT document_id FROM {{ this }})
+        WHERE c.document_id NOT IN (SELECT DISTINCT document_id FROM {{ this }}) -- noqa: RF02
     {% endif %}
     GROUP BY c.document_id, c.uri, fm.original_filename, r.rules_text
 ),
@@ -62,15 +62,16 @@ generated AS (
         updated_at,
         ml_generate_text_llm_result,
         ml_generate_text_status
-    FROM ML.GENERATE_TEXT(
-        MODEL `{{ var('gcp_project_id') }}.{{ var('dataset_id') }}.gemini_flash_model`,
-        TABLE source,
-        STRUCT(
-            TRUE AS flatten_json_output,
-            -- enum 値は GCS 外部テーブル document_type_rules の document_type カラムと一致させること
-            '{"generationConfig":{"temperature":0.0,"maxOutputTokens":256,"responseMimeType":"application/json","responseSchema":{"type":"OBJECT","properties":{"document_type":{"type":"STRING","enum":["journal","photo_album","monthly_announcement","monthly_lunch_schedule","monthly_lunch_info","uncategorized"]},"publish_date":{"type":"STRING","nullable":true}},"required":["document_type"]}}}' AS model_params
+    FROM
+        ML.GENERATE_TEXT(
+            model `{{ var('gcp_project_id') }}.{{ var('dataset_id') }}.gemini_flash_model`,
+            table source,
+            STRUCT(
+                TRUE AS flatten_json_output,
+                -- enum 値は GCS 外部テーブル document_type_rules の document_type カラムと一致させること
+                '{"generationConfig":{"temperature":0.0,"maxOutputTokens":256,"thinkingConfig":{"thinkingBudget":0},"responseMimeType":"application/json","responseSchema":{"type":"OBJECT","properties":{"document_type":{"type":"STRING","enum":["journal","photo_album","monthly_announcement","monthly_lunch_schedule","monthly_lunch_info","uncategorized"]},"publish_date":{"type":"STRING","nullable":true}},"required":["document_type"]}}}' AS model_params -- noqa: LT05
+            )
         )
-    )
     WHERE ml_generate_text_status = ''
 )
 
@@ -78,12 +79,14 @@ SELECT
     document_id,
     uri,
     title,
-    JSON_VALUE(ml_generate_text_llm_result, '$.document_type') AS document_type,
-    SAFE.PARSE_DATE('%Y-%m-%d',
-        JSON_VALUE(ml_generate_text_llm_result, '$.publish_date')) AS publish_date,
     content_type,
     size,
     md5_hash,
     total_chunks,
-    updated_at
+    updated_at,
+    JSON_VALUE(ml_generate_text_llm_result, '$.document_type') AS document_type,
+    SAFE.PARSE_DATE(
+        '%Y-%m-%d',
+        JSON_VALUE(ml_generate_text_llm_result, '$.publish_date')
+    ) AS publish_date
 FROM generated
