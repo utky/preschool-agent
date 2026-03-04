@@ -49,5 +49,5 @@ SELECT
     d.title,
     d.document_type,
     d.publish_date
-FROM chunks c
-INNER JOIN documents d ON c.document_id = d.document_id
+FROM chunks AS c
+INNER JOIN documents AS d ON c.document_id = d.document_id

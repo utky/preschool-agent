@@ -13,13 +13,13 @@
 WITH source AS (
     SELECT
         uri,
-        -- 改行を正規化（\r\n → \n）
-        REGEXP_REPLACE(extracted_markdown, r'\r\n', '\n') AS extracted_markdown,
         content_type,
         size,
         md5_hash,
         updated_at,
-        document_id
+        document_id,
+        -- 改行を正規化（\r\n → \n）
+        REGEXP_REPLACE(extracted_markdown, r'\r\n', '\n') AS extracted_markdown
     FROM {{ ref('stg_pdf_uploads__extracted_texts') }}
 ),
 
@@ -36,16 +36,16 @@ heading_sections AS (
         section_index,
         TRIM(section_text) AS section_text
     FROM source,
-    UNNEST(
-        SPLIT(
-            REGEXP_REPLACE(
-                CONCAT('\n', extracted_markdown),
-                r'\n(#{1,3} )',
-                '\n<<<HSPLIT>>>\n\\1'
-            ),
-            '<<<HSPLIT>>>'
-        )
-    ) AS section_text WITH OFFSET AS section_index
+        UNNEST(
+            SPLIT(
+                REGEXP_REPLACE(
+                    CONCAT('\n', extracted_markdown),
+                    r'\n(#{1,3} )',
+                    '\n<<<HSPLIT>>>\n\\1'
+                ),
+                '<<<HSPLIT>>>'
+            )
+        ) AS section_text WITH OFFSET AS section_index
     WHERE TRIM(section_text) != ''
 ),
 
@@ -62,7 +62,7 @@ section_paragraphs AS (
         para_index,
         TRIM(paragraph) AS paragraph
     FROM heading_sections,
-    UNNEST(SPLIT(section_text, '\n\n')) AS paragraph WITH OFFSET AS para_index
+        UNNEST(SPLIT(section_text, '\n\n')) AS paragraph WITH OFFSET AS para_index
     WHERE TRIM(paragraph) != ''
 ),
 
@@ -120,8 +120,9 @@ merged_blocks AS (
             ELSE STRING_AGG(paragraph, '\n\n' ORDER BY para_index)
         END AS block_text
     FROM island_boundaries
-    GROUP BY document_id, uri, content_type, size, md5_hash, updated_at,
-             section_index, island_id, block_type
+    GROUP BY
+        document_id, uri, content_type, size, md5_hash, updated_at,
+        section_index, island_id, block_type
 ),
 
 -- Level C: 1500文字超のテキストブロックを句点（。）で分割、テーブルはそのまま保持
@@ -156,8 +157,9 @@ final_chunks AS (
         sentence_offset AS sub_index,
         TRIM(sentence) AS chunk_text
     FROM merged_blocks,
-    UNNEST(SPLIT(block_text, '。')) AS sentence WITH OFFSET AS sentence_offset
-    WHERE block_type = 'text'
+        UNNEST(SPLIT(block_text, '。')) AS sentence WITH OFFSET AS sentence_offset
+    WHERE
+        block_type = 'text'
         AND LENGTH(block_text) > 1500
         AND TRIM(sentence) != ''
 ),
@@ -218,8 +220,9 @@ reaggregated_chunks AS (
             ELSE MAX(chunk_text)
         END AS chunk_text
     FROM sentence_groups
-    GROUP BY document_id, uri, content_type, size, md5_hash, updated_at,
-             section_index, block_order, sentence_group_id
+    GROUP BY
+        document_id, uri, content_type, size, md5_hash, updated_at,
+        section_index, block_order, sentence_group_id
 ),
 
 -- document_id ごとに連番 chunk_index 付与
@@ -237,18 +240,19 @@ numbered_chunks AS (
             ORDER BY section_index, block_order, sentence_group_id
         ) - 1 AS chunk_index
     FROM reaggregated_chunks
-    WHERE TRIM(chunk_text) != ''
+    WHERE
+        TRIM(chunk_text) != ''
         AND LENGTH(TRIM(chunk_text)) >= 10
 )
 
 SELECT
     document_id,
-    TO_HEX(MD5(CONCAT(document_id, CAST(chunk_index AS STRING)))) AS chunk_id,
     uri,
     chunk_index,
     chunk_text,
     content_type,
     size,
     md5_hash,
-    updated_at
+    updated_at,
+    TO_HEX(MD5(CONCAT(document_id, CAST(chunk_index AS STRING)))) AS chunk_id
 FROM numbered_chunks

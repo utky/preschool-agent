@@ -10,15 +10,15 @@ SELECT
     e.event_title,
     e.event_description,
     e.extracted_at,
-    d.title         AS document_title,
+    d.title AS document_title,
     d.document_type,
     d.publish_date,
     h.calendar_event_id,
     h.synced_at
-FROM {{ ref('fct_events') }} e
-LEFT JOIN {{ ref('dim_documents') }} d
+FROM {{ ref('fct_events') }} AS e
+LEFT JOIN {{ ref('dim_documents') }} AS d
     ON e.document_id = d.document_id
-LEFT JOIN {{ ref('fct_calendar_sync_history') }} h
+LEFT JOIN {{ ref('fct_calendar_sync_history') }} AS h
     ON e.event_id = h.event_id
 WHERE
     e.event_date >= CURRENT_DATE()   -- 未来のイベント

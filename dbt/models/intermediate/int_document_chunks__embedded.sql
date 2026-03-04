@@ -29,7 +29,7 @@ WITH chunks AS (
 embedded AS (
     SELECT *
     FROM ML.GENERATE_EMBEDDING(
-        MODEL `{{ var('gcp_project_id') }}.{{ var('dataset_id') }}.text_embedding_model`,
+        model `{{ var('gcp_project_id') }}.{{ var('dataset_id') }}.text_embedding_model`,
         (
             SELECT
                 chunk_id,

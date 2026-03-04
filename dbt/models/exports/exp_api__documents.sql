@@ -12,10 +12,10 @@ SELECT
     uri,
     title,
     document_type,
-    CAST(publish_date AS STRING) AS publish_date,
     content_type,
     size,
     total_chunks,
-    updated_at
+    updated_at,
+    CAST(publish_date AS STRING) AS publish_date
 FROM {{ ref('dim_documents') }}
 ORDER BY updated_at DESC
