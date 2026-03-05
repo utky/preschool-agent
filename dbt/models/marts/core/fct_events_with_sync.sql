@@ -1,7 +1,7 @@
 {{ config(materialized='table') }}
 
 -- イベントに同期状態を結合したマート（exp_api__events 向け）
--- ビジネスロジック: 未来のイベント OR 未同期イベントのみ対象
+-- ビジネスロジック: 当月以降のイベントのみ対象（当月内は未同期なら含める）
 SELECT
     e.event_id,
     e.document_id,
@@ -21,6 +21,9 @@ LEFT JOIN {{ ref('dim_documents') }} AS d
 LEFT JOIN {{ ref('fct_calendar_sync_history') }} AS h
     ON e.event_id = h.event_id
 WHERE
-    e.event_date >= CURRENT_DATE()   -- 未来のイベント
-    OR h.event_id IS NULL            -- OR 未同期イベント（同期失敗フォロー用）
+    e.event_date >= DATE_TRUNC(CURRENT_DATE(), MONTH)  -- 当月以降のみ
+    AND (
+        e.event_date >= CURRENT_DATE()    -- 当日以降のイベント
+        OR h.event_id IS NULL             -- OR 未同期イベント（同期失敗フォロー用）
+    )
 ORDER BY e.event_date ASC
