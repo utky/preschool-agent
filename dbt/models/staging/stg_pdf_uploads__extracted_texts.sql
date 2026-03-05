@@ -40,10 +40,7 @@ WITH generated AS (
                 {% endif %}
         ),
         STRUCT(
-            CONCAT(
-                'このPDFドキュメントの内容をMarkdown形式で忠実に抽出してください。',
-                '見出し、表、箇条書き、強調などの書式を適切なMarkdown記法で再現してください。'
-            ) AS prompt,
+            'このPDFドキュメントの内容をMarkdown形式で忠実に抽出してください。見出し、表、箇条書き、強調などの書式を適切なMarkdown記法で再現してください。' AS prompt,  -- noqa: LT05
             TRUE AS flatten_json_output,
             '''
             {
