@@ -3,10 +3,12 @@ import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import UserProfile from '@/components/auth/UserProfile'
 import LoginButton from '@/components/auth/LoginButton'
+import { apiGet } from '@/lib/api'
 
 export default function Navbar() {
   const { isAuthenticated, isLoading } = useAuth()
   const [menuOpen, setMenuOpen] = useState(false)
+  const [healthOk, setHealthOk] = useState<boolean | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
   const location = useLocation()
 
@@ -14,6 +16,13 @@ export default function Navbar() {
   useEffect(() => {
     setMenuOpen(false)
   }, [location.pathname])
+
+  // ヘルス状態を取得
+  useEffect(() => {
+    apiGet<{ status: string }>('/api/health')
+      .then(d => setHealthOk(d.status === 'ok'))
+      .catch(() => setHealthOk(false))
+  }, [])
 
   // メニュー外クリックで閉じる
   useEffect(() => {
@@ -51,25 +60,29 @@ export default function Navbar() {
             {menuOpen && (
               <div className="absolute top-full left-0 mt-1 w-48 bg-white shadow-lg rounded-md border border-gray-100 py-1 z-50">
                 <Link to="/" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                  Home
+                  ホーム
                 </Link>
                 <Link to="/documents" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                  Documents
+                  文書
                 </Link>
                 <Link to="/chat" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                  Chat
+                  調べる
                 </Link>
                 <Link to="/events" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                  Events
+                  予定
                 </Link>
               </div>
             )}
           </div>
 
-          <div className="flex justify-center">
+          <div className="flex justify-center items-center gap-2">
             <span className="text-lg font-bold text-gray-900 tracking-tight truncate">
-              Preschool Agent
+              幼稚園のお知らせ
             </span>
+            <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
+              healthOk === null ? 'bg-gray-300' :
+              healthOk ? 'bg-green-500' : 'bg-red-500'
+            }`} />
           </div>
 
           <div className="flex justify-end items-center gap-2">

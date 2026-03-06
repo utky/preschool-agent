@@ -1,7 +1,6 @@
 import { Routes, Route } from 'react-router-dom'
 import { AuthProvider } from '@/hooks/useAuth'
 import Layout from '@/components/layout/Layout'
-import Home from '@/pages/Home'
 import Login from '@/pages/Login'
 import Documents from '@/pages/Documents'
 import DocumentDetail from '@/pages/DocumentDetail'
@@ -14,7 +13,7 @@ function App() {
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route element={<Layout />}>
-          <Route path="/" element={<Home />} />
+          <Route path="/" element={<Events />} />
           <Route path="/documents" element={<Documents />} />
           <Route path="/documents/:id" element={<DocumentDetail />} />
           <Route path="/chat" element={<Chat />} />
