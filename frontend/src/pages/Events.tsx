@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { apiGet, apiPost } from '@/lib/api'
 import EventCard from '@/components/events/EventCard'
 import type { CalendarEvent, EventsResponse, CalendarSyncResult } from '@/types/events'
@@ -41,6 +41,18 @@ export default function Events() {
   useEffect(() => {
     fetchEvents()
   }, [])
+
+  // event_date ASC, event_time ASC（null は末尾）でソート
+  const sortedEvents = useMemo(() =>
+    [...events].sort((a, b) => {
+      const dateCmp = a.event_date.localeCompare(b.event_date)
+      if (dateCmp !== 0) return dateCmp
+      const aTime = a.event_time ?? '99:99'
+      const bTime = b.event_time ?? '99:99'
+      return aTime.localeCompare(bTime)
+    }),
+    [events]
+  )
 
   if (isLoading) {
     return (
@@ -106,10 +118,10 @@ export default function Events() {
         </div>
       ) : (
         <div className="space-y-3">
-          {events.map((event) => (
+          {sortedEvents.map((event) => (
             <EventCard key={event.event_id} event={event} />
           ))}
-          {events.length === 0 && (
+          {sortedEvents.length === 0 && (
             <p className="text-center py-12 text-gray-500">イベントはありません</p>
           )}
         </div>
