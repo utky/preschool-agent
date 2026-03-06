@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { apiGet, apiPost } from '@/lib/api'
-import EventTable from '@/components/events/EventTable'
+import EventCard from '@/components/events/EventCard'
 import type { CalendarEvent, EventsResponse, CalendarSyncResult } from '@/types/events'
 
 export default function Events() {
@@ -105,7 +105,14 @@ export default function Events() {
           </div>
         </div>
       ) : (
-        <EventTable events={events} />
+        <div className="space-y-3">
+          {events.map((event) => (
+            <EventCard key={event.event_id} event={event} />
+          ))}
+          {events.length === 0 && (
+            <p className="text-center py-12 text-gray-500">イベントはありません</p>
+          )}
+        </div>
       )}
     </div>
   )

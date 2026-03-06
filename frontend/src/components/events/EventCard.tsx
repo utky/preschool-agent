@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import type { CalendarEvent } from '@/types/events'
 
 interface Props {
@@ -22,6 +23,12 @@ export default function EventCard({ event }: Props) {
           </div>
           <h3 className="text-base font-semibold text-gray-900 truncate">{event.event_title}</h3>
           <p className="mt-1 text-sm text-gray-600 line-clamp-2">{event.event_description}</p>
+          <Link
+            to={`/documents/${event.document_id}`}
+            className="mt-2 inline-block text-xs text-indigo-600 hover:underline"
+          >
+            {event.document_title}
+          </Link>
         </div>
         {event.is_synced && (
           <span className="flex-shrink-0 inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">

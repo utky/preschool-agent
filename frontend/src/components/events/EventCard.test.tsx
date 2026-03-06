@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import { describe, it, expect } from 'vitest'
+import { MemoryRouter } from 'react-router-dom'
 import EventCard from './EventCard'
 import type { CalendarEvent } from '@/types/events'
 
@@ -31,50 +32,65 @@ const mockUnsyncedEvent: CalendarEvent = {
   synced_at: null,
 }
 
+const renderCard = (event: CalendarEvent) =>
+  render(
+    <MemoryRouter>
+      <EventCard event={event} />
+    </MemoryRouter>
+  )
+
 describe('EventCard', () => {
   it('should render event title and description', () => {
-    render(<EventCard event={mockSyncedEvent} />)
+    renderCard(mockSyncedEvent)
 
     expect(screen.getByText('入園式')).toBeInTheDocument()
     expect(screen.getByText('春の入園式を行います。')).toBeInTheDocument()
   })
 
   it('should display event date in Japanese locale format', () => {
-    render(<EventCard event={mockSyncedEvent} />)
+    renderCard(mockSyncedEvent)
 
     // 2026-04-01 → 2026年4月1日
     expect(screen.getByText(/2026年4月1日/)).toBeInTheDocument()
   })
 
   it('should display event_time when set', () => {
-    render(<EventCard event={mockSyncedEvent} />)
+    renderCard(mockSyncedEvent)
 
     expect(screen.getByText('10:00')).toBeInTheDocument()
   })
 
   it('should not display time when event_time is null', () => {
-    render(<EventCard event={mockUnsyncedEvent} />)
+    renderCard(mockUnsyncedEvent)
 
     expect(screen.queryByText('10:00')).not.toBeInTheDocument()
   })
 
   it('should show synced badge when is_synced is true', () => {
-    render(<EventCard event={mockSyncedEvent} />)
+    renderCard(mockSyncedEvent)
 
     expect(screen.getByText('登録済み')).toBeInTheDocument()
   })
 
   it('should not show synced badge when is_synced is false', () => {
-    render(<EventCard event={mockUnsyncedEvent} />)
+    renderCard(mockUnsyncedEvent)
 
     expect(screen.queryByText('登録済み')).not.toBeInTheDocument()
   })
 
   it('should render unsynced event without badge', () => {
-    render(<EventCard event={mockUnsyncedEvent} />)
+    renderCard(mockUnsyncedEvent)
 
     expect(screen.getByText('春の遠足')).toBeInTheDocument()
     expect(screen.getByText('公園への遠足を実施します。')).toBeInTheDocument()
     expect(screen.queryByText('登録済み')).not.toBeInTheDocument()
+  })
+
+  it('should render document title as link to document page', () => {
+    renderCard(mockSyncedEvent)
+
+    const link = screen.getByRole('link', { name: '令和8年度春の行事予定' })
+    expect(link).toBeInTheDocument()
+    expect(link).toHaveAttribute('href', '/documents/doc1')
   })
 })

@@ -72,7 +72,7 @@ describe('Events', () => {
     expect(document.querySelector('.animate-spin')).toBeInTheDocument()
   })
 
-  it('should display events in table after loading', async () => {
+  it('should display events as cards after loading', async () => {
     vi.mocked(apiGet).mockResolvedValue(mockEventsResponse)
 
     renderEvents()
