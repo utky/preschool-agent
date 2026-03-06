@@ -28,7 +28,7 @@ models:
               config:
                 where: "document_type is not null"
       - name: publish_date
-        description: "LLMによる発行日抽出（Slice 6で実装済み）"
+        description: "LLMによる発行日抽出（Slice 6で実装済み）。LLMが発行日を取得できない場合は updated_at の日付をフォールバックとして使用。"
         data_tests:
           - not_null:
               config:

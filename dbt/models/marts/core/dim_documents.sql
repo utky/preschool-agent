@@ -85,8 +85,11 @@ SELECT
     total_chunks,
     updated_at,
     JSON_VALUE(ml_generate_text_llm_result, '$.document_type') AS document_type,
-    SAFE.PARSE_DATE(
-        '%Y-%m-%d',
-        JSON_VALUE(ml_generate_text_llm_result, '$.publish_date')
+    COALESCE(
+        SAFE.PARSE_DATE(
+            '%Y-%m-%d',
+            JSON_VALUE(ml_generate_text_llm_result, '$.publish_date')
+        ),
+        DATE(updated_at)
     ) AS publish_date
 FROM generated
