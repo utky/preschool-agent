@@ -1,3 +1,5 @@
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import type { DocumentChunk } from '@/types/documents'
 
 interface ChunkListProps {
@@ -27,9 +29,11 @@ export default function ChunkList({ chunks }: ChunkListProps) {
             <div className="mb-2 text-xs font-semibold text-gray-400 uppercase tracking-wide">
               Chunk {chunk.chunk_index + 1}
             </div>
-            <p className="text-sm text-gray-700 whitespace-pre-wrap">
-              {chunk.chunk_text}
-            </p>
+            <div className="prose prose-sm max-w-none text-gray-700 prose-headings:my-2 prose-p:my-1 prose-ul:my-1 prose-li:my-0.5 prose-pre:bg-gray-100 prose-code:text-indigo-700 prose-code:bg-indigo-50 prose-code:px-1 prose-code:rounded">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {chunk.chunk_text}
+              </ReactMarkdown>
+            </div>
           </div>
         ))}
       </div>
