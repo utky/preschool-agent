@@ -330,6 +330,31 @@ resource "google_secret_manager_secret_iam_policy" "auth_google_secret" {
   policy_data = data.google_iam_policy.auth_google_secret.policy_data
 }
 
+# Google Calendar IDのシークレット
+# ----------------------------------------------------------------
+resource "google_secret_manager_secret" "google_calendar_id" {
+  project   = var.project_id
+  secret_id = "${var.app_name}--google-calendar-id"
+  replication {
+    auto {}
+  }
+}
+
+data "google_iam_policy" "google_calendar_id" {
+  binding {
+    role = "roles/secretmanager.secretAccessor"
+    members = [
+      "serviceAccount:${google_service_account.default.email}",
+    ]
+  }
+}
+
+resource "google_secret_manager_secret_iam_policy" "google_calendar_id" {
+  project     = var.project_id
+  secret_id   = google_secret_manager_secret.google_calendar_id.id
+  policy_data = data.google_iam_policy.google_calendar_id.policy_data
+}
+
 # --- Cloud Run サービス ---
 
 resource "google_cloud_run_v2_service" "default" {
@@ -422,6 +447,16 @@ resource "google_cloud_run_v2_service" "default" {
         name  = "BIGQUERY_DATASET_ID"
         value = "school_agent"
       }
+
+      env {
+        name = "GOOGLE_CALENDAR_ID"
+        value_source {
+          secret_key_ref {
+            secret  = google_secret_manager_secret.google_calendar_id.secret_id
+            version = "latest"
+          }
+        }
+      }
     }
   }
   depends_on = [
@@ -429,6 +464,7 @@ resource "google_cloud_run_v2_service" "default" {
     google_secret_manager_secret_version.allowed_user_emails,
     google_secret_manager_secret_iam_policy.auth_google_id,
     google_secret_manager_secret_iam_policy.auth_google_secret,
+    google_secret_manager_secret_iam_policy.google_calendar_id,
   ]
 }
 
