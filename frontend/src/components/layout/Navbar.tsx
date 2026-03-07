@@ -2,14 +2,15 @@ import { useState, useEffect, useRef } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import UserProfile from '@/components/auth/UserProfile'
-import LoginButton from '@/components/auth/LoginButton'
 import { apiGet } from '@/lib/api'
 
 export default function Navbar() {
-  const { isAuthenticated, isLoading } = useAuth()
+  const { isAuthenticated, isLoading, signIn } = useAuth()
   const [menuOpen, setMenuOpen] = useState(false)
+  const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [healthOk, setHealthOk] = useState<boolean | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
+  const userMenuRef = useRef<HTMLDivElement>(null)
   const location = useLocation()
 
   // ルート変更時にメニューを閉じる
@@ -35,6 +36,23 @@ export default function Navbar() {
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
   }, [menuOpen])
+
+  // ユーザーメニュー外クリックで閉じる
+  useEffect(() => {
+    if (!userMenuOpen) return
+    const handleClick = (e: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setUserMenuOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [userMenuOpen])
+
+  // ルート変更時にユーザーメニューを閉じる
+  useEffect(() => {
+    setUserMenuOpen(false)
+  }, [location.pathname])
 
   return (
     <>
@@ -91,7 +109,32 @@ export default function Navbar() {
             ) : isAuthenticated ? (
               <UserProfile />
             ) : (
-              <LoginButton />
+              <div className="relative" ref={userMenuRef}>
+                <button
+                  type="button"
+                  onClick={() => setUserMenuOpen((prev) => !prev)}
+                  className="focus:outline-none"
+                  aria-label="ユーザーメニュー"
+                  aria-expanded={userMenuOpen}
+                >
+                  <div className="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center">
+                    <svg className="w-5 h-5 text-gray-500" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z" />
+                    </svg>
+                  </div>
+                </button>
+
+                {userMenuOpen && (
+                  <div className="absolute top-full right-0 mt-1 w-48 bg-white shadow-lg rounded-md border border-gray-100 py-1 z-50">
+                    <button
+                      onClick={() => { setUserMenuOpen(false); signIn() }}
+                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    >
+                      Sign in
+                    </button>
+                  </div>
+                )}
+              </div>
             )}
           </div>
         </div>
