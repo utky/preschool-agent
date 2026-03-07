@@ -2,8 +2,12 @@
 
 ### 7.1. 画面設計とインタラクション
 - **ログインページ**: Googleアカウントでのログインボタンを配置。
-- **ダッシュボード**: AIとの対話とタスク（カレンダー登録）の実行。
-- **写真ギャラリー**: 写真の閲覧。
+- **ホーム**: ダッシュボード（ナビゲーション）。
+- **予定一覧** (`/events`): 抽出されたイベント一覧をカード形式で表示。Googleカレンダー同期ボタン。
+- **文書一覧** (`/documents`): PDFドキュメント一覧。種別フィルタ・日付ソート対応。
+- **文書詳細** (`/documents/:id`): チャンク一覧（Markdownレンダリング）。
+- **チャット** (`/chat`): RAGエージェントとの対話。
+- **写真ギャラリー**: 未実装 / スコープ外。
 
 ### 7.2. 技術選定
 - **フレームワーク**: Vite + React
@@ -24,21 +28,26 @@ frontend/
 │   ├── main.tsx          # エントリーポイント
 │   ├── App.tsx           # ルート定義
 │   ├── pages/            # ページコンポーネント
-│   │   ├── Login.tsx     # ログインページ
-│   │   ├── Dashboard.tsx # ダッシュボード
-│   │   ├── Gallery.tsx   # 写真ギャラリー
-│   │   └── Unauthorized.tsx # 認証エラーページ
+│   │   ├── Login.tsx         # ログインページ
+│   │   ├── Home.tsx          # ホーム
+│   │   ├── Events.tsx        # 予定一覧
+│   │   ├── Documents.tsx     # 文書一覧
+│   │   ├── DocumentDetail.tsx # 文書詳細
+│   │   └── Chat.tsx          # チャット
 │   ├── components/       # 再利用可能なコンポーネント
-│   │   ├── ChatInterface.tsx  # チャットUI
-│   │   ├── EventCard.tsx      # イベントカード
-│   │   └── PhotoGrid.tsx      # 写真グリッド
+│   │   ├── layout/            # レイアウト
+│   │   ├── auth/              # 認証
+│   │   ├── chat/              # チャットUI
+│   │   ├── events/
+│   │   │   ├── EventCard.tsx      # イベントカード
+│   │   │   └── EventTable.tsx     # イベント表形式
+│   │   └── documents/
+│   │       ├── ChunkList.tsx      # チャンク一覧（Markdownレンダリング）
+│   │       └── DocumentList.tsx   # 文書一覧
 │   ├── hooks/            # カスタムフック
-│   │   ├── useAuth.ts    # 認証状態管理
-│   │   ├── useDocuments.ts # ドキュメント取得
-│   │   └── useCalendar.ts  # カレンダー操作
+│   │   └── useAuth.ts    # 認証状態管理
 │   ├── lib/              # ユーティリティ
-│   │   ├── api.ts        # APIクライアント
-│   │   └── config.ts     # 設定
+│   │   └── api.ts        # APIクライアント
 │   └── types/            # 型定義
 ├── index.html
 ├── vite.config.ts

@@ -19,34 +19,9 @@
 
 - `GET /api/documents/{document_id}`: 特定ドキュメントの詳細を取得
 
-### 6.3. ベクトル検索
+### 6.3. ベクトル検索（チャット統合済み）
 
-- `POST /api/search`: ベクトル検索を実行
-  - **Request Body**:
-    ```json
-    {
-      "query": "string",
-      "top_k": 10,
-      "filters": {
-        "document_type": "journal",
-        "start_date": "2024-01-01"
-      }
-    }
-    ```
-  - **Response**:
-    ```json
-    {
-      "results": [
-        {
-          "chunk_id": "uuid",
-          "document_id": "uuid",
-          "text": "string",
-          "similarity": 0.95,
-          "metadata": {}
-        }
-      ]
-    }
-    ```
+`POST /api/search` は廃止。ベクトル検索機能は `POST /api/chat` のMastraエージェント（`vectorSearch`ツール）に統合済み。
 
 ### 6.4. カレンダー連携
 
@@ -71,34 +46,18 @@
     }
     ```
 
-### 6.5. 写真ギャラリー
+### 6.5. 写真ギャラリー（未実装 / スコープ外）
 
-- `GET /api/photos`: 抽出された写真の署名付きURLリストを返す
+- `GET /api/photos`: 未実装。現在のスコープ外のため実装予定なし。
+
+### 6.6. ドキュメントダウンロード
+
+- `GET /api/documents/download`: 署名付きURLを生成してCloud Storage上のPDFをダウンロード
   - **Query Parameters**:
-    - `document_id: Optional[string]`: 掲載ドキュメントID
-    - `start_date: Optional[date]`: 掲載日の範囲指定（開始）
-    - `end_date: Optional[date]`: 掲載日の範囲指定（終了）
-    - `offset: int = 0`: ページネーションのオフセット
-    - `limit: int = 20`: 1ページあたりの取得件数
-  - **Response**:
-    ```json
-    {
-      "photos": [
-        {
-          "photo_id": "uuid",
-          "url": "signed_url",
-          "document_id": "uuid",
-          "page_number": 1,
-          "captured_date": "2024-01-15"
-        }
-      ],
-      "total": 100,
-      "offset": 0,
-      "limit": 20
-    }
-    ```
+    - `uri: string`: ダウンロード対象のCloud Storage URI（必須）
+  - **Response**: 一時署名付きURL（リダイレクト）
 
-### 6.6. RAGエージェント（チャット）
+### 6.7. RAGエージェント（チャット）
 
 - `POST /api/chat`: 自然言語での問い合わせに応答するRAGエージェントのエンドポイント
   - **Request Body**:
@@ -129,7 +88,7 @@
     }
     ```
 
-### 6.7. エラーレスポンス
+### 6.8. エラーレスポンス
 
 全てのエンドポイントは、エラー時に以下の形式で応答します：
 

@@ -65,4 +65,10 @@ logs/
 *.pdf
 
 # data file
-document_type_rules.csv 
+document_type_rules.csv
+
+# python
+/.pytest_cache/
+
+# swc
+/.swc/

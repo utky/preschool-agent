@@ -1,6 +1,6 @@
 ## 3. プロジェクト構成
 
-**アーキテクチャ**: 本プロジェクトはフロントエンドとバックエンドを分離した構成を採用します。フロントエンドはVite + Reactで構築され、Cloud Storage（またはFirebase Hosting）で静的ホスティングされます。バックエンドはHono + MastraでAPIサーバーとして構築され、Cloud Run上で稼働します。
+**アーキテクチャ**: 本プロジェクトはフロントエンドとバックエンドを分離した構成を採用します。フロントエンドはVite + Reactで構築され、Cloud Storage（公開バケット）で静的ホスティングされます。バックエンドはHono + MastraでAPIサーバーとして構築され、Cloud Run上で稼働します。
 
 ### 3.1. フロントエンド (Vite + React)
 
@@ -10,13 +10,20 @@ frontend/
 │   ├── components/       # Reactコンポーネント
 │   │   ├── layout/       # レイアウトコンポーネント
 │   │   ├── events/       # イベント関連コンポーネント
+│   │   │   ├── EventCard.tsx
+│   │   │   └── EventTable.tsx
 │   │   ├── documents/    # 文書関連コンポーネント
-│   │   └── chat/         # チャット関連コンポーネント
+│   │   │   ├── ChunkList.tsx
+│   │   │   └── DocumentList.tsx
+│   │   ├── chat/         # チャット関連コンポーネント
+│   │   └── auth/         # 認証関連コンポーネント
 │   ├── pages/            # ページコンポーネント
-│   │   ├── index.tsx     # ホーム
-│   │   ├── events.tsx    # 予定一覧
-│   │   ├── documents.tsx # 文書一覧
-│   │   └── chat.tsx      # AIチャット
+│   │   ├── Home.tsx          # ホーム
+│   │   ├── Login.tsx         # ログイン
+│   │   ├── Events.tsx        # 予定一覧
+│   │   ├── Documents.tsx     # 文書一覧
+│   │   ├── DocumentDetail.tsx # 文書詳細
+│   │   └── Chat.tsx          # AIチャット
 │   ├── hooks/            # カスタムReact Hooks
 │   ├── lib/              # ユーティリティ関数
 │   ├── types/            # TypeScript型定義
@@ -36,18 +43,22 @@ backend/
 ├── src/
 │   ├── routes/           # APIルート
 │   │   ├── auth.ts       # 認証エンドポイント
-│   │   ├── events.ts     # イベントAPI
+│   │   ├── calendar.ts   # カレンダー/イベントAPI
+│   │   ├── chat.ts       # チャットAPI
 │   │   ├── documents.ts  # 文書API
-│   │   └── chat.ts       # チャットAPI
+│   │   └── health.ts     # ヘルスチェック
 │   ├── middleware/       # ミドルウェア
 │   │   ├── auth.ts       # 認証ミドルウェア
 │   │   └── cors.ts       # CORS設定
 │   ├── agents/           # Mastraエージェント
-│   │   ├── chat.ts       # チャットエージェント
+│   │   ├── chat-agent.ts # チャットエージェント
 │   │   └── tools/        # エージェントツール
+│   │       └── vector-search-tool.ts
 │   ├── lib/              # ユーティリティ
 │   │   ├── bigquery.ts   # BigQueryクライアント
-│   │   └── calendar.ts   # Googleカレンダー連携
+│   │   ├── calendar.ts   # Googleカレンダー連携
+│   │   ├── jwt.ts        # JWT生成・検証
+│   │   └── storage.ts    # Cloud Storage連携
 │   ├── types/            # TypeScript型定義
 │   └── index.ts          # エントリーポイント
 ├── Dockerfile            # Cloud Run用
@@ -62,23 +73,22 @@ dbt/
 ├── models/
 │   ├── staging/          # Layer 1: Raw → Staging
 │   │   ├── _sources.yml
-│   │   ├── stg_raw_documents.sql
-│   │   └── stg_documents_text.sql
+│   │   ├── _staging.yml
+│   │   └── stg_pdf_uploads__extracted_texts.sql  # Document AI テキスト抽出
 │   ├── intermediate/     # Layer 2: ビジネスロジック
-│   │   ├── int_document_chunks.sql
-│   │   ├── int_document_embeddings.sql
-│   │   └── int_extracted_photos.sql
+│   │   ├── int_document_chunks__chunked.sql      # チャンク化
+│   │   └── int_document_chunks__embedded.sql     # 埋め込みベクトル生成
 │   ├── marts/            # Layer 3: 最終テーブル
-│   │   ├── core/
-│   │   │   ├── document_chunks.sql
-│   │   │   ├── documents.sql
-│   │   │   └── extracted_events.sql
-│   │   └── document_types/
-│   │       ├── journal.sql
-│   │       ├── photo_album.sql
-│   │       └── monthly_*.sql
-│   └── analytics/        # Layer 4: AI/分析用ビュー
-│       └── upcoming_events.sql
+│   │   └── core/
+│   │       ├── dim_documents.sql                 # 文書メタデータ（incremental）
+│   │       ├── fct_document_chunks.sql           # チャンク + 埋め込み
+│   │       ├── fct_events.sql                    # 抽出イベント
+│   │       ├── fct_events_with_sync.sql          # イベント + 同期状態（exports向け）
+│   │       └── fct_calendar_sync_history.sql     # カレンダー登録履歴
+│   └── exports/          # Layer 4: API用JSON出力
+│       ├── exp_api__documents.sql
+│       ├── exp_api__events.sql
+│       └── exp_api__chunks/                      # 文書別チャンク
 ├── macros/               # カスタムマクロ
 ├── tests/                # データテスト
 ├── dbt_project.yml       # dbtプロジェクト設定
@@ -90,33 +100,39 @@ dbt/
 ```
 tf/
 ├── modules/
-│   ├── bigquery/         # BigQueryデータセット・テーブル
-│   ├── cloud-run/        # Cloud Runサービス
-│   ├── storage/          # Cloud Storageバケット
-│   ├── iam/              # IAMサービスアカウント
+│   ├── app/              # メインアプリリソース（Cloud Run, GCS, BigQuery）
+│   ├── cloud_run_job/    # dbt実行用Cloud Run Job
+│   ├── document_ai/      # Document AIプロセッサー
 │   └── workflow/         # Cloud Workflow
-├── environments/
-│   ├── dev/              # 開発環境
-│   ├── staging/          # ステージング環境
-│   └── prod/             # 本番環境
-└── main.tf               # メイン設定
+└── environments/
+    └── production/       # 本番環境のみ
 ```
 
-### 3.5. プロジェクトルート
+### 3.5. Google Apps Script (Drive → GCS連携)
+
+```
+gas/
+├── src/
+│   ├── main.ts           # メインエントリーポイント
+│   ├── drive.ts          # Google Drive API操作
+│   ├── gcs.ts            # GCS転送ロジック
+│   └── config.ts         # 設定管理
+├── appsscript.json       # GASプロジェクト設定
+└── package.json          # 依存関係
+```
+
+### 3.6. プロジェクトルート
 
 ```
 / (project root)
 ├── frontend/             # Vite + React アプリケーション
 ├── backend/              # Hono + Mastra APIサーバー
 ├── dbt/                  # dbtプロジェクト
+├── gas/                  # Google Apps Script
 ├── tf/                   # OpenTofu (IaC)
-├── agents/               # Google Apps Script (PDF転送)
 ├── docs/                 # ドキュメント
-│   ├── design/           # 設計ドキュメント
-│   └── api/              # API仕様
+│   └── design/           # 設計ドキュメント
 ├── .github/
 │   └── workflows/        # GitHub Actions CI/CD
 └── README.md
 ```
-
-**注**: 現在の実装はNext.jsベースですが、上記の構成への移行を計画しています。移行完了までは、`src/app/`ディレクトリ内にNext.js App Routerベースのコードが存在します。

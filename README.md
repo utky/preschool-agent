@@ -1,36 +1,56 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Preschool Agent
 
-## Getting Started
+保育園向けの情報管理・AIチャットシステムです。Google Cloud 上に構築されたサーバーレスアーキテクチャで、PDF文書の解析・検索・AIチャット機能を提供します。
 
-First, run the development server:
+## 技術スタック
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+| レイヤー | 技術 |
+|---------|------|
+| フロントエンド | Vite + React + Tailwind CSS |
+| バックエンド | Hono (Cloud Run) + Mastra (AI エージェント) |
+| データパイプライン | dbt + BigQuery + Document AI |
+| インフラ | OpenTofu (IaC) + Google Cloud |
+| Drive 連携 | Google Apps Script |
+
+## プロジェクト構成
+
+```
+.
+├── frontend/       # Vite + React フロントエンド
+├── backend/        # Hono API サーバー + Mastra エージェント
+├── dbt/            # BigQuery データパイプライン
+├── gas/            # Google Apps Script (Drive → GCS 連携)
+└── tf/             # OpenTofu インフラ定義
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 開発環境のセットアップ
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+# 依存関係インストール
+npm install
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+# 開発サーバー起動
+cd frontend && npm run dev  # http://localhost:5173
+cd backend && npm run dev   # http://localhost:3000
+```
 
-## Learn More
+## テスト
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+npm run test                # 全ワークスペース
+cd frontend && npm run test # Frontend (Vitest)
+cd backend && npm run test  # Backend (Jest)
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## ビルド
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+npm run build               # 全ワークスペース
+```
 
-## Deploy on Vercel
+## ドキュメント
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- [アーキテクチャ設計](docs/design/01_architecture.md)
+- [スライス計画](docs/design/10_slice_plan.md)
+- [API設計](docs/design/06_api_design.md)
+- [フロントエンド設計](docs/design/07_frontend_design.md)

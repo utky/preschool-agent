@@ -383,52 +383,47 @@ Document AIで抽出したテキストをチャンク化し、文書メタデー
 dbt/
 ├── models/
 │   ├── staging/
-│   │   ├── _sources.yml              # raw_documents定義
-│   │   ├── raw_documents.sql         # Object Tableラッパー
-│   │   └── documents_text.sql        # ML.PROCESS_DOCUMENT
+│   │   ├── _sources.yml                              # raw_documents定義
+│   │   ├── _staging.yml
+│   │   └── stg_pdf_uploads__extracted_texts.sql      # ML.PROCESS_DOCUMENT
 │   ├── intermediate/
-│   │   └── document_chunks.sql       # チャンク化 + UUID生成（中間処理）
+│   │   ├── int_document_chunks__chunked.sql          # チャンク化 + UUID生成
+│   │   └── int_document_chunks__embedded.sql         # 埋め込みベクトル生成
 │   ├── marts/
 │   │   └── core/
-│   │       ├── documents.sql         # 文書メタデータ（正規化）
-│   │       └── chunks.sql            # チャンク + 冗長メタデータ（最終テーブル）
+│   │       ├── dim_documents.sql                     # 文書メタデータ（incremental）
+│   │       └── fct_document_chunks.sql               # チャンク + 埋め込み（最終テーブル）
 │   └── exports/
-│       └── api_documents.sql         # API用JSON出力（後述）
+│       └── exp_api__documents.sql                    # API用JSON出力
 ├── macros/
-│   ├── generate_uuid.sql             # UUID v4生成マクロ
-│   ├── chunk_text.sql                # チャンク化UDF
-│   └── export_to_gcs.sql             # Cloud Storageへのエクスポートマクロ
 ├── tests/
 │   └── assert_no_duplicate_chunk_ids.sql
 ├── dbt_project.yml
 └── profiles.yml
 ```
 
-**命名規則の変更理由**（dbtベストプラクティス準拠）:
-- `stg_`, `int_`などのプレフィックスは**不使用**
-- ディレクトリ構造（`staging/`, `intermediate/`, `marts/`）で階層を表現
-- モデル名は利害関係者にわかりやすい名前（`documents`, `chunks`）
-- 参考: [dbt Style Guide](https://docs.getdbt.com/best-practices/how-we-style/1-how-we-style-our-dbt-models)
-
 **主要なモデル**:
-1. **staging/documents_text.sql**:
+1. **staging/stg_pdf_uploads__extracted_texts.sql**:
    - `ML.PROCESS_DOCUMENT`でDocument AIを呼び出し
    - テキスト抽出結果を保存（再実行回避のため）
-2. **intermediate/document_chunks.sql**:
+2. **intermediate/int_document_chunks__chunked.sql**:
    - テキストをチャンク化（2000文字ごと）
    - UUID v4を生成（`chunk_id`）
-   - セクション情報を抽出（`section_id`, `section_title`）
-3. **marts/core/documents.sql**:
+   - セクション情報を抽出
+3. **intermediate/int_document_chunks__embedded.sql**:
+   - `ML.GENERATE_EMBEDDING`でVertex AI Embeddingを生成
+   - 768次元のベクトル（`ARRAY<FLOAT64>`）
+4. **marts/core/dim_documents.sql**:
    - 文書単位のメタデータ（`document_id`, `title`, `publish_date`, `document_type`）
+   - incremental化（新規文書のみLLM分類を実行）
    - パーティション: `publish_date`
    - クラスタ: `document_type`
-4. **marts/core/chunks.sql**:
-   - チャンクテーブル（`chunk_id`, `chunk_text`, `document_id`）
+5. **marts/core/fct_document_chunks.sql**:
+   - チャンクテーブル（`chunk_id`, `chunk_text`, `document_id`, `chunk_embedding`）
    - RAG検索用の冗長メタデータ（`document_type`, `title`, `publish_date`）
-   - パーティション: `publish_date`
-   - クラスタ: `document_type`, `document_id`, `chunk_id`
-5. **exports/api_documents.sql**:
-   - API用のJSON出力（後述の「APIレスポンス最適化」参照）
+   - Vector Index付き
+6. **exports/exp_api__documents.sql**:
+   - API用のJSON出力（Cloud Storageへのエクスポート）
 
 #### インフラ（IaC）
 **新規作成するファイル**:
@@ -559,9 +554,9 @@ dbt/
 4. チャンクが正しく表示されることを確認
 
 ### 重要ファイル
-- `dbt/models/staging/documents_text.sql` - Document AI呼び出し
-- `dbt/models/intermediate/document_chunks.sql` - チャンク化
-- `dbt/models/marts/core/chunks.sql` - 最終テーブル
+- `dbt/models/staging/stg_pdf_uploads__extracted_texts.sql` - Document AI呼び出し
+- `dbt/models/intermediate/int_document_chunks__chunked.sql` - チャンク化
+- `dbt/models/marts/core/fct_document_chunks.sql` - 最終テーブル
 - `backend/src/routes/documents.ts` - dbtトリガーAPI
 - `tf/modules/cloud_run_job/main.tf` - dbt実行環境
 
@@ -645,8 +640,8 @@ dbt/
 
 #### dbt
 **変更するファイル**:
-- `dbt/models/intermediate/embeddings.sql`
-- `dbt/models/marts/core/chunks.sql` - 埋め込みカラム追加
+- `dbt/models/intermediate/int_document_chunks__embedded.sql`
+- `dbt/models/marts/core/fct_document_chunks.sql` - 埋め込みカラム追加
 
 **主要な実装**:
 1. **埋め込みモデルの定義**:
@@ -655,11 +650,11 @@ dbt/
    REMOTE WITH CONNECTION vertex_connection
    OPTIONS (endpoint = 'text-embedding-005');
    ```
-2. **intermediate/embeddings.sql**:
+2. **intermediate/int_document_chunks__embedded.sql**:
    - `ML.GENERATE_EMBEDDING`でVertex AI Embeddingを生成
    - 768次元のベクトル（`ARRAY<FLOAT64>`）
-3. **marts/core/chunks.sql** - 更新:
-   - `chunk_embedding`カラムを追加（`embeddings`から取得）
+3. **marts/core/fct_document_chunks.sql** - 更新:
+   - `chunk_embedding`カラムを追加（`int_document_chunks__embedded`から取得）
 4. **Vector Index**:
    ```sql
    CREATE VECTOR INDEX chunks_embedding_idx
@@ -731,9 +726,9 @@ dbt/
 4. LLMの応答が自然な日本語であることを確認
 
 ### 重要ファイル
-- `dbt/models/intermediate/embeddings.sql` - 埋め込み生成
-- `backend/src/agents/tools/vector-search.ts` - ベクトル検索ツール
-- `backend/src/agents/chat.ts` - Mastraエージェント
+- `dbt/models/intermediate/int_document_chunks__embedded.sql` - 埋め込み生成
+- `backend/src/agents/tools/vector-search-tool.ts` - ベクトル検索ツール
+- `backend/src/agents/chat-agent.ts` - Mastraエージェント
 - `backend/src/routes/chat.ts` - Mastra統合
 
 ---
@@ -1025,21 +1020,15 @@ dbt run → BigQueryテーブル生成 → EXPORT DATA → Cloud Storage (JSON)
 ### 3. dbt命名規則（ベストプラクティス準拠）
 **決定**: `stg_`, `int_`などのプレフィックスを廃止し、ディレクトリ構造で階層を表現する。
 
-**変更前**:
+**実際の命名規則**:
 ```
 models/
-  staging/stg_documents_text.sql
-  intermediate/int_document_chunks.sql
-  marts/core/document_chunks.sql
-```
-
-**変更後**:
-```
-models/
-  staging/documents_text.sql
-  intermediate/document_chunks.sql (中間処理)
-  marts/core/chunks.sql (最終テーブル)
-  exports/api_documents.sql (Cloud Storage出力用)
+  staging/stg_pdf_uploads__extracted_texts.sql
+  intermediate/int_document_chunks__chunked.sql (チャンク化)
+  intermediate/int_document_chunks__embedded.sql (埋め込み生成)
+  marts/core/dim_documents.sql (文書メタデータ)
+  marts/core/fct_document_chunks.sql (最終テーブル)
+  exports/exp_api__documents.sql (Cloud Storage出力用)
 ```
 
 **参考**: [dbt Style Guide](https://docs.getdbt.com/best-practices/how-we-style/1-how-we-style-our-dbt-models)
