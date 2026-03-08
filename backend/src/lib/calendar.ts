@@ -1,6 +1,7 @@
 import { BigQuery } from '@google-cloud/bigquery'
 import { calendar } from '@googleapis/calendar'
 import { GoogleAuth } from 'google-auth-library'
+import { logger } from './logger.js'
 import type { CalendarEvent, CalendarSyncResult } from '../types/events.js'
 
 const bigquery = new BigQuery()
@@ -18,9 +19,13 @@ export const buildCalendarEventTimes = (event: CalendarEvent) => {
       end: { dateTime: endDateTime, timeZone: 'Asia/Tokyo' },
     }
   }
+  // Google Calendar APIのend.dateはexclusive（翌日を指定する必要がある）
+  const nextDay = new Date(event.event_date)
+  nextDay.setDate(nextDay.getDate() + 1)
+  const endDate = nextDay.toISOString().slice(0, 10)
   return {
     start: { date: event.event_date },
-    end: { date: event.event_date },
+    end: { date: endDate },
   }
 }
 
@@ -104,7 +109,9 @@ export async function syncAllEvents(): Promise<CalendarSyncResult> {
       synced++
     } catch (err) {
       failed++
-      errors.push(err instanceof Error ? err.message : String(err))
+      const message = err instanceof Error ? err.message : String(err)
+      errors.push(message)
+      logger.error({ event_id: event.event_id, err: message }, 'カレンダーイベント同期失敗')
     }
   }
 

@@ -31,6 +31,16 @@ jest.unstable_mockModule('google-auth-library', () => ({
   GoogleAuth: jest.fn(() => ({})),
 }))
 
+// logger モック
+jest.unstable_mockModule('./logger.js', () => ({
+  logger: {
+    error: jest.fn(),
+    warn: jest.fn(),
+    info: jest.fn(),
+    debug: jest.fn(),
+  },
+}))
+
 const mockUnsyncedEvent: CalendarEvent = {
   event_id: 'abc123',
   document_id: 'doc1',
@@ -58,7 +68,8 @@ describe('buildCalendarEventTimes', () => {
     const result = buildCalendarEventTimes(mockUnsyncedEvent)
 
     expect(result.start).toEqual({ date: '2026-04-01' })
-    expect(result.end).toEqual({ date: '2026-04-01' })
+    // Google Calendar APIのend.dateはexclusive（翌日を指定する必要がある）
+    expect(result.end).toEqual({ date: '2026-04-02' })
   })
 
   it('should return dateTime-based times when event_time is set', async () => {
@@ -146,7 +157,8 @@ describe('createCalendarEvent', () => {
     expect(callArgs.calendarId).toBe(calendarId)
     expect(callArgs.requestBody.summary).toBe('入園式')
     expect(callArgs.requestBody.start).toEqual({ date: '2026-04-01' })
-    expect(callArgs.requestBody.end).toEqual({ date: '2026-04-01' })
+    // Google Calendar APIのend.dateはexclusive（翌日を指定する必要がある）
+    expect(callArgs.requestBody.end).toEqual({ date: '2026-04-02' })
   })
 
   it('should create a timed event when event_time is set', async () => {

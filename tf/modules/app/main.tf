@@ -217,6 +217,11 @@ resource "google_project_service" "secretmanager" {
   service = "secretmanager.googleapis.com"
 }
 
+resource "google_project_service" "calendar" {
+  project = var.project_id
+  service = "calendar-json.googleapis.com"
+}
+
 # --- シークレットの定義 ---
 
 # Next.js用auth_secret
