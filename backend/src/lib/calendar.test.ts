@@ -28,7 +28,11 @@ jest.unstable_mockModule('@googleapis/calendar', () => ({
   })),
 }))
 jest.unstable_mockModule('google-auth-library', () => ({
-  GoogleAuth: jest.fn(() => ({})),
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  GoogleAuth: jest.fn(() => ({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    getClient: jest.fn<() => Promise<any>>().mockResolvedValue({}),
+  })),
 }))
 
 // logger モック

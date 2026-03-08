@@ -59,9 +59,11 @@ export async function createCalendarEvent(event: CalendarEvent, calendarId: stri
   const auth = new GoogleAuth({
     scopes: ['https://www.googleapis.com/auth/calendar'],
   })
-  // google-auth-library v9とv10の型互換性のためにキャスト
+  // getClient()を明示的に呼び出してトークンを取得してからcalendarに渡す
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const cal = calendar({ version: 'v3', auth: auth as any })
+  const authClient = await auth.getClient()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const cal = calendar({ version: 'v3', auth: authClient as any })
 
   const times = buildCalendarEventTimes(event)
   const response = await cal.events.insert({
