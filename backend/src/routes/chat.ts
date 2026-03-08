@@ -37,6 +37,9 @@ function extractSources(
   return sources
 }
 
+// 直近10メッセージ（5ターン）でトークン量を制御
+const MAX_HISTORY = 10
+
 chat.post('/', async (c) => {
   const body = await c.req.json<ChatRequest>()
 
@@ -45,7 +48,13 @@ chat.post('/', async (c) => {
   }
 
   try {
-    const result = await chatAgent.generate(body.message)
+    const history = body.history ?? []
+    const recentHistory = history.slice(-MAX_HISTORY)
+    const messages = [
+      ...recentHistory.map((h) => ({ role: h.role, content: h.content })),
+      { role: 'user' as const, content: body.message },
+    ] as Parameters<typeof chatAgent.generate>[0]
+    const result = await chatAgent.generate(messages)
     const sources = extractSources(result.toolResults ?? [])
 
     return c.json({ response: result.text, sources })

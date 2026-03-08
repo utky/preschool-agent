@@ -10,12 +10,14 @@ export default function Chat() {
 
   const handleSend = async (message: string) => {
     const userMessage: ChatMessage = { role: 'user', content: message }
+    // 送信前の履歴（現在のメッセージを除く）をそのまま渡す
+    const history = messages.map((m) => ({ role: m.role, content: m.content }))
     setMessages((prev) => [...prev, userMessage])
     setIsLoading(true)
     setError(null)
 
     try {
-      const data = await apiPost<ChatResponse>('/api/chat', { message })
+      const data = await apiPost<ChatResponse>('/api/chat', { message, history })
       const assistantMessage: ChatMessage = {
         role: 'assistant',
         content: data.response,

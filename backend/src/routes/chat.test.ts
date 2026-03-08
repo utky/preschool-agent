@@ -96,7 +96,31 @@ describe('POST /api/chat', () => {
         chunk_index: 0,
       },
     ])
-    expect(mockGenerate).toHaveBeenCalledWith('給食のメニューを教えて')
+    expect(mockGenerate).toHaveBeenCalledWith([{ role: 'user', content: '給食のメニューを教えて' }])
+  })
+
+  it('should pass conversation history as messages array', async () => {
+    mockGenerate.mockResolvedValue({ text: '詳細をお伝えします。', toolResults: [] })
+
+    const { default: chat } = await import('./chat.js')
+    const res = await chat.request('/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message: 'それは何日ですか？',
+        history: [
+          { role: 'user', content: '給食について教えて' },
+          { role: 'assistant', content: '給食の情報です。' },
+        ],
+      }),
+    })
+
+    expect(res.status).toBe(200)
+    expect(mockGenerate).toHaveBeenCalledWith([
+      { role: 'user', content: '給食について教えて' },
+      { role: 'assistant', content: '給食の情報です。' },
+      { role: 'user', content: 'それは何日ですか？' },
+    ])
   })
 
   it('should return empty sources when agent does not use tools', async () => {

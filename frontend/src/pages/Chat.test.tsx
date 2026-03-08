@@ -48,7 +48,38 @@ describe('Chat', () => {
       expect(screen.getByText('1件のチャンクが見つかりました。')).toBeInTheDocument()
     })
 
-    expect(apiPost).toHaveBeenCalledWith('/api/chat', { message: '給食' })
+    expect(apiPost).toHaveBeenCalledWith('/api/chat', { message: '給食', history: [] })
+  })
+
+  it('should send conversation history on subsequent messages', async () => {
+    vi.mocked(apiPost)
+      .mockResolvedValueOnce({ response: '給食の情報です。', sources: [] })
+      .mockResolvedValueOnce({ response: '詳細はこちらです。', sources: [] })
+
+    renderChat()
+    const input = screen.getByPlaceholderText('キーワードを入力...')
+
+    // 1回目の送信
+    fireEvent.change(input, { target: { value: '給食' } })
+    fireEvent.submit(input.closest('form')!)
+    await waitFor(() => {
+      expect(screen.getByText('給食の情報です。')).toBeInTheDocument()
+    })
+
+    // 2回目の送信 - 1回目の会話が history に含まれる
+    fireEvent.change(input, { target: { value: 'それは何日ですか？' } })
+    fireEvent.submit(input.closest('form')!)
+    await waitFor(() => {
+      expect(screen.getByText('詳細はこちらです。')).toBeInTheDocument()
+    })
+
+    expect(apiPost).toHaveBeenNthCalledWith(2, '/api/chat', {
+      message: 'それは何日ですか？',
+      history: [
+        { role: 'user', content: '給食' },
+        { role: 'assistant', content: '給食の情報です。' },
+      ],
+    })
   })
 
   it('should display error message on API failure', async () => {

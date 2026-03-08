@@ -7,8 +7,14 @@ export interface ChatSource {
   readonly chunk_index: number
 }
 
+export interface ChatHistoryMessage {
+  readonly role: MessageRole
+  readonly content: string
+}
+
 export interface ChatRequest {
   readonly message: string
+  readonly history?: readonly ChatHistoryMessage[]
 }
 
 export interface ChatResponse {
