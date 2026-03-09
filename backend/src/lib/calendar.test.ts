@@ -33,6 +33,8 @@ jest.unstable_mockModule('google-auth-library', () => ({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     getClient: jest.fn<() => Promise<any>>().mockResolvedValue({}),
   })),
+  // Cloud Run ADC のセルフ impersonation モック
+  Impersonated: jest.fn().mockImplementation(() => ({})),
 }))
 
 // logger モック

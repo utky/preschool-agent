@@ -454,6 +454,11 @@ resource "google_cloud_run_v2_service" "default" {
       }
 
       env {
+        name  = "GOOGLE_SERVICE_ACCOUNT_EMAIL"
+        value = google_service_account.default.email
+      }
+
+      env {
         name = "GOOGLE_CALENDAR_ID"
         value_source {
           secret_key_ref {

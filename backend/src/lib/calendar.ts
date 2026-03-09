@@ -1,6 +1,6 @@
 import { BigQuery } from '@google-cloud/bigquery'
 import { calendar } from '@googleapis/calendar'
-import { GoogleAuth } from 'google-auth-library'
+import { GoogleAuth, Impersonated } from 'google-auth-library'
 import { logger } from './logger.js'
 import type { CalendarEvent, CalendarSyncResult } from '../types/events.js'
 
@@ -56,14 +56,27 @@ export async function getUnsyncedEvents(): Promise<CalendarEvent[]> {
 
 /** Google Calendar にイベントを作成し、calendar_event_id を返す */
 export async function createCalendarEvent(event: CalendarEvent, calendarId: string): Promise<string> {
+  // Cloud Run の ADC は cloud-platform スコープのみのトークンを返すため、
+  // calendar スコープが必要な場合は Impersonated でセルフ impersonation する
   const auth = new GoogleAuth({
-    scopes: ['https://www.googleapis.com/auth/calendar'],
+    scopes: ['https://www.googleapis.com/auth/cloud-platform'],
   })
-  // getClient()を明示的に呼び出してトークンを取得してからcalendarに渡す
+  const baseClient = await auth.getClient()
+
+  const saEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const authClient = await auth.getClient()
+  const calendarAuth = saEmail
+    ? new Impersonated({
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        sourceClient: baseClient as any,
+        targetPrincipal: saEmail,
+        lifetime: 3600,
+        delegates: [],
+        targetScopes: ['https://www.googleapis.com/auth/calendar'],
+      })
+    : baseClient
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const cal = calendar({ version: 'v3', auth: authClient as any })
+  const cal = calendar({ version: 'v3', auth: calendarAuth as any })
 
   const times = buildCalendarEventTimes(event)
   const response = await cal.events.insert({
