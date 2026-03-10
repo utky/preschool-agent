@@ -13,6 +13,7 @@
 5. **埋め込み生成**: `ML.GENERATE_EMBEDDING`を別ステップで実行（Document AIは埋め込みを生成しない）
 6. **イベント管理**: 承認ワークフローを廃止し、フロントエンドでのワンタップ登録に統一
 7. **イベント正規化**: `extracted_events`を独立したテーブルとして管理（複数文書種別からの参照を一元化）
+8. **Thinking無効化（コスト最適化）**: `ML.GENERATE_TEXT`を使用する全モデル（`stg_pdf_uploads__extracted_texts`, `fct_events`, `dim_documents`）で `thinkingConfig: {"thinkingBudget": 0}` を設定し、Geminiの思考モードを無効化。単純な構造化抽出タスクではThinkingによる精度向上の恩恵が少なく、コスト削減を優先する。
 
 ### 参照実装
 https://docs.cloud.google.com/bigquery/docs/rag-pipeline-pdf?hl=ja

@@ -48,6 +48,9 @@ generated AS (
                   "generationConfig": {
                     "temperature": 0.0,
                     "maxOutputTokens": 8192,
+                    "thinkingConfig": {
+                      "thinkingBudget": 0
+                    },
                     "responseMimeType": "application/json",
                     "responseSchema": {
                       "type": "OBJECT",
