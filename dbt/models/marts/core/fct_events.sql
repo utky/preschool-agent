@@ -43,7 +43,42 @@ generated AS (
             table source,
             STRUCT(
                 TRUE AS flatten_json_output,
-                '{"generationConfig":{"temperature":0.0,"maxOutputTokens":8192,"responseMimeType":"application/json","responseSchema":{"type":"OBJECT","properties":{"events":{"type":"ARRAY","items":{"type":"OBJECT","properties":{"event_date":{"type":"STRING"},"event_time":{"type":"STRING","nullable":true},"event_title":{"type":"STRING"},"event_description":{"type":"STRING"}},"required":["event_date","event_title","event_description"]}}}}}}' AS model_params  -- noqa: LT05
+                '''
+                {
+                  "generationConfig": {
+                    "temperature": 0.0,
+                    "maxOutputTokens": 8192,
+                    "responseMimeType": "application/json",
+                    "responseSchema": {
+                      "type": "OBJECT",
+                      "properties": {
+                        "events": {
+                          "type": "ARRAY",
+                          "items": {
+                            "type": "OBJECT",
+                            "properties": {
+                              "event_date": {
+                                "type": "STRING"
+                              },
+                              "event_time": {
+                                "type": "STRING",
+                                "nullable": true
+                              },
+                              "event_title": {
+                                "type": "STRING"
+                              },
+                              "event_description": {
+                                "type": "STRING"
+                              }
+                            },
+                            "required": ["event_date", "event_title", "event_description"]
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+                ''' AS model_params
             )
         )
     WHERE ml_generate_text_status = ''

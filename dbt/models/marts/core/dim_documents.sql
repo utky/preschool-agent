@@ -69,7 +69,39 @@ generated AS (
             STRUCT(
                 TRUE AS flatten_json_output,
                 -- enum 値は GCS 外部テーブル document_type_rules の document_type カラムと一致させること
-                '{"generationConfig":{"temperature":0.0,"maxOutputTokens":256,"thinkingConfig":{"thinkingBudget":0},"responseMimeType":"application/json","responseSchema":{"type":"OBJECT","properties":{"document_type":{"type":"STRING","enum":["journal","photo_album","monthly_announcement","monthly_lunch_schedule","monthly_lunch_info","uncategorized"]},"publish_date":{"type":"STRING","nullable":true}},"required":["document_type"]}}}' AS model_params -- noqa: LT05
+                '''
+                {
+                  "generationConfig": {
+                    "temperature": 0.0,
+                    "maxOutputTokens": 256,
+                    "thinkingConfig": {
+                      "thinkingBudget": 0
+                    },
+                    "responseMimeType": "application/json",
+                    "responseSchema": {
+                      "type": "OBJECT",
+                      "properties": {
+                        "document_type": {
+                          "type": "STRING",
+                          "enum": [
+                            "journal",
+                            "photo_album",
+                            "monthly_announcement",
+                            "monthly_lunch_schedule",
+                            "monthly_lunch_info",
+                            "uncategorized"
+                          ]
+                        },
+                        "publish_date": {
+                          "type": "STRING",
+                          "nullable": true
+                        }
+                      },
+                      "required": ["document_type"]
+                    }
+                  }
+                }
+                ''' AS model_params
             )
         )
     WHERE ml_generate_text_status = ''
