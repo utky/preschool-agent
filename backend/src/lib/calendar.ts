@@ -95,17 +95,27 @@ export async function createCalendarEvent(event: CalendarEvent, calendarId: stri
   return id
 }
 
-/** BigQuery の fct_calendar_sync_history テーブルに同期記録を INSERT する */
+/** BigQuery の fct_calendar_sync_history テーブルに MERGE で冪等に同期記録を書き込む */
 export async function recordSync(eventId: string, calendarEventId: string): Promise<void> {
-  const table = bigquery.dataset(DATASET_ID).table('fct_calendar_sync_history')
-  await table.insert([
-    {
+  // INSERT の代わりに MERGE を使うことで、同じ event_id の重複 INSERT を防ぐ（冪等性保証）
+  const query = `
+    MERGE \`${DATASET_ID}.fct_calendar_sync_history\` T
+    USING (SELECT @event_id AS event_id, @calendar_event_id AS calendar_event_id,
+                  @synced_at AS synced_at, @synced_by AS synced_by) S
+    ON T.event_id = S.event_id
+    WHEN NOT MATCHED THEN
+      INSERT (event_id, calendar_event_id, synced_at, synced_by)
+      VALUES (S.event_id, S.calendar_event_id, S.synced_at, S.synced_by)
+  `
+  await bigquery.query({
+    query,
+    params: {
       event_id: eventId,
       calendar_event_id: calendarEventId,
       synced_at: new Date().toISOString(),
       synced_by: 'backend',
     },
-  ])
+  })
 }
 
 /** 未同期イベントをすべて Google Calendar に同期する（エラーがあっても続行） */

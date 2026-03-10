@@ -203,21 +203,31 @@ describe('recordSync', () => {
     process.env.BIGQUERY_DATASET_ID = 'test_dataset'
   })
 
-  it('should insert sync record into BigQuery', async () => {
-    mockInsert.mockResolvedValue([])
+  it('should upsert sync record into BigQuery using MERGE', async () => {
+    mockQuery.mockResolvedValue([[]])
 
     const { recordSync } = await import('./calendar.js')
     await recordSync('event_id_1', 'gcal_event_456')
 
-    expect(mockInsert).toHaveBeenCalledTimes(1)
-    const insertedRows = mockInsert.mock.calls[0]![0] as Array<{
-      event_id: string
-      calendar_event_id: string
-      synced_by: string
-    }>
-    expect(insertedRows[0]!.event_id).toBe('event_id_1')
-    expect(insertedRows[0]!.calendar_event_id).toBe('gcal_event_456')
-    expect(insertedRows[0]!.synced_by).toBe('backend')
+    expect(mockQuery).toHaveBeenCalledTimes(1)
+    const callArgs = mockQuery.mock.calls[0]![0] as { query: string; params: Record<string, string> }
+    // INSERT ではなく MERGE を使って冪等性を保証する
+    expect(callArgs.query).toContain('MERGE')
+    expect(callArgs.params.event_id).toBe('event_id_1')
+    expect(callArgs.params.calendar_event_id).toBe('gcal_event_456')
+    expect(callArgs.params.synced_by).toBe('backend')
+  })
+
+  it('should not insert duplicate when same event_id is synced again', async () => {
+    mockQuery.mockResolvedValue([[]])
+
+    const { recordSync } = await import('./calendar.js')
+    await recordSync('event_id_1', 'gcal_event_456')
+    await recordSync('event_id_1', 'gcal_event_456')
+
+    // MERGE は ON 条件で重複を排除するので、何度呼んでも BigQuery 側で冪等
+    expect(mockQuery).toHaveBeenCalledTimes(2)
+    expect(mockInsert).not.toHaveBeenCalled()
   })
 })
 
@@ -229,9 +239,9 @@ describe('syncAllEvents', () => {
   })
 
   it('should sync all unsynced events and return result', async () => {
+    // getUnsyncedEvents と recordSync（MERGE）の両方で mockQuery を使う
     mockQuery.mockResolvedValue([[mockUnsyncedEvent]])
     mockEventsInsert.mockResolvedValue({ data: { id: 'gcal_event_789' } })
-    mockInsert.mockResolvedValue([])
 
     const { syncAllEvents } = await import('./calendar.js')
     const result: CalendarSyncResult = await syncAllEvents()
@@ -248,7 +258,6 @@ describe('syncAllEvents', () => {
     mockEventsInsert
       .mockRejectedValueOnce(new Error('Calendar API error'))
       .mockResolvedValueOnce({ data: { id: 'gcal_event_789' } })
-    mockInsert.mockResolvedValue([])
 
     const { syncAllEvents } = await import('./calendar.js')
     const result: CalendarSyncResult = await syncAllEvents()
