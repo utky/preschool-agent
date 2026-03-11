@@ -40,7 +40,7 @@ resource "google_project_iam_member" "workflow_invoker" {
 resource "google_workflows_workflow" "dbt_scheduler" {
   name            = "${var.app_name}-dbt-scheduler"
   region          = var.region
-  description     = "dbt Cloud Run Job を date/hour 指定で実行するワークフロー"
+  description     = "dbt Cloud Run Job を start/end_datetime 範囲指定で実行するワークフロー"
   service_account = google_service_account.workflow.id
   source_contents = templatefile("${path.module}/workflow.yaml", {
     project_id = var.project_id
@@ -49,11 +49,11 @@ resource "google_workflows_workflow" "dbt_scheduler" {
   })
 }
 
-# Cloud Scheduler (毎時)
+# Cloud Scheduler (6時間おき)
 resource "google_cloud_scheduler_job" "dbt_hourly" {
   name             = "${var.app_name}-dbt-hourly"
-  description      = "dbt ワークフローを毎時実行"
-  schedule         = "0 6,12,18 * * *"
+  description      = "dbt ワークフローを6時間おきに実行"
+  schedule         = "0 0,6,12,18 * * *"
   time_zone        = "Asia/Tokyo"
   region           = var.region
   attempt_deadline = "600s"
@@ -65,7 +65,7 @@ resource "google_cloud_scheduler_job" "dbt_hourly" {
       service_account_email = google_service_account.workflow.email
     }
     body = base64encode(jsonencode({
-      argument = jsonencode({})
+      argument = jsonencode({ interval_hours = 6 })
     }))
     headers = {
       "Content-Type" = "application/json"

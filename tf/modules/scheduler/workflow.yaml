@@ -6,30 +6,33 @@ main:
           - project_id: $${sys.get_env("GOOGLE_CLOUD_PROJECT_ID")}
           - job_name: ${job_name}
           - job_location: ${region}
-          - input_date: $${default(map.get(args, "date"), null)}
-          - input_hour: $${default(map.get(args, "hour"), null)}
+          - input_start: $${default(map.get(args, "start_datetime"), null)}
+          - input_end: $${default(map.get(args, "end_datetime"), null)}
+          - interval_hours: $${int(default(map.get(args, "interval_hours"), 6))}
 
     - route:
         switch:
-          - condition: $${input_date != null and input_hour != null}
+          - condition: $${input_start != null and input_end != null}
             assign:
-              - target_date: $${input_date}
-              - target_hour: $${input_hour}
+              - start_datetime: $${input_start}
+              - end_datetime: $${input_end}
             next: log_start
         next: compute_default
 
     - compute_default:
         assign:
           - now_epoch: $${int(sys.now())}
-          - prev_hour_epoch: $${now_epoch - (now_epoch % 3600) - 3600}
-          - prev_hour_str: $${time.format(prev_hour_epoch)}
-          - target_date: $${text.substring(prev_hour_str, 0, 10)}
-          - target_hour: $${text.substring(prev_hour_str, 11, 13)}
+          - end_epoch: $${now_epoch - (now_epoch % 3600)}
+          - start_epoch: $${end_epoch - interval_hours * 3600}
+          - end_str: $${time.format(end_epoch)}
+          - start_str: $${time.format(start_epoch)}
+          - start_datetime: $${text.substring(start_str, 0, 19) + "Z"}
+          - end_datetime: $${text.substring(end_str, 0, 19) + "Z"}
 
     - log_start:
         call: sys.log
         args:
-          text: '$${"dbt job starting: date=" + target_date + " hour=" + target_hour}'
+          text: '$${"dbt job starting: start=" + start_datetime + " end=" + end_datetime}'
           severity: INFO
 
     - run_job:
@@ -44,7 +47,7 @@ main:
                       - "build"
                       - "--no-use-colors"
                       - "--vars"
-                      - '$${"{\"date\": \"" + target_date + "\", \"hour\": \"" + target_hour + "\"}"}'
+                      - '$${"{\"start_datetime\": \"" + start_datetime + "\", \"end_datetime\": \"" + end_datetime + "\"}"}'
           result: job_execution
         retry:
           predicate: $${retry_predicate}
@@ -57,13 +60,13 @@ main:
     - log_done:
         call: sys.log
         args:
-          text: '$${"dbt job completed: date=" + target_date + " hour=" + target_hour}'
+          text: '$${"dbt job completed: start=" + start_datetime + " end=" + end_datetime}'
           severity: INFO
 
     - finish:
         return:
-          date: $${target_date}
-          hour: $${target_hour}
+          start_datetime: $${start_datetime}
+          end_datetime: $${end_datetime}
           execution: $${job_execution}
 
 retry_predicate:

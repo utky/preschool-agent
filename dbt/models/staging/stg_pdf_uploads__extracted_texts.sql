@@ -28,11 +28,10 @@ WITH generated AS (
             FROM {{ source('pdf_uploads', 'raw_documents') }}
             WHERE
                 content_type = 'application/pdf'
-                {% if var('date', none) is not none and var('hour', none) is not none %}
+                {% if var('start_datetime', none) is not none and var('end_datetime', none) is not none %}
 
-                    AND updated >= TIMESTAMP('{{ var("date") }}T{{ var("hour") }}:00:00Z')
-                    AND updated
-                    < TIMESTAMP_ADD(TIMESTAMP('{{ var("date") }}T{{ var("hour") }}:00:00Z'), INTERVAL 1 HOUR)
+                    AND updated >= TIMESTAMP('{{ var("start_datetime") }}')
+                    AND updated < TIMESTAMP('{{ var("end_datetime") }}')
 
                 {% endif %}
                 {% if is_incremental() %}

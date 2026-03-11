@@ -1017,6 +1017,29 @@ dbt run → BigQueryテーブル生成 → EXPORT DATA → Cloud Storage (JSON)
 - `backend/data/`ディレクトリにサンプルJSONを配置
 - 環境変数`NODE_ENV=development`で切り替え
 
+### 4. dbt Cloud Run Job スケジュール（1日4回・6時間間隔）
+
+**決定**: dbt ワークフローのスケジュールを `0 0,6,12,18 * * *`（JST 0時・6時・12時・18時）に変更し、処理対象を「直前1時間」から「直前6時間」の範囲に変更する。
+
+**背景**:
+- 旧スケジュール `0 6,12,18 * * *` では 18:00〜翌0:00 の6時間分が永続的に未処理
+- workflow が「直前1時間」を計算する実装になっており、6時間おきの実行では5時間分が取りこぼされていた
+
+**実装**:
+- Cloud Scheduler: `schedule = "0 0,6,12,18 * * *"`
+- Scheduler body: `interval_hours = 6` を渡す
+- workflow: `start_datetime` / `end_datetime`（ISO 8601形式）を計算して dbt に渡す
+  - デフォルト: `end = 現在時刻の切り捨て`, `start = end - interval_hours * 3600`
+  - 手動指定: `argument = {"start_datetime": "...", "end_datetime": "..."}` で任意範囲を指定可能
+- dbt `stg_pdf_uploads__extracted_texts.sql`: `date`/`hour` 変数 → `start_datetime`/`end_datetime` 変数でフィルタリング
+
+**dbt vars 例**:
+```bash
+dbt build --vars '{"start_datetime": "2026-03-11T06:00:00Z", "end_datetime": "2026-03-11T12:00:00Z"}'
+```
+
+---
+
 ### 3. dbt命名規則（ベストプラクティス準拠）
 **決定**: `stg_`, `int_`などのプレフィックスを廃止し、ディレクトリ構造で階層を表現する。
 
