@@ -6,7 +6,7 @@
   ],
   "features": {
     "ghcr.io/devcontainers/features/github-cli:1": {},
-    "ghcr.io/devcontainers/features/python:1": { "version": "3.12" }
+    "ghcr.io/devcontainers/features/python:1": { "version": "3.12", "installJupyterlab": true }
   },
   "customizations": {
     "vscode": {
@@ -14,7 +14,8 @@
         "ms-vscode.vscode-typescript-next",
         "dbaeumer.vscode-eslint",
         "esbenp.prettier-vscode",
-        "github.vscode-pull-request-github"
+        "github.vscode-pull-request-github",
+        "GoogleCloudTools.cloudcode"
       ]
     }
   },

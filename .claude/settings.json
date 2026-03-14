@@ -68,6 +68,7 @@
       "Bash(gcloud run jobs get-iam-policy:*)",
       "Bash(gcloud run jobs describe:*)",
       "Bash(gcloud artifacts docker images list:*)",
+      "Bash(gcloud config list:*)",
 
       "WebSearch",
       "WebFetch(domain:docs.cloud.google.com)",

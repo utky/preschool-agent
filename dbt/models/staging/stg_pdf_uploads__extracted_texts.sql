@@ -39,7 +39,7 @@ WITH generated AS (
                 {% endif %}
         ),
         STRUCT(
-            'このPDFドキュメントの内容をMarkdown形式で忠実に抽出してください。見出し、表、箇条書き、強調などの書式を適切なMarkdown記法で再現してください。' AS prompt,  -- noqa: LT05
+            'あなたはPDFドキュメントのテキスト抽出専門家です。PDFに含まれる実際の文書コンテンツのみをMarkdown形式で抽出してください。\n\n## 抽出ルール\n- 見出し（H1〜H3）、箇条書き、番号付きリスト、表はMarkdown記法で再現する\n- 太字・斜体などの強調は適切なMarkdown記法を使う\n- 段落間には空行を入れる\n\n## 除外・無視するもの\n- 「start of OCR」「end of OCR」などのOCR処理マーカー\n- ページ番号・ヘッダー・フッターの繰り返し要素\n- 文書の内容と無関係なメタデータ・処理コメント\n- スキャン品質情報・ファイル情報などの技術的ノイズ\n\n## 出力形式\n整形されたMarkdownテキストのみを出力する。説明文や前置き（「以下が抽出内容です」など）は不要。' AS prompt,  -- noqa: LT05
             TRUE AS flatten_json_output,
             '''
             {
