@@ -17,6 +17,7 @@
 | 3 | キーワード検索チャット | **DONE** |
 | 4 | ベクトル検索 + Mastra統合 | **DONE** |
 | 5 | イベント抽出 + カレンダー登録 | **DONE** |
+| 8 | Webクローリング（WordPress REST API → GCS） | TODO |
 | 6 | 文書種別構造化 | TODO |
 
 ### 最優先課題: dbtパイプラインが未稼働
@@ -251,6 +252,32 @@ dbtモデル（5モデル、20テスト）は定義済みだが、BigQuery上で
     - [x] Events ページ実装
     - [x] EventCard コンポーネント実装
     - [x] 楽観的UI更新実装
+
+---
+
+## スライス8: Webクローリング（WordPress REST API → GCS） - TODO
+
+**目標:** Google Drive手動アップロードを廃し、WordPressサイトのREST APIを定期クローリングすることでPDFを自動検出・GCS取り込みする。
+
+- [ ] **crawler/ パッケージ作成:**
+    - [ ] `crawler/src/types.ts` インタフェース定義
+    - [ ] `crawler/src/config.ts` 設定管理
+    - [ ] `crawler/src/wordpress.ts` WordPress REST APIクライアント
+    - [ ] `crawler/src/gcs.ts` GCSアップロードロジック
+    - [ ] `crawler/src/main.ts` エントリーポイント
+    - [ ] `crawler/__tests__/wordpress.test.ts` テスト
+    - [ ] `crawler/__tests__/gcs.test.ts` テスト
+    - [ ] `crawler/Dockerfile`
+    - [ ] `crawler/package.json`
+    - [ ] `crawler/tsconfig.json`
+- [ ] **ルートpackage.json:** `workspaces` に `"crawler"` 追加
+- [ ] **IaC:**
+    - [ ] `tf/modules/crawler/` モジュール作成（Cloud Run Job + SA + IAM）
+    - [ ] `tf/modules/scheduler/workflow.yaml` に `run_crawler` ステップ追加
+    - [ ] `tf/modules/scheduler/main.tf` に `crawler_job_name` 変数追加
+    - [ ] `tf/environments/production/main.tf` に crawlerモジュール参照追加
+- [ ] **CI/CD:**
+    - [ ] `.github/workflows/deploy-crawler.yml` 追加
 
 ---
 

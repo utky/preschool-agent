@@ -25,7 +25,7 @@ graph TD
         subgraph "Data Storage"
             E[構造化データ / BigQuery]
             F[ファイルストレージ / Cloud Storage]
-            G[入力元 / Google Drive]
+            G[入力元 / WordPress REST API]
         end
         subgraph "Scheduling"
             H[スケジューラ / Cloud Scheduler]
@@ -42,16 +42,18 @@ graph TD
     BE -- "シークレット取得" --> I
     BE -- "データ参照・更新" --> E
     H -- "HTTPトリガー" --> W
-    W -- "1. dbt実行" --> C
-    C -- "2. Document AI呼び出し" --> D
-    D -- "3. PDF解析" --> F
-    C -- "4. 解析結果を構造化" --> F
-    C -- "5. 構造化データを保存" --> E
-    W -- "6. Google Drive監視" --> G
+    W -- "1. クローラー実行" --> CR[PDFクローラー / Cloud Run Job]
+    CR -- "2. WordPress REST API取得" --> G
+    CR -- "3. PDF → GCS保存" --> F
+    W -- "4. dbt実行" --> C
+    C -- "5. Document AI呼び出し" --> D
+    D -- "6. PDF解析" --> F
+    C -- "7. 解析結果を構造化" --> F
+    C -- "8. 構造化データを保存" --> E
 ```
 
 ### 1.2. 処理フロー
-1.  **定期的実行**: Cloud Schedulerが設定されたスケジュールで、Cloud WorkflowをHTTPトリガーします。
-2.  **新規ファイル検出**: Google Apps ScriptがGoogle Drive APIで指定フォルダ内のファイルリストを取得し、新規ファイルをCloud Storageにアップロードします。
+1.  **定期的実行**: Cloud Schedulerが設定されたスケジュールで、Cloud WorkflowをHTTPトリガーします（6時間ごと）。
+2.  **新規PDF取得**: Cloud WorkflowがクローラーCloud Run Jobを起動し、WordPressサイトのREST APIから新着PDFを検出してGCSの `web/` プレフィックス配下にアップロードします。
 3.  **解析・構造化**: Cloud Workflowがdbt（Cloud Run Job）を実行し、BigQuery上でDocument AIを呼び出してPDF解析を行い、結果をテーブルに格納します。
 4.  **データ変換**: dbtモデルがテキスト抽出、チャンク化、埋め込み生成、文書種別の構造化を順次実行します。

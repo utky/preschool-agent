@@ -16,6 +16,7 @@
 3. キーワード検索チャット（2週間）
 4. ベクトル検索 + Mastra統合（3週間）
 5. イベント抽出 + カレンダー登録（2週間）
+8. Webクローリング（WordPress REST API → GCS）（1週間）
 6. 文書種別構造化（2週間）
 
 ### この戦略のメリット
@@ -1055,6 +1056,104 @@ models/
 ```
 
 **参考**: [dbt Style Guide](https://docs.getdbt.com/best-practices/how-we-style/1-how-we-style-our-dbt-models)
+
+---
+
+## スライス8: Webクローリング（WordPress REST API → GCS）
+
+### 目標
+
+Google Drive手動アップロードを廃し、`https://tatibana.ed.jp/youtien/announce/` のWordPress REST APIを
+定期クローリングすることでPDFを自動検出・GCS取り込みする。
+
+### アーキテクチャ方針
+
+クローラーは「既存のCloud Workflowsの最初のステップ」として組み込む。
+- Cloud Scheduler → Cloud Workflows が6時間ごとに起動
+- **STEP 1 (新規)**: `start_datetime` をクローラーに渡してWordPress APIから新着PDFを取得→GCSにアップロード
+- **STEP 2 (既存)**: dbt Cloud Run Job が同じ `start_datetime` 範囲で処理（変更なし）
+- GCS Object Table が `web/` プレフィックスのファイルを自動検出するためdbt以降は無変更
+
+### 実装内容
+
+#### crawler/ パッケージ
+
+```
+crawler/
+  src/
+    main.ts           # エントリーポイント（Cloud Run Job）
+    wordpress.ts      # WordPress REST APIクライアント（純粋関数）
+    gcs.ts            # GCSアップロードロジック
+    config.ts         # 設定管理（env vars）
+    types.ts          # TypeScriptインタフェース定義
+  __tests__/
+    wordpress.test.ts
+    gcs.test.ts
+  Dockerfile
+  package.json
+  tsconfig.json
+```
+
+#### 主要インタフェース（types.ts）
+
+```typescript
+interface LetterPost {
+  id: number;
+  date: string;
+  modified: string;
+  title: { rendered: string };
+  _links: { 'wp:attachment': [{ href: string }] };
+}
+
+interface MediaFile {
+  id: number;
+  date: string;
+  title: { rendered: string };
+  mime_type: string;
+  source_url: string;
+  post: number;
+}
+
+interface CrawlerConfig {
+  wordpressBaseUrl: string;  // https://tatibana.ed.jp/youtien
+  gcsBucketName: string;     // school-agent-prod-pdf-uploads
+  gcsProjectId: string;
+  sinceDateTime: string;     // ISO 8601 UTC
+}
+```
+
+#### 主要関数
+
+- `fetchLetters(baseUrl: string, modifiedAfter: Date): Promise<LetterPost[]>` - WP REST APIをページネーションしながら全件取得
+- `fetchAttachments(baseUrl: string, letterId: number): Promise<MediaFile[]>` - PDF添付ファイル取得
+- `buildGcsPath(media: MediaFile): string` - `web/{YYYY}/{MM}/{media_id}_{sanitized_title}.pdf` を返す純粋関数
+- `sanitizeFilename(title: string): string` - 日本語保持、ファイル不正文字のみ除去
+- `isAlreadyUploaded(storage, bucket, path): Promise<boolean>` - GCS存在確認（冪等性保証）
+- `downloadPdf(url: string): Promise<Buffer>`
+- `uploadToGcs(storage, bucket, path, content, metadata): Promise<void>`
+
+#### GCSメタデータ（dbtとの互換性）
+
+```
+x-goog-meta-original-filename: {source_urlのファイル名をURLエンコード（拡張子付き）}
+x-goog-meta-source-url: {WordPress PDFの元URL}
+x-goog-meta-letter-id: {letter post ID}
+x-goog-meta-media-id: {media ID}
+```
+
+`original-filename` はGASと同形式（URLエンコードされた日本語ファイル名.pdf）にすることで
+dbtの `stg_pdf_uploads__extracted_texts.sql` が期待通りタイトルを読み取れる。
+
+#### IaC
+
+- `tf/modules/crawler/` モジュール（Cloud Run Job + Service Account + IAM）
+- `tf/modules/scheduler/workflow.yaml` に `run_crawler` ステップ追加（`log_start` → `run_crawler` → `run_job`）
+- `tf/modules/scheduler/variables.tf` に `crawler_job_name` 変数追加
+- `tf/environments/production/main.tf` に crawlerモジュール参照追加
+
+#### CI/CD
+
+`.github/workflows/deploy-crawler.yml` - `crawler/` 配下変更時にDocker build → Artifact Registry push
 
 ---
 
