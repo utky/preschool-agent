@@ -20,6 +20,7 @@ node_modules
 /frontend/dist
 /backend/dist
 /gas/dist
+/crawler/dist
 
 # production
 /build
