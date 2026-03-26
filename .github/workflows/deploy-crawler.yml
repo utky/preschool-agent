@@ -1,0 +1,91 @@
+name: Deploy Crawler
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'crawler/**'
+
+jobs:
+  build_crawler:
+    runs-on: ubuntu-latest
+    environment: prod
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install dependencies
+        working-directory: ./crawler
+        run: npm ci
+
+      - name: Build TypeScript
+        working-directory: ./crawler
+        run: npm run build
+
+      - name: Configure Google Cloud credentials
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.SERVICE_ACCOUNT }}
+
+      - name: Set up Docker
+        uses: docker/setup-buildx-action@v3
+
+      - name: Authenticate to Artifact Registry
+        run: gcloud auth configure-docker asia-northeast1-docker.pkg.dev
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./crawler
+          file: ./crawler/Dockerfile
+          push: true
+          tags: |
+            asia-northeast1-docker.pkg.dev/lofilab/utky-applications/school-agent-crawler:${{ github.sha }}
+            asia-northeast1-docker.pkg.dev/lofilab/utky-applications/school-agent-crawler:latest
+          cache-from: type=gha,scope=crawler
+          cache-to: type=gha,mode=max,scope=crawler
+
+  deploy:
+    needs: [build_crawler]
+    runs-on: ubuntu-latest
+    environment: prod
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup OpenTofu
+        uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: 1.6.0
+
+      - name: Configure Google Cloud credentials
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.SERVICE_ACCOUNT }}
+
+      - name: Tofu Init
+        run: tofu init
+        working-directory: ./tf/environments/production
+
+      - name: Write secret to secrets.auto.tfvars
+        run: |
+          cat <<EOF > tf/environments/production/secrets.auto.tfvars
+          ${{ secrets.TOFU__SECRETS_TF_VARS }}
+          EOF
+        shell: bash
+
+      - name: Tofu Apply
+        run: tofu apply -auto-approve -var="crawler_container_image=asia-northeast1-docker.pkg.dev/lofilab/utky-applications/school-agent-crawler:${{ github.sha }}" 2>&1
+        working-directory: ./tf/environments/production

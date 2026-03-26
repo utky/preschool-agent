@@ -14,12 +14,18 @@ variable "app_name" {
   description = "アプリケーション名"
 }
 
-variable "dbt_job_name" {
+variable "container_image" {
   type        = string
-  description = "dbt Cloud Run Job名"
+  description = "クローラーコンテナイメージ"
 }
 
-variable "crawler_job_name" {
+variable "pdf_uploads_bucket_name" {
   type        = string
-  description = "クローラー Cloud Run Job名"
+  description = "PDFアップロード先GCSバケット名"
+}
+
+variable "wordpress_base_url" {
+  type        = string
+  description = "WordPress REST APIのベースURL"
+  default     = "https://tatibana.ed.jp/youtien"
 }

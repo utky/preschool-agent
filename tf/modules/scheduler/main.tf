@@ -4,7 +4,7 @@ resource "google_service_account" "workflow" {
   display_name = "Service Account for Cloud Workflows"
 }
 
-# Workflow SA → 特定 Cloud Run Job の実行権限のみ
+# Workflow SA → dbt Cloud Run Job の実行権限
 resource "google_cloud_run_v2_job_iam_member" "workflow_invoker" {
   project  = var.project_id
   location = var.region
@@ -13,6 +13,15 @@ resource "google_cloud_run_v2_job_iam_member" "workflow_invoker" {
   # roles/run.invoker（run.jobs.run のみ）ではなく roles/run.developer を使用する
   role   = "roles/run.developer"
   member = "serviceAccount:${google_service_account.workflow.email}"
+}
+
+# Workflow SA → クローラー Cloud Run Job の実行権限
+resource "google_cloud_run_v2_job_iam_member" "workflow_crawler_invoker" {
+  project  = var.project_id
+  location = var.region
+  name     = var.crawler_job_name
+  role     = "roles/run.developer"
+  member   = "serviceAccount:${google_service_account.workflow.email}"
 }
 
 # Workflow SA → Cloud Run オペレーション状態確認権限（v2 API のポーリングに必要）
@@ -43,9 +52,10 @@ resource "google_workflows_workflow" "dbt_scheduler" {
   description     = "dbt Cloud Run Job を start/end_datetime 範囲指定で実行するワークフロー"
   service_account = google_service_account.workflow.id
   source_contents = templatefile("${path.module}/workflow.yaml", {
-    project_id = var.project_id
-    region     = var.region
-    job_name   = var.dbt_job_name
+    project_id       = var.project_id
+    region           = var.region
+    job_name         = var.dbt_job_name
+    crawler_job_name = var.crawler_job_name
   })
 }
 

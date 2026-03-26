@@ -27,6 +27,12 @@ variable "dbt_container_image" {
   default     = "asia-northeast1-docker.pkg.dev/lofilab/utky-applications/school-agent-dbt:latest"
 }
 
+variable "crawler_container_image" {
+  type        = string
+  description = "クローラー用コンテナイメージ"
+  default     = "asia-northeast1-docker.pkg.dev/lofilab/utky-applications/school-agent-crawler:latest"
+}
+
 variable "alert_email" {
   type        = string
   description = "アラート通知先のメールアドレス"

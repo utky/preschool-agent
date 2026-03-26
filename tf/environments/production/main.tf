@@ -92,9 +92,18 @@ module "monitoring" {
   # デフォルト: 2048 バイト/秒 (2KB/s)
 }
 
+module "crawler" {
+  source                  = "../../modules/crawler"
+  project_id              = var.project_id
+  region                  = var.region
+  container_image         = var.crawler_container_image
+  pdf_uploads_bucket_name = module.app.pdf_uploads_bucket_name
+}
+
 module "scheduler" {
-  source       = "../../modules/scheduler"
-  project_id   = var.project_id
-  region       = var.region
-  dbt_job_name = module.cloud_run_job.job_name
+  source           = "../../modules/scheduler"
+  project_id       = var.project_id
+  region           = var.region
+  dbt_job_name     = module.cloud_run_job.job_name
+  crawler_job_name = module.crawler.job_name
 }

@@ -6,6 +6,7 @@ main:
           - project_id: $${sys.get_env("GOOGLE_CLOUD_PROJECT_ID")}
           - job_name: ${job_name}
           - job_location: ${region}
+          - crawler_job_name: ${crawler_job_name}
           - input_start: $${default(map.get(args, "start_datetime"), null)}
           - input_end: $${default(map.get(args, "end_datetime"), null)}
           - interval_hours: $${int(default(map.get(args, "interval_hours"), 6))}
@@ -32,7 +33,33 @@ main:
     - log_start:
         call: sys.log
         args:
-          text: '$${"dbt job starting: start=" + start_datetime + " end=" + end_datetime}'
+          text: '$${"workflow starting: start=" + start_datetime + " end=" + end_datetime}'
+          severity: INFO
+
+    - run_crawler:
+        try:
+          call: googleapis.run.v2.projects.locations.jobs.run
+          args:
+            name: '$${"projects/" + project_id + "/locations/" + job_location + "/jobs/" + crawler_job_name}'
+            body:
+              overrides:
+                containerOverrides:
+                  - env:
+                      - name: SINCE_DATETIME
+                        value: $${start_datetime}
+          result: crawler_execution
+        retry:
+          predicate: $${retry_predicate}
+          max_retries: 3
+          backoff:
+            initial_delay: 30
+            max_delay: 300
+            multiplier: 2
+
+    - log_crawler_done:
+        call: sys.log
+        args:
+          text: '$${"crawler completed: start=" + start_datetime}'
           severity: INFO
 
     - run_job:
@@ -67,7 +94,8 @@ main:
         return:
           start_datetime: $${start_datetime}
           end_datetime: $${end_datetime}
-          execution: $${job_execution}
+          crawler_execution: $${crawler_execution}
+          dbt_execution: $${job_execution}
 
 retry_predicate:
   params: [e]
