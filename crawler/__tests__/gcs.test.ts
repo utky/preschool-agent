@@ -41,6 +41,7 @@ describe('gcs', () => {
       const media: MediaFile = {
         id: 2840,
         date: '2026-03-15T10:00:00Z',
+        modified: '2026-03-15T10:00:00Z',
         title: { rendered: '2026年度バレエ教室プリエ募集' },
         mime_type: 'application/pdf',
         source_url: 'https://tatibana.ed.jp/youtien/wp-content/uploads/2026/03/2026%E5%B9%B4%E5%BA%A6%E3%80%80%E3%83%90%E3%83%AC%E3%82%A8%E6%95%99%E5%AE%A4.pdf',

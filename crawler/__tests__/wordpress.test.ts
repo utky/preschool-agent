@@ -1,5 +1,5 @@
 import { jest, describe, it, expect, afterEach } from '@jest/globals'
-import { fetchLetters, fetchAttachments, buildGcsPath, sanitizeFilename } from '../src/wordpress.js'
+import { fetchLetters, fetchAttachments, selectLatestAttachment, buildGcsPath, sanitizeFilename } from '../src/wordpress.js'
 import type { LetterPost, MediaFile } from '../src/types.js'
 
 describe('wordpress', () => {
@@ -87,6 +87,7 @@ describe('wordpress', () => {
         {
           id: 2840,
           date: '2026-03-15T10:00:00Z',
+          modified: '2026-03-15T10:00:00Z',
           title: { rendered: '2026年度バレエ教室プリエ募集' },
           mime_type: 'application/pdf',
           source_url: 'https://tatibana.ed.jp/youtien/wp-content/uploads/2026/03/ballet.pdf',
@@ -108,11 +109,58 @@ describe('wordpress', () => {
     })
   })
 
+  describe('selectLatestAttachment', () => {
+    it('should return undefined for empty array', () => {
+      expect(selectLatestAttachment([])).toBeUndefined()
+    })
+
+    it('should return the only element for single-item array', () => {
+      const media: MediaFile = {
+        id: 2807,
+        date: '2026-03-04T09:46:19Z',
+        modified: '2026-03-04T09:46:19Z',
+        title: { rendered: 'No.89' },
+        mime_type: 'application/pdf',
+        source_url: 'https://example.com/No.89.pdf',
+        post: 2806,
+      }
+      expect(selectLatestAttachment([media])).toBe(media)
+    })
+
+    it('should return the newest attachment when multiple exist', () => {
+      // No.89の旧版（初回アップロード）
+      const older: MediaFile = {
+        id: 2807,
+        date: '2026-03-04T09:46:19Z',
+        modified: '2026-03-04T09:46:19Z',
+        title: { rendered: 'No.89' },
+        mime_type: 'application/pdf',
+        source_url: 'https://example.com/No.89.pdf',
+        post: 2806,
+      }
+      // No.89の訂正版（9分後にアップロード）
+      const newer: MediaFile = {
+        id: 2808,
+        date: '2026-03-04T09:55:17Z',
+        modified: '2026-03-04T09:55:17Z',
+        title: { rendered: 'No.89' },
+        mime_type: 'application/pdf',
+        source_url: 'https://example.com/No.89-1.pdf',
+        post: 2806,
+      }
+
+      // 順序に関わらず最新が返ること
+      expect(selectLatestAttachment([older, newer])).toBe(newer)
+      expect(selectLatestAttachment([newer, older])).toBe(newer)
+    })
+  })
+
   describe('buildGcsPath', () => {
     it('should build correct GCS path from media file', () => {
       const media: MediaFile = {
         id: 2840,
         date: '2026-03-15T10:00:00Z',
+        modified: '2026-03-15T10:00:00Z',
         title: { rendered: '2026年度バレエ教室プリエ募集' },
         mime_type: 'application/pdf',
         source_url: 'https://tatibana.ed.jp/youtien/wp-content/uploads/2026/03/ballet.pdf',
@@ -128,6 +176,7 @@ describe('wordpress', () => {
       const media: MediaFile = {
         id: 100,
         date: '2026-05-01T00:00:00Z',
+        modified: '2026-05-01T00:00:00Z',
         title: { rendered: 'テスト' },
         mime_type: 'application/pdf',
         source_url: 'https://example.com/test.pdf',

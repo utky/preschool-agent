@@ -46,6 +46,24 @@ export const fetchLetters = async (
 }
 
 /**
+ * letter投稿の複数PDF添付から最新1件を選択する純粋関数
+ *
+ * 【設計方針】
+ * WordPress運用上、同一投稿に古いPDFを削除せず訂正版を追加するケースがある。
+ * その場合、古いファイルは `-1` サフィックス付きで残存する。
+ * 内容的な重複アップロードによるイベント二重登録を防ぐため、
+ * 複数添付がある場合は最新（modified日時が最も新しい）ものを訂正版とみなして1件に絞る。
+ */
+export const selectLatestAttachment = (attachments: MediaFile[]): MediaFile | undefined => {
+  if (attachments.length === 0) return undefined
+  return attachments.reduce((latest, current) =>
+    new Date(current.modified).getTime() > new Date(latest.modified).getTime()
+      ? current
+      : latest,
+  )
+}
+
+/**
  * 指定したletter投稿に紐づくPDF添付ファイルを取得する
  */
 export const fetchAttachments = async (

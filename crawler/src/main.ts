@@ -2,7 +2,7 @@
 
 import { Storage } from '@google-cloud/storage'
 import { loadConfig } from './config.js'
-import { fetchLetters, fetchAttachments, buildGcsPath } from './wordpress.js'
+import { fetchLetters, fetchAttachments, selectLatestAttachment, buildGcsPath } from './wordpress.js'
 import {
   isAlreadyUploaded,
   downloadPdf,
@@ -28,34 +28,37 @@ const run = async (): Promise<void> => {
       letter.id,
     )
 
-    for (const media of attachments) {
-      const gcsPath = buildGcsPath(media)
+    // 複数添付がある場合は最新（訂正版）のみ処理する
+    // 設計方針: wordpress.ts の selectLatestAttachment 参照
+    const media = selectLatestAttachment(attachments)
+    if (!media) continue
 
-      // 既にアップロード済みならスキップ（冪等性保証）
-      const alreadyUploaded = await isAlreadyUploaded(
-        storage,
-        config.gcsBucketName,
-        gcsPath,
-      )
-      if (alreadyUploaded) {
-        console.log(`スキップ（既存）: ${gcsPath}`)
-        results.push({ mediaId: media.id, gcsPath, skipped: true })
-        continue
-      }
+    const gcsPath = buildGcsPath(media)
 
-      const pdfBuffer = await downloadPdf(media.source_url, config.wordpressBaseUrl)
-
-      await uploadToGcs(
-        storage,
-        config.gcsBucketName,
-        gcsPath,
-        pdfBuffer,
-        media,
-      )
-
-      console.log(`アップロード完了: ${gcsPath}`)
-      results.push({ mediaId: media.id, gcsPath, skipped: false })
+    // 既にアップロード済みならスキップ（冪等性保証）
+    const alreadyUploaded = await isAlreadyUploaded(
+      storage,
+      config.gcsBucketName,
+      gcsPath,
+    )
+    if (alreadyUploaded) {
+      console.log(`スキップ（既存）: ${gcsPath}`)
+      results.push({ mediaId: media.id, gcsPath, skipped: true })
+      continue
     }
+
+    const pdfBuffer = await downloadPdf(media.source_url, config.wordpressBaseUrl)
+
+    await uploadToGcs(
+      storage,
+      config.gcsBucketName,
+      gcsPath,
+      pdfBuffer,
+      media,
+    )
+
+    console.log(`アップロード完了: ${gcsPath}`)
+    results.push({ mediaId: media.id, gcsPath, skipped: false })
   }
 
   const uploaded = results.filter((r) => !r.skipped).length

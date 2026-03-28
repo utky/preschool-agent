@@ -1126,10 +1126,12 @@ interface CrawlerConfig {
 
 - `fetchLetters(baseUrl: string, modifiedAfter: Date): Promise<LetterPost[]>` - WP REST APIをページネーションしながら全件取得
 - `fetchAttachments(baseUrl: string, letterId: number): Promise<MediaFile[]>` - PDF添付ファイル取得
+- `selectLatestAttachment(attachments: MediaFile[]): MediaFile | undefined` - 複数添付から最新1件を選択
+  - **方針**: 同一投稿に複数PDFが存在する場合、modified日時が最も新しいものを訂正版とみなして採用する。WordPress運用上、旧版を削除せず訂正版を追加するケースがあり、旧版を取り込むとイベント二重登録などの問題が生じるため。
 - `buildGcsPath(media: MediaFile): string` - `web/{YYYY}/{MM}/{media_id}_{sanitized_title}.pdf` を返す純粋関数
 - `sanitizeFilename(title: string): string` - 日本語保持、ファイル不正文字のみ除去
 - `isAlreadyUploaded(storage, bucket, path): Promise<boolean>` - GCS存在確認（冪等性保証）
-- `downloadPdf(url: string): Promise<Buffer>`
+- `downloadPdf(url: string, referer: string): Promise<Buffer>` - Refererヘッダー付与（ホットリンク防止対策）
 - `uploadToGcs(storage, bucket, path, content, metadata): Promise<void>`
 
 #### GCSメタデータ（dbtとの互換性）
