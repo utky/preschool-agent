@@ -44,6 +44,7 @@ const run = async (): Promise<void> => {
       }
 
       const pdfBuffer = await downloadPdf(media.source_url)
+
       await uploadToGcs(
         storage,
         config.gcsBucketName,
