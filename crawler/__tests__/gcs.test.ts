@@ -94,24 +94,44 @@ describe('gcs', () => {
       const dummyContent = Buffer.from('PDF content')
       const mockArrayBuffer = async () => dummyContent.buffer
 
-      jest.spyOn(global, 'fetch').mockResolvedValueOnce({
+      const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValueOnce({
         ok: true,
         status: 200,
         arrayBuffer: mockArrayBuffer,
       } as unknown as Response)
 
-      const result = await downloadPdf('https://example.com/test.pdf')
+      const result = await downloadPdf('https://example.com/test.pdf', 'https://example.com/')
 
       expect(Buffer.isBuffer(result)).toBe(true)
+      // Refererヘッダーが付与されること
+      const [, options] = fetchMock.mock.calls[0] as [string, RequestInit]
+      expect((options.headers as Record<string, string>)['Referer']).toBe('https://example.com/')
+    })
+
+    it('should return buffer for URL with Japanese characters', async () => {
+      const dummyContent = Buffer.from('PDF content')
+      const mockArrayBuffer = async () => dummyContent.buffer
+
+      const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        arrayBuffer: mockArrayBuffer,
+      } as unknown as Response)
+
+      await downloadPdf('https://example.com/2026年度資料.pdf', 'https://example.com/')
+
+      // URLがエンコードされていること
+      const [calledUrl] = fetchMock.mock.calls[0] as [string, RequestInit]
+      expect(calledUrl).toBe('https://example.com/2026%E5%B9%B4%E5%BA%A6%E8%B3%87%E6%96%99.pdf')
     })
 
     it('should throw error on failed response', async () => {
       jest.spyOn(global, 'fetch').mockResolvedValueOnce({
         ok: false,
-        status: 404,
+        status: 403,
       } as Response)
 
-      await expect(downloadPdf('https://example.com/notfound.pdf')).rejects.toThrow(
+      await expect(downloadPdf('https://example.com/protected.pdf', 'https://example.com/')).rejects.toThrow(
         'PDF ダウンロード失敗'
       )
     })

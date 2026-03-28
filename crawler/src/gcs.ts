@@ -18,11 +18,14 @@ export const isAlreadyUploaded = async (
 /**
  * PDFをURLからダウンロードしてBufferで返す
  * source_urlに日本語等の非ASCII文字が含まれる場合はencodeURIでエンコードする
+ * サイトのホットリンク防止に対応するためRefererヘッダーを付与する
  */
-export const downloadPdf = async (url: string): Promise<Buffer> => {
+export const downloadPdf = async (url: string, referer: string): Promise<Buffer> => {
   // encodeURIでURLとして有効な形式にエンコード（スキームや / などは保持）
   const encodedUrl = encodeURI(url)
-  const response = await fetch(encodedUrl)
+  const response = await fetch(encodedUrl, {
+    headers: { Referer: referer },
+  })
   if (!response.ok) {
     throw new Error(`PDF ダウンロード失敗: url=${encodedUrl} status=${response.status}`)
   }

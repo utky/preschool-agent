@@ -43,7 +43,7 @@ const run = async (): Promise<void> => {
         continue
       }
 
-      const pdfBuffer = await downloadPdf(media.source_url)
+      const pdfBuffer = await downloadPdf(media.source_url, config.wordpressBaseUrl)
 
       await uploadToGcs(
         storage,
