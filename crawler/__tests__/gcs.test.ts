@@ -52,14 +52,18 @@ describe('gcs', () => {
       await uploadToGcs(mockStorage, 'my-bucket', 'web/2026/03/2840_test.pdf', content, media)
 
       expect(mockSave).toHaveBeenCalledTimes(1)
-      const [savedContent, savedMetadata] = mockSave.mock.calls[0] as unknown as [Buffer, { contentType: string; metadata: Record<string, string> }]
+      // @google-cloud/storage v7: カスタムメタデータは metadata.metadata に格納
+      const [savedContent, savedOptions] = mockSave.mock.calls[0] as unknown as [
+        Buffer,
+        { metadata: { contentType: string; metadata: Record<string, string> } },
+      ]
       expect(savedContent).toEqual(content)
-      expect(savedMetadata.contentType).toBe('application/pdf')
-      expect(savedMetadata.metadata['letter-id']).toBe('100')
-      expect(savedMetadata.metadata['media-id']).toBe('2840')
-      expect(savedMetadata.metadata['source-url']).toBe(media.source_url)
+      expect(savedOptions.metadata.contentType).toBe('application/pdf')
+      expect(savedOptions.metadata.metadata['letter-id']).toBe('100')
+      expect(savedOptions.metadata.metadata['media-id']).toBe('2840')
+      expect(savedOptions.metadata.metadata['source-url']).toBe(media.source_url)
       // original-filename はURLエンコードされた日本語ファイル名であること
-      expect(savedMetadata.metadata['original-filename']).toBeTruthy()
+      expect(savedOptions.metadata.metadata['original-filename']).toBeTruthy()
     })
   })
 

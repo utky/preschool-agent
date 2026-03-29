@@ -71,10 +71,18 @@ WITH generated AS (
 
 SELECT
     uri,
-    (
-        SELECT value FROM UNNEST(metadata)
-        WHERE name = 'drive-file-id')
-        AS document_id,
+    COALESCE(
+        -- GAS（Google Drive）アップロード: drive-file-idを使用
+        (
+            SELECT value FROM UNNEST(metadata)
+            WHERE name = 'drive-file-id'
+        ),
+        -- クローラー（WordPress）アップロード: WordPressメディアIDを使用
+        (
+            SELECT value FROM UNNEST(metadata)
+            WHERE name = 'media-id'
+        )
+    ) AS document_id,
     `{{ var('gcp_project_id') }}.{{ var('dataset_id') }}.url_decode`(
         (
             SELECT value FROM UNNEST(metadata)

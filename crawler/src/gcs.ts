@@ -55,16 +55,17 @@ export const uploadToGcs = async (
 ): Promise<void> => {
   const file = storage.bucket(bucketName).file(gcsPath)
 
-  const metadata = {
-    contentType: 'application/pdf',
+  // @google-cloud/storage v7 ではカスタムメタデータは metadata.metadata に格納する
+  await file.save(content, {
     metadata: {
-      // dbtの stg_pdf_uploads__extracted_texts.sql が参照するフィールド
-      'original-filename': buildOriginalFilename(media.source_url),
-      'source-url': media.source_url,
-      'letter-id': String(media.post),
-      'media-id': String(media.id),
+      contentType: 'application/pdf',
+      metadata: {
+        // dbtの stg_pdf_uploads__extracted_texts.sql が参照するフィールド
+        'original-filename': buildOriginalFilename(media.source_url),
+        'source-url': media.source_url,
+        'letter-id': String(media.post),
+        'media-id': String(media.id),
+      },
     },
-  }
-
-  await file.save(content, metadata)
+  })
 }
