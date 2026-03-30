@@ -55,5 +55,5 @@ graph TD
 ### 1.2. 処理フロー
 1.  **定期的実行**: Cloud Schedulerが設定されたスケジュールで、Cloud WorkflowをHTTPトリガーします（6時間ごと）。
 2.  **新規PDF取得**: Cloud WorkflowがクローラーCloud Run Jobを起動し、WordPressサイトのREST APIから新着PDFを検出してGCSの `web/` プレフィックス配下にアップロードします。
-3.  **解析・構造化**: Cloud Workflowがdbt（Cloud Run Job）を実行し、BigQuery上でDocument AIを呼び出してPDF解析を行い、結果をテーブルに格納します。
+3.  **解析・構造化**: Cloud Workflowがdbt（Cloud Run Job）を実行し、BigQuery上でGemini（ML.GENERATE_TEXT）を呼び出してPDF解析を行い、結果をテーブルに格納します。
 4.  **データ変換**: dbtモデルがテキスト抽出、チャンク化、埋め込み生成、文書種別の構造化を順次実行します。

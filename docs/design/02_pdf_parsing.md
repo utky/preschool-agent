@@ -1,8 +1,8 @@
 ## 2. PDF解析アプローチ
 
-**最終更新**: 2026-01-03（extracted_eventsの正規化とイベント管理のシンプル化）
+**最終更新**: 2026-03-30（Webクローラー移行・Gemini OCR方式に更新）
 
-本プロジェクトでは、PDFからのテキストおよび構造化データ抽出に **Google Cloud Document AI** を全面的に採用します。その理由は、高精度なOCR、特定のドキュメントタイプ（請求書、領収書など）に特化した専用プロセッサの存在、そしてサーバーレスアーキテクチャとの親和性の高さにあります。
+本プロジェクトでは、PDFからのテキストおよび構造化データ抽出に **BigQuery ML.GENERATE_TEXT（Gemini 2.5 Flash）** を採用します。PDFはWordPress REST APIを定期クローリングするCloud Run Jobによって自動取得・GCS保存されます。
 
 ### 主要な設計決定事項
 
@@ -10,7 +10,7 @@
 2. **チャンク識別**: UUID v4による一意識別（アルゴリズム変更に堅牢）
 3. **型安全性**: STRUCT型を採用（JSON型ではなく）
 4. **RAG最適化**: 文書メタデータを`document_chunks`テーブルに冗長保存
-5. **埋め込み生成**: `ML.GENERATE_EMBEDDING`を別ステップで実行（Document AIは埋め込みを生成しない）
+5. **埋め込み生成**: `ML.GENERATE_EMBEDDING`を別ステップで実行（OCRとは分離）
 6. **イベント管理**: 承認ワークフローを廃止し、フロントエンドでのワンタップ登録に統一
 7. **イベント正規化**: `extracted_events`を独立したテーブルとして管理（複数文書種別からの参照を一元化）
 8. **Thinking無効化（コスト最適化）**: `ML.GENERATE_TEXT`を使用する全モデル（`stg_pdf_uploads__extracted_texts`, `fct_events`, `dim_documents`）で `thinkingConfig: {"thinkingBudget": 0}` を設定し、Geminiの思考モードを無効化。単純な構造化抽出タスクではThinkingによる精度向上の恩恵が少なく、コスト削減を優先する。
@@ -20,15 +20,17 @@ https://docs.cloud.google.com/bigquery/docs/rag-pipeline-pdf?hl=ja
 
 ### 2.1. 解析ワークフロー
 
-PDFファイルのランディングゾーンはGoogle App ScriptによってGoogle Drive側からGoogle Cloud Storage Bucketへとファイルがコピーされます。
+PDFファイルのランディングゾーンはWordPress REST APIをクローリングするCloud Run Job（`crawler/`）によって
+GCSの `web/` プレフィックス配下に自動保存されます。
 PDFファイルの解析からAIエージェント用データ作成まではBigQueryとdbtを使って構築します。
 
 #### データの変換
 
-1. **Google Drive → GCS**: GASがGoogle DriveのPDFをGCSへ転送
-2. **GCS → テキスト抽出**: `ML.PROCESS_DOCUMENT`でDocument AIを使用してテキスト抽出
-   - 出力: `document_id`, `chunk_index`, `chunk_text`
-   - **重要**: Document AIは埋め込みを生成しない
+1. **WordPress REST API → GCS**: クローラー（Cloud Run Job）がWordPressの新着PDFをGCSへアップロード
+   - GCSパス: `web/{YYYY}/{MM}/{media_id}_{title}.pdf`
+   - カスタムメタデータ: `media-id`, `letter-id`, `source-url`, `original-filename`
+2. **GCS → テキスト抽出**: `ML.GENERATE_TEXT`でGemini 2.5 Flashを使用してOCR・テキスト抽出
+   - 出力: `document_id`（`media-id` メタデータより取得）, `extracted_markdown`
 3. **チャンク化**: 抽出されたテキストをチャンク化し、UUID v4を生成
    - 出力: `chunk_id` (UUID v4), `document_id`, `chunk_index`, `chunk_text`, `section_id`, `section_title`
 4. **埋め込み生成**: `ML.GENERATE_EMBEDDING`でVertex AI Embeddingを使用
@@ -40,11 +42,11 @@ PDFファイルの解析からAIエージェント用データ作成まではBig
    - [参考](https://docs.cloud.google.com/bigquery/docs/vector-index-text-search-tutorial?hl=ja)
 
 **処理担当**:
-- ステップ1: GAS
+- ステップ1: クローラー (Cloud Run Job)
 - ステップ2-6: dbt + BigQuery
 
 **参考資料**:
-- [ML.PROCESS_DOCUMENT](https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-process-document)
+- [ML.GENERATE_TEXT](https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-generate-text)
 - [ML.GENERATE_EMBEDDING](https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-generate-embedding)
 - [Build a RAG pipeline from PDFs](https://docs.cloud.google.com/bigquery/docs/rag-pipeline-pdf)
 
@@ -70,8 +72,8 @@ PDFファイルの解析からAIエージェント用データ作成まではBig
 - 構造化データ（sections, menu_items, nutrition_infoなど）は `ARRAY<STRUCT>` または `STRUCT` で定義
 
 **5. テキストデータの重複許容**
-- 中間テーブル（`stg_documents_text`）と最終テーブル（`document_chunks`）でのテキスト重複は許容
-- `ML.PROCESS_DOCUMENT`は重い処理なので、中間テーブルを保存することで再実行を回避
+- 中間テーブル（`stg_pdf_uploads__extracted_texts`）と最終テーブル（`document_chunks`）でのテキスト重複は許容
+- `ML.GENERATE_TEXT`は重い処理なので、中間テーブルを保存することで再実行を回避
 - ストレージコストは無視できる（年間1.2MB程度）
 
 **6. 増分処理とトレーサビリティ**
