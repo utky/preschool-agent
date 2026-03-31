@@ -65,6 +65,7 @@ export const uploadToGcs = async (
         'source-url': media.source_url,
         'letter-id': String(media.post),
         'media-id': String(media.id),
+        'modified_gmt': media.modified_gmt,  // WordPressの文書更新日時（UTC）
       },
     },
   })

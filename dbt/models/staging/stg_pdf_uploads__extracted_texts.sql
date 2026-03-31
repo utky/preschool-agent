@@ -96,7 +96,15 @@ SELECT
     content_type,
     size,
     md5_hash,
-    updated AS updated_at
+    COALESCE(
+        TIMESTAMP(
+            (
+                SELECT value FROM UNNEST(metadata)
+                WHERE name = 'modified_gmt'
+            )
+        ),
+        updated
+    ) AS updated_at
 FROM generated
 WHERE
     ml_generate_text_status = ''

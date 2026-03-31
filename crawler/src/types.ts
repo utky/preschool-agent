@@ -11,7 +11,8 @@ export interface LetterPost {
 export interface MediaFile {
   id: number;
   date: string;
-  modified: string;    // 最終更新日時（訂正版選択に使用）
+  modified: string;        // ローカル時刻（訂正版選択に使用）
+  modified_gmt: string;    // UTC（GCSメタデータへの伝搬に使用）
   title: { rendered: string };
   mime_type: string;
   source_url: string;  // 完全URL: https://tatibana.ed.jp/.../file.pdf

@@ -57,7 +57,7 @@ export const fetchLetters = async (
 export const selectLatestAttachment = (attachments: MediaFile[]): MediaFile | undefined => {
   if (attachments.length === 0) return undefined
   return attachments.reduce((latest, current) =>
-    new Date(current.modified).getTime() > new Date(latest.modified).getTime()
+    new Date(current.modified_gmt).getTime() > new Date(latest.modified_gmt).getTime()
       ? current
       : latest,
   )

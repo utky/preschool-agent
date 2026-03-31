@@ -87,7 +87,8 @@ describe('wordpress', () => {
         {
           id: 2840,
           date: '2026-03-15T10:00:00Z',
-          modified: '2026-03-15T10:00:00Z',
+          modified: '2026-03-15T19:00:00',
+          modified_gmt: '2026-03-15T10:00:00',
           title: { rendered: '2026年度バレエ教室プリエ募集' },
           mime_type: 'application/pdf',
           source_url: 'https://tatibana.ed.jp/youtien/wp-content/uploads/2026/03/ballet.pdf',
@@ -118,7 +119,8 @@ describe('wordpress', () => {
       const media: MediaFile = {
         id: 2807,
         date: '2026-03-04T09:46:19Z',
-        modified: '2026-03-04T09:46:19Z',
+        modified: '2026-03-04T18:46:19',
+        modified_gmt: '2026-03-04T09:46:19',
         title: { rendered: 'No.89' },
         mime_type: 'application/pdf',
         source_url: 'https://example.com/No.89.pdf',
@@ -132,7 +134,8 @@ describe('wordpress', () => {
       const older: MediaFile = {
         id: 2807,
         date: '2026-03-04T09:46:19Z',
-        modified: '2026-03-04T09:46:19Z',
+        modified: '2026-03-04T18:46:19',
+        modified_gmt: '2026-03-04T09:46:19',
         title: { rendered: 'No.89' },
         mime_type: 'application/pdf',
         source_url: 'https://example.com/No.89.pdf',
@@ -142,7 +145,8 @@ describe('wordpress', () => {
       const newer: MediaFile = {
         id: 2808,
         date: '2026-03-04T09:55:17Z',
-        modified: '2026-03-04T09:55:17Z',
+        modified: '2026-03-04T18:55:17',
+        modified_gmt: '2026-03-04T09:55:17',
         title: { rendered: 'No.89' },
         mime_type: 'application/pdf',
         source_url: 'https://example.com/No.89-1.pdf',
@@ -160,7 +164,8 @@ describe('wordpress', () => {
       const media: MediaFile = {
         id: 2840,
         date: '2026-03-15T10:00:00Z',
-        modified: '2026-03-15T10:00:00Z',
+        modified: '2026-03-15T19:00:00',
+        modified_gmt: '2026-03-15T10:00:00',
         title: { rendered: '2026年度バレエ教室プリエ募集' },
         mime_type: 'application/pdf',
         source_url: 'https://tatibana.ed.jp/youtien/wp-content/uploads/2026/03/ballet.pdf',
@@ -176,7 +181,8 @@ describe('wordpress', () => {
       const media: MediaFile = {
         id: 100,
         date: '2026-05-01T00:00:00Z',
-        modified: '2026-05-01T00:00:00Z',
+        modified: '2026-05-01T09:00:00',
+        modified_gmt: '2026-05-01T00:00:00',
         title: { rendered: 'テスト' },
         mime_type: 'application/pdf',
         source_url: 'https://example.com/test.pdf',
