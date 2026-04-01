@@ -42,11 +42,11 @@ export default function DocumentList({ documents }: DocumentListProps) {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
   }
 
-  // publish_date（YYYY-MM-DD）を「2026年3月」形式で表示、null なら updated_at の日時を表示
+  // publish_date（YYYY-MM-DD）を「2026年3月15日」形式で表示、null なら updated_at の日時を表示
   const formatPublishDate = (publishDate: string | null, updatedAt: string) => {
     if (publishDate) {
       const d = new Date(`${publishDate}T00:00:00`)
-      return d.toLocaleDateString('ja-JP', { year: 'numeric', month: 'long' })
+      return d.toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric' })
     }
     return new Date(updatedAt).toLocaleDateString('ja-JP', {
       year: 'numeric',
