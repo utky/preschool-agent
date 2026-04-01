@@ -149,7 +149,9 @@ CREATE TABLE documents (
 
   -- タイムスタンプ
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP(),
-  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP()
+  -- WordPressクローラー分: GCSメタデータの modified_gmt（event time）を優先
+  -- GAS（Google Drive）分: GCSオブジェクトの updated（process time）にフォールバック
+  updated_at TIMESTAMP NOT NULL
 )
 PARTITION BY publish_date
 CLUSTER BY document_type
