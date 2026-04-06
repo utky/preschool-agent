@@ -130,6 +130,9 @@ generated AS (
 ),
 
 unnested AS (
+    -- LLMが同一ドキュメントから同じイベントを複数回出力する場合があるため、
+    -- (document_id, event_date, event_time, event_title) の組み合わせで重複排除する。
+    -- event_descriptionが異なる場合はより詳細な説明（文字数が多い方）を優先する。
     SELECT
         g.document_id,
         JSON_VALUE(ev, '$.event_date') AS event_date_str,
@@ -137,6 +140,14 @@ unnested AS (
         JSON_VALUE(ev, '$.event_title') AS event_title,
         JSON_VALUE(ev, '$.event_description') AS event_description
     FROM generated AS g, UNNEST(JSON_QUERY_ARRAY(g.ml_generate_text_llm_result, '$.events')) AS ev
+    QUALIFY ROW_NUMBER() OVER (
+        PARTITION BY
+            g.document_id,
+            JSON_VALUE(ev, '$.event_date'),
+            COALESCE(JSON_VALUE(ev, '$.event_time'), ''),
+            JSON_VALUE(ev, '$.event_title')
+        ORDER BY LENGTH(JSON_VALUE(ev, '$.event_description')) DESC
+    ) = 1
 )
 
 SELECT
