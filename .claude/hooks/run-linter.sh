@@ -76,6 +76,23 @@ if [ "$EXT" = "sql" ]; then
 
 ${LINT_OUTPUT}"
   fi
+
+  # dbt モデルの thinkingBudget が 0 以外に設定されていないかチェック
+  if echo "$FILE_PATH" | grep -q "/dbt/models/"; then
+    THINKING_LINES=$(grep -n '"thinkingBudget"' "$FILE_PATH" 2>/dev/null || true)
+    if [ -n "$THINKING_LINES" ]; then
+      NON_ZERO=$(echo "$THINKING_LINES" | grep -v '"thinkingBudget": 0' || true)
+      if [ -n "$NON_ZERO" ]; then
+        block_with_reason "thinkingBudget が 0 以外の値に設定されています。
+Vertex AI コスト削減のため thinkingBudget: 0 を使用してください。
+
+問題の箇所:
+${NON_ZERO}
+
+参考: .claude/rules/thinking-budget.md"
+      fi
+    fi
+  fi
 fi
 
 # Linterパス

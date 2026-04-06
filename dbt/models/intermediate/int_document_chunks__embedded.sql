@@ -1,6 +1,8 @@
 {{
     config(
-        materialized='table',
+        materialized='incremental',
+        unique_key='chunk_id',
+        incremental_strategy='merge',
         schema='school_agent',
         labels={
             'layer': 'intermediate',
@@ -11,6 +13,7 @@
 
 -- チャンクにベクトル埋め込みを生成する中間モデル
 -- ML.GENERATE_EMBEDDINGはephemeralでは使用不可のためtableで永続化
+-- incrementalにより新規チャンクのみembeddingを生成（コスト最適化）
 
 WITH chunks AS (
     SELECT
@@ -24,6 +27,9 @@ WITH chunks AS (
         md5_hash,
         updated_at
     FROM {{ ref('int_extracted_texts__chunked') }}
+    {% if is_incremental() %}
+        WHERE chunk_id NOT IN (SELECT chunk_id FROM {{ this }}) -- noqa: RF02
+    {% endif %}
 ),
 
 embedded AS (
