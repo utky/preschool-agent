@@ -10,6 +10,20 @@ function formatDate(dateStr: string): string {
   return `${year}年${month}月${day}日`
 }
 
+// iCalファイルをダウンロードする（純粋関数）
+function downloadIcal(icalContent: string, title: string): void {
+  const blob = new Blob([icalContent], { type: 'text/calendar' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  // タイトルからファイル名に使えない文字を除去
+  a.download = `${title.replace(/[/\\?%*:|"<>]/g, '-')}.ics`
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+}
+
 export default function EventCard({ event }: Props) {
   return (
     <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-4">
@@ -30,11 +44,17 @@ export default function EventCard({ event }: Props) {
             {event.document_title}
           </Link>
         </div>
-        {event.is_synced && (
-          <span className="flex-shrink-0 inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
-            登録済み
-          </span>
-        )}
+        <button
+          type="button"
+          onClick={() => downloadIcal(event.ical_content, event.event_title)}
+          className="flex-shrink-0 inline-flex items-center gap-1 rounded-md border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-700 shadow-sm hover:bg-gray-50"
+          title="iCalをダウンロード"
+        >
+          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+          </svg>
+          iCal
+        </button>
       </div>
     </div>
   )

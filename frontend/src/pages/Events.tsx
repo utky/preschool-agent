@@ -1,14 +1,12 @@
 import { useState, useEffect, useMemo } from 'react'
-import { apiGet, apiPost } from '@/lib/api'
+import { apiGet } from '@/lib/api'
 import EventCard from '@/components/events/EventCard'
-import type { CalendarEvent, EventsResponse, CalendarSyncResult } from '@/types/events'
+import type { CalendarEvent, EventsResponse } from '@/types/events'
 
 export default function Events() {
   const [events, setEvents] = useState<CalendarEvent[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [isSyncing, setIsSyncing] = useState(false)
-  const [syncResult, setSyncResult] = useState<CalendarSyncResult | null>(null)
 
   const fetchEvents = async () => {
     try {
@@ -20,21 +18,6 @@ export default function Events() {
       setError('Failed to load events')
     } finally {
       setIsLoading(false)
-    }
-  }
-
-  const handleSync = async () => {
-    try {
-      setIsSyncing(true)
-      setSyncResult(null)
-      const result = await apiPost<CalendarSyncResult>('/api/calendar/sync')
-      setSyncResult(result)
-      // 同期後にイベント一覧を再取得
-      await fetchEvents()
-    } catch {
-      setError('Failed to sync events')
-    } finally {
-      setIsSyncing(false)
     }
   }
 
@@ -71,37 +54,7 @@ export default function Events() {
             保育園PDFから自動抽出した行事予定
           </p>
         </div>
-        <button
-          onClick={handleSync}
-          disabled={isSyncing}
-          className="mt-4 sm:mt-0 inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {isSyncing ? (
-            <>
-              <svg className="-ml-0.5 mr-1.5 h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-              </svg>
-              同期中...
-            </>
-          ) : (
-            <>
-              <svg className="-ml-0.5 mr-1.5 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-              今すぐ同期
-            </>
-          )}
-        </button>
       </div>
-
-      {syncResult && (
-        <div className="mb-4 rounded-md bg-green-50 p-4">
-          <p className="text-sm text-green-800">
-            同期完了: {syncResult.synced}件登録、{syncResult.failed}件失敗
-          </p>
-        </div>
-      )}
 
       {error ? (
         <div className="rounded-md bg-red-50 p-4">

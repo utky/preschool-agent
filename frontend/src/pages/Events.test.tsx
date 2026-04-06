@@ -1,14 +1,16 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { MemoryRouter } from 'react-router-dom'
 import Events from './Events'
-import { apiGet, apiPost } from '@/lib/api'
-import type { EventsResponse, CalendarSyncResult } from '@/types/events'
+import { apiGet } from '@/lib/api'
+import type { EventsResponse } from '@/types/events'
 
 vi.mock('@/lib/api', () => ({
   apiGet: vi.fn(),
   apiPost: vi.fn(),
 }))
+
+const MOCK_ICAL = 'BEGIN:VCALENDAR\nVERSION:2.0\nBEGIN:VEVENT\nSUMMARY:入園式\nEND:VEVENT\nEND:VCALENDAR'
 
 const mockEventsResponse: EventsResponse = {
   events: [
@@ -20,10 +22,7 @@ const mockEventsResponse: EventsResponse = {
       event_time: '10:00',
       event_title: '入園式',
       event_description: '春の入園式',
-      extracted_at: '2026-02-01T00:00:00Z',
-      is_synced: true,
-      calendar_event_id: 'gcal_001',
-      synced_at: '2026-02-10T10:00:00Z',
+      ical_content: MOCK_ICAL,
     },
     {
       event_id: 'def456',
@@ -33,10 +32,7 @@ const mockEventsResponse: EventsResponse = {
       event_time: null,
       event_title: '春の遠足',
       event_description: '公園への遠足',
-      extracted_at: '2026-02-01T00:00:00Z',
-      is_synced: false,
-      calendar_event_id: null,
-      synced_at: null,
+      ical_content: MOCK_ICAL,
     },
   ],
 }
@@ -104,35 +100,6 @@ describe('Events', () => {
     })
   })
 
-  it('should trigger sync and show result on sync button click', async () => {
-    vi.mocked(apiGet).mockResolvedValue(mockEventsResponse)
-    const syncResult: CalendarSyncResult = { synced: 1, skipped: 0, failed: 0, errors: [] }
-    vi.mocked(apiPost).mockResolvedValue(syncResult)
-
-    renderEvents()
-
-    await waitFor(() => {
-      expect(screen.getByText('入園式')).toBeInTheDocument()
-    })
-
-    const syncButton = screen.getByRole('button', { name: /今すぐ同期/ })
-    fireEvent.click(syncButton)
-
-    await waitFor(() => {
-      expect(apiPost).toHaveBeenCalledWith('/api/calendar/sync')
-    })
-  })
-
-  it('should display synced badge on synced events', async () => {
-    vi.mocked(apiGet).mockResolvedValue(mockEventsResponse)
-
-    renderEvents()
-
-    await waitFor(() => {
-      expect(screen.getByText('登録済み')).toBeInTheDocument()
-    })
-  })
-
   it('should display document title as link', async () => {
     vi.mocked(apiGet).mockResolvedValue(mockEventsResponse)
 
@@ -156,10 +123,7 @@ describe('Events', () => {
           event_time: null,
           event_title: '遅い行事',
           event_description: '',
-          extracted_at: '2026-02-01T00:00:00Z',
-          is_synced: false,
-          calendar_event_id: null,
-          synced_at: null,
+          ical_content: MOCK_ICAL,
         },
         {
           event_id: 'a001',
@@ -169,10 +133,7 @@ describe('Events', () => {
           event_time: null,
           event_title: '早い行事',
           event_description: '',
-          extracted_at: '2026-02-01T00:00:00Z',
-          is_synced: false,
-          calendar_event_id: null,
-          synced_at: null,
+          ical_content: MOCK_ICAL,
         },
       ],
     }
@@ -200,10 +161,7 @@ describe('Events', () => {
           event_time: null,
           event_title: '時刻なし行事',
           event_description: '',
-          extracted_at: '2026-02-01T00:00:00Z',
-          is_synced: false,
-          calendar_event_id: null,
-          synced_at: null,
+          ical_content: MOCK_ICAL,
         },
         {
           event_id: 'b002',
@@ -213,10 +171,7 @@ describe('Events', () => {
           event_time: '14:00',
           event_title: '午後の行事',
           event_description: '',
-          extracted_at: '2026-02-01T00:00:00Z',
-          is_synced: false,
-          calendar_event_id: null,
-          synced_at: null,
+          ical_content: MOCK_ICAL,
         },
         {
           event_id: 'a001',
@@ -226,10 +181,7 @@ describe('Events', () => {
           event_time: '09:00',
           event_title: '午前の行事',
           event_description: '',
-          extracted_at: '2026-02-01T00:00:00Z',
-          is_synced: false,
-          calendar_event_id: null,
-          synced_at: null,
+          ical_content: MOCK_ICAL,
         },
       ],
     }
