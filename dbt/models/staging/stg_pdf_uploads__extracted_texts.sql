@@ -30,8 +30,19 @@ WITH generated AS (
                 content_type = 'application/pdf'
                 {% if var('start_datetime', none) is not none and var('end_datetime', none) is not none %}
 
+                    -- Object Table の述語プッシュダウンを活用するため updated でスキャン範囲を絞る
+                    -- modified_gmt（WordPress更新日時）と updated（GCSアップロード時刻）のズレを考慮して +1日のバッファを持たせる
                     AND updated >= TIMESTAMP('{{ var("start_datetime") }}')
-                    AND updated < TIMESTAMP('{{ var("end_datetime") }}')
+                    AND updated < TIMESTAMP_ADD(TIMESTAMP('{{ var("end_datetime") }}'), INTERVAL 1 DAY)
+                    -- updated_at カラムの定義と一致させるため modified_gmt 優先で正確な時間ウィンドウ判定を行う
+                    AND COALESCE(
+                        TIMESTAMP((SELECT value FROM UNNEST(metadata) WHERE name = 'modified_gmt')),
+                        updated
+                    ) >= TIMESTAMP('{{ var("start_datetime") }}')
+                    AND COALESCE(
+                        TIMESTAMP((SELECT value FROM UNNEST(metadata) WHERE name = 'modified_gmt')),
+                        updated
+                    ) < TIMESTAMP('{{ var("end_datetime") }}')
 
                 {% endif %}
                 {% if is_incremental() %}
