@@ -43,8 +43,7 @@ describe('EventTable', () => {
     expect(screen.getByText('時刻')).toBeInTheDocument()
     expect(screen.getByText('タイトル')).toBeInTheDocument()
     expect(screen.getByText('文書')).toBeInTheDocument()
-    // <th> 要素にある「iCal」ヘッダーを確認（ボタン内と区別するためcolumnheader roleで検索）
-    expect(screen.getByRole('columnheader', { name: 'iCal' })).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: 'カレンダー' })).toBeInTheDocument()
   })
 
   it('should render one row per event', () => {
@@ -79,11 +78,12 @@ describe('EventTable', () => {
     expect(link).toHaveAttribute('href', '/documents/doc1')
   })
 
-  it('should render iCal download button for each event', () => {
+  it('should render Google Calendar link for each event', () => {
     renderTable([mockTimedEvent, mockAllDayEvent])
 
-    const buttons = screen.getAllByRole('button', { name: /iCal/ })
-    expect(buttons).toHaveLength(2)
+    const links = screen.getAllByRole('link')
+    const gcalLinks = links.filter((l) => l.getAttribute('href')?.includes('calendar.google.com'))
+    expect(gcalLinks).toHaveLength(2)
   })
 
   it('should show empty message when events array is empty', () => {
