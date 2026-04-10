@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { MemoryRouter } from 'react-router-dom'
 import EventCard from './EventCard'
@@ -66,10 +66,12 @@ describe('EventCard', () => {
     expect(screen.queryByText('10:00')).not.toBeInTheDocument()
   })
 
-  it('should render download iCal button', () => {
+  it('should render Google Calendar link', () => {
     renderCard(mockTimedEvent)
 
-    expect(screen.getByRole('button', { name: /iCal/ })).toBeInTheDocument()
+    const links = screen.getAllByRole('link')
+    const gcalLink = links.find((l) => l.getAttribute('href')?.includes('calendar.google.com'))
+    expect(gcalLink).toBeDefined()
   })
 
   it('should render document title as link to document page', () => {
@@ -80,20 +82,36 @@ describe('EventCard', () => {
     expect(link).toHaveAttribute('href', '/documents/doc1')
   })
 
-  it('should trigger download on iCal button click', () => {
-    // Blob URL ダウンロードのモック
-    const createObjectURL = vi.fn().mockReturnValue('blob:mock')
-    const revokeObjectURL = vi.fn()
-    global.URL.createObjectURL = createObjectURL
-    global.URL.revokeObjectURL = revokeObjectURL
-
-    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
-
+  it('should build correct Google Calendar URL for timed event', () => {
     renderCard(mockTimedEvent)
 
-    fireEvent.click(screen.getByRole('button', { name: /iCal/ }))
+    const links = screen.getAllByRole('link')
+    const gcalLink = links.find((l) => l.getAttribute('href')?.includes('calendar.google.com'))
+    const href = gcalLink?.getAttribute('href') ?? ''
 
-    expect(createObjectURL).toHaveBeenCalled()
-    expect(clickSpy).toHaveBeenCalled()
+    // dates=20260401T100000/20260401T110000
+    expect(href).toContain('dates=20260401T100000%2F20260401T110000')
+    expect(href).toContain('text=%E5%85%A5%E5%9C%92%E5%BC%8F')
+    expect(href).toContain('ctz=Asia%2FTokyo')
+  })
+
+  it('should build correct Google Calendar URL for all-day event', () => {
+    renderCard(mockAllDayEvent)
+
+    const links = screen.getAllByRole('link')
+    const gcalLink = links.find((l) => l.getAttribute('href')?.includes('calendar.google.com'))
+    const href = gcalLink?.getAttribute('href') ?? ''
+
+    // 終日イベント: dates=20260501/20260502
+    expect(href).toContain('dates=20260501%2F20260502')
+  })
+
+  it('should open Google Calendar link in new tab', () => {
+    renderCard(mockTimedEvent)
+
+    const links = screen.getAllByRole('link')
+    const gcalLink = links.find((l) => l.getAttribute('href')?.includes('calendar.google.com'))
+    expect(gcalLink).toHaveAttribute('target', '_blank')
+    expect(gcalLink).toHaveAttribute('rel', 'noopener noreferrer')
   })
 })
