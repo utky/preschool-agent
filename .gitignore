@@ -2,6 +2,7 @@
 
 # claude
 .claude/settings.local.json
+.claude/worktrees/
 
 # dependencies
 node_modules
