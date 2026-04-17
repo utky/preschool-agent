@@ -3,7 +3,12 @@ import { apiGet } from '@/lib/api'
 import EventCard from '@/components/events/EventCard'
 import type { CalendarEvent, EventsResponse } from '@/types/events'
 
-export default function Events() {
+function getTodayStr(): string {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+export default function Events({ today = getTodayStr() }: { today?: string }) {
   const [events, setEvents] = useState<CalendarEvent[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -25,16 +30,18 @@ export default function Events() {
     fetchEvents()
   }, [])
 
-  // event_date ASC, event_time ASC（null は末尾）でソート
+  // 当日以降のみ表示し、event_date ASC, event_time ASC（null は末尾）でソート
   const sortedEvents = useMemo(() =>
-    [...events].sort((a, b) => {
-      const dateCmp = a.event_date.localeCompare(b.event_date)
-      if (dateCmp !== 0) return dateCmp
-      const aTime = a.event_time ?? '99:99'
-      const bTime = b.event_time ?? '99:99'
-      return aTime.localeCompare(bTime)
-    }),
-    [events]
+    [...events]
+      .filter((e) => e.event_date >= today)
+      .sort((a, b) => {
+        const dateCmp = a.event_date.localeCompare(b.event_date)
+        if (dateCmp !== 0) return dateCmp
+        const aTime = a.event_time ?? '99:99'
+        const bTime = b.event_time ?? '99:99'
+        return aTime.localeCompare(bTime)
+      }),
+    [events, today]
   )
 
   if (isLoading) {
