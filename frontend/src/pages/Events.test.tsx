@@ -12,13 +12,14 @@ vi.mock('@/lib/api', () => ({
 
 const MOCK_ICAL = 'BEGIN:VCALENDAR\nVERSION:2.0\nBEGIN:VEVENT\nSUMMARY:入園式\nEND:VEVENT\nEND:VCALENDAR'
 
+// today='2026-04-17' を基準にした固定モックデータ
 const mockEventsResponse: EventsResponse = {
   events: [
     {
       event_id: 'abc123',
       document_id: 'doc1',
       document_title: '令和8年度春の行事予定',
-      event_date: '2026-04-01',
+      event_date: '2026-04-17',
       event_time: '10:00',
       event_title: '入園式',
       event_description: '春の入園式',
@@ -37,10 +38,12 @@ const mockEventsResponse: EventsResponse = {
   ],
 }
 
-const renderEvents = () => {
+const TODAY = '2026-04-17'
+
+const renderEvents = (today = TODAY) => {
   return render(
     <MemoryRouter>
-      <Events />
+      <Events today={today} />
     </MemoryRouter>
   )
 }
@@ -129,7 +132,7 @@ describe('Events', () => {
           event_id: 'a001',
           document_id: 'doc1',
           document_title: 'テスト',
-          event_date: '2026-04-01',
+          event_date: '2026-04-17',
           event_time: null,
           event_title: '早い行事',
           event_description: '',
@@ -197,5 +200,64 @@ describe('Events', () => {
     expect(titles[0]).toHaveTextContent('午前の行事')
     expect(titles[1]).toHaveTextContent('午後の行事')
     expect(titles[2]).toHaveTextContent('時刻なし行事')
+  })
+
+  it('should filter out past events', async () => {
+    const response: EventsResponse = {
+      events: [
+        {
+          event_id: 'past',
+          document_id: 'doc1',
+          document_title: 'テスト',
+          event_date: '2026-04-16',  // 昨日
+          event_time: null,
+          event_title: '過去の行事',
+          event_description: '',
+          ical_content: MOCK_ICAL,
+        },
+        {
+          event_id: 'future',
+          document_id: 'doc1',
+          document_title: 'テスト',
+          event_date: '2026-04-18',  // 明日
+          event_time: null,
+          event_title: '未来の行事',
+          event_description: '',
+          ical_content: MOCK_ICAL,
+        },
+      ],
+    }
+    vi.mocked(apiGet).mockResolvedValue(response)
+
+    renderEvents(TODAY)
+
+    await waitFor(() => {
+      expect(screen.getByText('未来の行事')).toBeInTheDocument()
+    })
+    expect(screen.queryByText('過去の行事')).not.toBeInTheDocument()
+  })
+
+  it('should display today\'s events', async () => {
+    const response: EventsResponse = {
+      events: [
+        {
+          event_id: 'today',
+          document_id: 'doc1',
+          document_title: 'テスト',
+          event_date: '2026-04-17',  // 当日
+          event_time: '10:00',
+          event_title: '当日の行事',
+          event_description: '',
+          ical_content: MOCK_ICAL,
+        },
+      ],
+    }
+    vi.mocked(apiGet).mockResolvedValue(response)
+
+    renderEvents(TODAY)
+
+    await waitFor(() => {
+      expect(screen.getByText('当日の行事')).toBeInTheDocument()
+    })
   })
 })
