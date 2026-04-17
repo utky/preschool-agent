@@ -281,6 +281,30 @@ dbtモデル（5モデル、20テスト）は定義済みだが、BigQuery上で
 
 ---
 
+## バグ修正: PDFパイプライン課題
+
+### 課題1: チャンク細切れバグ - TODO
+> 詳細プラン: `/home/node/.claude/plans/issue-chunking-bug.md`
+
+「R8-たちばな誌-No.3.pdf」の CHUNK11〜CHUNK111 が1文ずつの細切れになっている。
+
+- [ ] `dbt/models/intermediate/int_extracted_texts__chunked.sql` の `sentence_groups` CTE を修正
+  - `sentence_group_id` を `FLOOR(cumulative_len / 1500)` に変更
+- [ ] `dbt parse && dbt compile` で構文確認
+- [ ] BigQueryで「R8-たちばな誌-No.3.pdf」のチャンク数が20〜40件程度になることを確認
+
+### 課題2: 4/17発行ファイルが未取り込み - TODO
+> 詳細プラン: `/home/node/.claude/plans/issue-missing-files-0417.md`
+
+id 2866（たちばな誌 No.3）, 2865（5月のお知らせ）, 2861（たんぽぽ通信 04.17）が
+
+`gs://school-agent-lofilab-pdf-uploads/web/2026/04/` に存在しない。
+- [ ] GCPログ確認（Cloud Scheduler / Cloud Workflow / Cloud Run Job）
+- [ ] 原因特定後、手動バックフィルまたはコード修正
+- [ ] 取り込み確認: `gsutil ls gs://school-agent-lofilab-pdf-uploads/web/2026/04/`
+
+---
+
 ## スライス6: 文書種別構造化 - TODO
 
 **目標:** 各文書種別（journal, photo_album等）に特化したテーブルとビューを実装。
