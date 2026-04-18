@@ -169,33 +169,14 @@ final_chunks AS (
 sentence_groups AS (
     SELECT
         *,
-        -- 句点分割されたもの（sub_index > 0 があるブロック）だけ再グルーピング
-        SUM(
-            CASE
-                -- 累積長が1500を超えたら新グループ開始
-                WHEN cumulative_len > 1500 AND prev_cumulative_len <= 1500 THEN 1
-                WHEN cumulative_len > 1500 AND prev_cumulative_len > 1500 THEN 1
-                ELSE 0
-            END
-        ) OVER (
-            PARTITION BY document_id, section_index, block_order
-            ORDER BY sub_index
-        ) AS sentence_group_id
+        FLOOR(cumulative_len / 1500) AS sentence_group_id
     FROM (
         SELECT
             *,
             SUM(LENGTH(chunk_text) + 1) OVER (
                 PARTITION BY document_id, section_index, block_order
                 ORDER BY sub_index
-            ) AS cumulative_len,
-            COALESCE(
-                SUM(LENGTH(chunk_text) + 1) OVER (
-                    PARTITION BY document_id, section_index, block_order
-                    ORDER BY sub_index
-                    ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING
-                ),
-                0
-            ) AS prev_cumulative_len
+            ) AS cumulative_len
         FROM final_chunks
         WHERE sub_index > 0 OR (sub_index = 0 AND section_index >= 0)
     )

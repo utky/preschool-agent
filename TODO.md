@@ -288,9 +288,9 @@ dbtモデル（5モデル、20テスト）は定義済みだが、BigQuery上で
 
 「R8-たちばな誌-No.3.pdf」の CHUNK11〜CHUNK111 が1文ずつの細切れになっている。
 
-- [ ] `dbt/models/intermediate/int_extracted_texts__chunked.sql` の `sentence_groups` CTE を修正
+- [x] `dbt/models/intermediate/int_extracted_texts__chunked.sql` の `sentence_groups` CTE を修正
   - `sentence_group_id` を `FLOOR(cumulative_len / 1500)` に変更
-- [ ] `dbt parse && dbt compile` で構文確認
+- [x] `dbt parse && dbt compile` で構文確認
 - [ ] BigQueryで「R8-たちばな誌-No.3.pdf」のチャンク数が20〜40件程度になることを確認
 
 ### 課題2: 4/17発行ファイルが未取り込み - TODO
