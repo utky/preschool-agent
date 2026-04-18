@@ -293,15 +293,19 @@ dbtモデル（5モデル、20テスト）は定義済みだが、BigQuery上で
 - [x] `dbt parse && dbt compile` で構文確認
 - [ ] BigQueryで「R8-たちばな誌-No.3.pdf」のチャンク数が20〜40件程度になることを確認
 
-### 課題2: 4/17発行ファイルが未取り込み - TODO
+### 課題2: 4/17発行ファイルが未取り込み - DONE
 > 詳細プラン: `/home/node/.claude/plans/issue-missing-files-0417.md`
 
-id 2866（たちばな誌 No.3）, 2865（5月のお知らせ）, 2861（たんぽぽ通信 04.17）が
+**根本原因**: WordPress post 2861 に3種の異なるPDFが添付されていたが、
+`selectLatestAttachment` が modified_gmt 最新の1件のみ選択し残り2件（5月のお知らせ、たんぽぽ通信）を欠落させていた。
 
-`gs://school-agent-lofilab-pdf-uploads/web/2026/04/` に存在しない。
-- [ ] GCPログ確認（Cloud Scheduler / Cloud Workflow / Cloud Run Job）
-- [ ] 原因特定後、手動バックフィルまたはコード修正
-- [ ] 取り込み確認: `gsutil ls gs://school-agent-lofilab-pdf-uploads/web/2026/04/`
+**修正**: `deduplicateAttachments` を追加（タイトルごとにグループ化し各グループの最新版を選択）
+- [x] GCPログ確認（Cloud Scheduler / Cloud Workflow / Cloud Run Job）
+- [x] 原因特定: `selectLatestAttachment` による1投稿複数文書の欠落
+- [x] `crawler/src/wordpress.ts` に `deduplicateAttachments` を追加
+- [x] `crawler/src/main.ts` を `deduplicateAttachments` に変更
+- [x] `crawler/__tests__/wordpress.test.ts` にテスト追加（26件全通過）
+- [ ] デプロイ後に手動バックフィル実行（start=2026-04-17T09:00:00Z）して取り込み確認
 
 ---
 

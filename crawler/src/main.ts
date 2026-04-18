@@ -2,7 +2,7 @@
 
 import { Storage } from '@google-cloud/storage'
 import { loadConfig } from './config.js'
-import { fetchLetters, fetchAttachments, selectLatestAttachment, buildGcsPath } from './wordpress.js'
+import { fetchLetters, fetchAttachments, deduplicateAttachments, buildGcsPath } from './wordpress.js'
 import {
   isAlreadyUploaded,
   downloadPdf,
@@ -28,37 +28,38 @@ const run = async (): Promise<void> => {
       letter.id,
     )
 
-    // 複数添付がある場合は最新（訂正版）のみ処理する
-    // 設計方針: wordpress.ts の selectLatestAttachment 参照
-    const media = selectLatestAttachment(attachments)
-    if (!media) continue
+    // タイトルベースで重複排除（訂正版は最新のみ、異なる文書は全件）
+    // 設計方針: wordpress.ts の deduplicateAttachments 参照
+    const medias = deduplicateAttachments(attachments)
 
-    const gcsPath = buildGcsPath(media)
+    for (const media of medias) {
+      const gcsPath = buildGcsPath(media)
 
-    // 既にアップロード済みならスキップ（冪等性保証）
-    const alreadyUploaded = await isAlreadyUploaded(
-      storage,
-      config.gcsBucketName,
-      gcsPath,
-    )
-    if (alreadyUploaded) {
-      console.log(`スキップ（既存）: ${gcsPath}`)
-      results.push({ mediaId: media.id, gcsPath, skipped: true })
-      continue
+      // 既にアップロード済みならスキップ（冪等性保証）
+      const alreadyUploaded = await isAlreadyUploaded(
+        storage,
+        config.gcsBucketName,
+        gcsPath,
+      )
+      if (alreadyUploaded) {
+        console.log(`スキップ（既存）: ${gcsPath}`)
+        results.push({ mediaId: media.id, gcsPath, skipped: true })
+        continue
+      }
+
+      const pdfBuffer = await downloadPdf(media.source_url, config.wordpressBaseUrl)
+
+      await uploadToGcs(
+        storage,
+        config.gcsBucketName,
+        gcsPath,
+        pdfBuffer,
+        media,
+      )
+
+      console.log(`アップロード完了: ${gcsPath}`)
+      results.push({ mediaId: media.id, gcsPath, skipped: false })
     }
-
-    const pdfBuffer = await downloadPdf(media.source_url, config.wordpressBaseUrl)
-
-    await uploadToGcs(
-      storage,
-      config.gcsBucketName,
-      gcsPath,
-      pdfBuffer,
-      media,
-    )
-
-    console.log(`アップロード完了: ${gcsPath}`)
-    results.push({ mediaId: media.id, gcsPath, skipped: false })
   }
 
   const uploaded = results.filter((r) => !r.skipped).length
