@@ -1,5 +1,5 @@
 import { jest, describe, it, expect, afterEach } from '@jest/globals'
-import { fetchLetters, fetchAttachments, selectLatestAttachment, buildGcsPath, sanitizeFilename } from '../src/wordpress.js'
+import { fetchLetters, fetchAttachments, selectLatestAttachment, deduplicateAttachments, buildGcsPath, sanitizeFilename } from '../src/wordpress.js'
 import type { LetterPost, MediaFile } from '../src/types.js'
 
 describe('wordpress', () => {
@@ -156,6 +156,128 @@ describe('wordpress', () => {
       // 順序に関わらず最新が返ること
       expect(selectLatestAttachment([older, newer])).toBe(newer)
       expect(selectLatestAttachment([newer, older])).toBe(newer)
+    })
+  })
+
+  describe('deduplicateAttachments', () => {
+    it('should return empty array for empty input', () => {
+      expect(deduplicateAttachments([])).toEqual([])
+    })
+
+    it('should return all attachments when titles are different', () => {
+      // 4/17の実際のケース: 1つのpostに異なる文書が3件添付されている
+      const tanpopo: MediaFile = {
+        id: 2862,
+        date: '2026-04-17T10:21:19',
+        modified: '2026-04-17T10:21:19',
+        modified_gmt: '2026-04-17T10:21:19',
+        title: { rendered: 'R8 たんぽぽ通信 04.17' },
+        mime_type: 'application/pdf',
+        source_url: 'https://example.com/tanpopo.pdf',
+        post: 2861,
+      }
+      const may: MediaFile = {
+        id: 2863,
+        date: '2026-04-17T10:21:20',
+        modified: '2026-04-17T10:21:20',
+        modified_gmt: '2026-04-17T10:21:20',
+        title: { rendered: 'R8 5月のお知らせ' },
+        mime_type: 'application/pdf',
+        source_url: 'https://example.com/may.pdf',
+        post: 2861,
+      }
+      const tachibana: MediaFile = {
+        id: 2864,
+        date: '2026-04-17T10:21:32',
+        modified: '2026-04-17T10:21:32',
+        modified_gmt: '2026-04-17T10:21:32',
+        title: { rendered: 'R8 たちばな誌 No.3' },
+        mime_type: 'application/pdf',
+        source_url: 'https://example.com/tachibana.pdf',
+        post: 2861,
+      }
+
+      const result = deduplicateAttachments([tanpopo, may, tachibana])
+
+      // 異なるタイトルなので全件返ること
+      expect(result).toHaveLength(3)
+      expect(result).toContain(tanpopo)
+      expect(result).toContain(may)
+      expect(result).toContain(tachibana)
+    })
+
+    it('should keep only latest when same title exists (訂正版ケース)', () => {
+      const older: MediaFile = {
+        id: 2807,
+        date: '2026-03-04T09:46:19Z',
+        modified: '2026-03-04T18:46:19',
+        modified_gmt: '2026-03-04T09:46:19',
+        title: { rendered: 'No.89' },
+        mime_type: 'application/pdf',
+        source_url: 'https://example.com/No.89.pdf',
+        post: 2806,
+      }
+      const newer: MediaFile = {
+        id: 2808,
+        date: '2026-03-04T09:55:17Z',
+        modified: '2026-03-04T18:55:17',
+        modified_gmt: '2026-03-04T09:55:17',
+        title: { rendered: 'No.89' },
+        mime_type: 'application/pdf',
+        source_url: 'https://example.com/No.89-1.pdf',
+        post: 2806,
+      }
+
+      const result = deduplicateAttachments([older, newer])
+
+      // 同じタイトルなので最新の1件のみ返ること（順序不問）
+      expect(result).toHaveLength(1)
+      expect(result[0]).toBe(newer)
+
+      const resultReversed = deduplicateAttachments([newer, older])
+      expect(resultReversed).toHaveLength(1)
+      expect(resultReversed[0]).toBe(newer)
+    })
+
+    it('should handle mix of duplicate titles and unique titles', () => {
+      const olderA: MediaFile = {
+        id: 100,
+        date: '2026-03-01T00:00:00',
+        modified: '2026-03-01T00:00:00',
+        modified_gmt: '2026-03-01T00:00:00',
+        title: { rendered: '文書A' },
+        mime_type: 'application/pdf',
+        source_url: 'https://example.com/a.pdf',
+        post: 1,
+      }
+      const newerA: MediaFile = {
+        id: 101,
+        date: '2026-03-01T01:00:00',
+        modified: '2026-03-01T01:00:00',
+        modified_gmt: '2026-03-01T01:00:00',
+        title: { rendered: '文書A' },
+        mime_type: 'application/pdf',
+        source_url: 'https://example.com/a-1.pdf',
+        post: 1,
+      }
+      const uniqueB: MediaFile = {
+        id: 102,
+        date: '2026-03-01T00:30:00',
+        modified: '2026-03-01T00:30:00',
+        modified_gmt: '2026-03-01T00:30:00',
+        title: { rendered: '文書B' },
+        mime_type: 'application/pdf',
+        source_url: 'https://example.com/b.pdf',
+        post: 1,
+      }
+
+      const result = deduplicateAttachments([olderA, newerA, uniqueB])
+
+      // 文書A: 最新のnewerAのみ、文書B: そのまま → 計2件
+      expect(result).toHaveLength(2)
+      expect(result).toContain(newerA)
+      expect(result).toContain(uniqueB)
+      expect(result).not.toContain(olderA)
     })
   })
 

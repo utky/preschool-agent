@@ -64,6 +64,26 @@ export const selectLatestAttachment = (attachments: MediaFile[]): MediaFile | un
 }
 
 /**
+ * 複数添付からタイトルベースで重複を排除する純粋関数
+ *
+ * 【設計方針】
+ * - 同じタイトルの添付が複数ある場合（訂正版）: 最新のみ残す
+ * - タイトルが異なる添付が複数ある場合（1投稿に複数文書）: 全件残す
+ *   例: WordPress運用上、1投稿に複数の異なるPDFが添付されることがある
+ */
+export const deduplicateAttachments = (attachments: MediaFile[]): MediaFile[] => {
+  const groups = new Map<string, MediaFile>()
+  for (const attachment of attachments) {
+    const key = sanitizeFilename(attachment.title.rendered)
+    const existing = groups.get(key)
+    if (!existing || new Date(attachment.modified_gmt).getTime() > new Date(existing.modified_gmt).getTime()) {
+      groups.set(key, attachment)
+    }
+  }
+  return Array.from(groups.values())
+}
+
+/**
  * 指定したletter投稿に紐づくPDF添付ファイルを取得する
  */
 export const fetchAttachments = async (
