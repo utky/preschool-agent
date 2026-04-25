@@ -1,6 +1,9 @@
 {{
     config(
-        materialized='ephemeral'
+        materialized='incremental',
+        unique_key=['document_id', 'chunk_index'],
+        incremental_strategy='merge',
+        pre_hook="{{ delete_stale_chunks() }}"
     )
 }}
 
@@ -21,6 +24,13 @@ WITH source AS (
         -- 改行を正規化（\r\n → \n）
         REGEXP_REPLACE(extracted_markdown, r'\r\n', '\n') AS extracted_markdown
     FROM {{ ref('stg_pdf_uploads__extracted_texts') }}
+    {% if is_incremental() %}
+    -- 既存チャンクと同じ (uri, md5_hash) の組み合わせは再処理不要
+    -- pre_hook で削除された文書（md5_hash 変化）はここに含まれる
+    WHERE (uri, md5_hash) NOT IN (
+        SELECT DISTINCT uri, md5_hash FROM {{ this }}
+    )
+    {% endif %}
 ),
 
 -- Level A: 見出し（## / ###）でセクション分割
