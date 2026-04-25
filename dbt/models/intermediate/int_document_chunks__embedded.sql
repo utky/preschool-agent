@@ -7,13 +7,14 @@
         labels={
             'layer': 'intermediate',
             'application': 'school-agent'
-        }
+        },
+        pre_hook="{% if is_incremental() %}DELETE FROM {{ this }} WHERE chunk_id NOT IN (SELECT chunk_id FROM {{ ref('int_extracted_texts__chunked') }}){% endif %}"
     )
 }}
 
 -- チャンクにベクトル埋め込みを生成する中間モデル
--- ML.GENERATE_EMBEDDINGはephemeralでは使用不可のためtableで永続化
--- incrementalにより新規チャンクのみembeddingを生成（コスト最適化）
+-- incrementalにより新規チャンクおよびコンテンツ変更チャンクのみembeddingを生成（コスト最適化）
+-- pre_hookで削除されたチャンクのorphan embeddingを掃除する
 
 WITH chunks AS (
     SELECT
@@ -28,7 +29,13 @@ WITH chunks AS (
         updated_at
     FROM {{ ref('int_extracted_texts__chunked') }}
     {% if is_incremental() %}
-        WHERE chunk_id NOT IN (SELECT chunk_id FROM {{ this }}) -- noqa: RF02
+        -- chunk_id が存在しても md5_hash（文書コンテンツ）が変わっていれば再 embedding
+        WHERE (chunk_id, md5_hash) NOT IN (
+            SELECT
+                t.chunk_id,
+                t.md5_hash
+            FROM {{ this }} AS t
+        )
     {% endif %}
 ),
 
