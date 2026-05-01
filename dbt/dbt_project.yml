@@ -26,6 +26,7 @@ query-comment:
 on-run-start:
   - "{{ create_ocr_model() }}"
   - "{{ create_url_decode_udf() }}"
+  - "{{ create_split_by_headings_udf() }}"
   - "{{ create_embedding_model() }}"
   - "{{ create_document_type_rules_table() }}"
 

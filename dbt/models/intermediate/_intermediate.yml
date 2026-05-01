@@ -46,3 +46,88 @@ models:
         description: "768次元のベクトル埋め込み（FLOAT64配列）"
         data_tests:
           - not_null
+
+unit_tests:
+  - name: test_bullet_triggers_section_split
+    description: "● で始まる行がセクション分割ポイントになり、前後が別チャンクになること"
+    model: int_extracted_texts__chunked
+    overrides:
+      macros:
+        is_incremental: false
+    given:
+      - input: ref('stg_pdf_uploads__extracted_texts')
+        rows:
+          - document_id: "test_doc_1"
+            uri: "gs://test/test1.pdf"
+            content_type: "application/pdf"
+            size: 100
+            md5_hash: "hash1"
+            updated_at: "2026-04-25 00:00:00 UTC"
+            extracted_markdown: "イントロのテキストです。\n\n●セクションの詳細内容"
+    expect:
+      rows:
+        - {document_id: "test_doc_1", chunk_index: 0, chunk_text: "イントロのテキストです。"}
+        - {document_id: "test_doc_1", chunk_index: 1, chunk_text: "●セクションの詳細内容"}
+
+  - name: test_arrow_triggers_section_split
+    description: "▶ で始まる行がセクション分割ポイントになり、前後が別チャンクになること"
+    model: int_extracted_texts__chunked
+    overrides:
+      macros:
+        is_incremental: false
+    given:
+      - input: ref('stg_pdf_uploads__extracted_texts')
+        rows:
+          - document_id: "test_doc_2"
+            uri: "gs://test/test2.pdf"
+            content_type: "application/pdf"
+            size: 100
+            md5_hash: "hash2"
+            updated_at: "2026-04-25 00:00:00 UTC"
+            extracted_markdown: "冒頭のテキストです。\n\n▶イベント予告の詳細内容"
+    expect:
+      rows:
+        - {document_id: "test_doc_2", chunk_index: 0, chunk_text: "冒頭のテキストです。"}
+        - {document_id: "test_doc_2", chunk_index: 1, chunk_text: "▶イベント予告の詳細内容"}
+
+  - name: test_italic_heading_triggers_section_split
+    description: "*短文* 形式の見出しがセクション分割ポイントになり、前後が別チャンクになること"
+    model: int_extracted_texts__chunked
+    overrides:
+      macros:
+        is_incremental: false
+    given:
+      - input: ref('stg_pdf_uploads__extracted_texts')
+        rows:
+          - document_id: "test_doc_3"
+            uri: "gs://test/test3.pdf"
+            content_type: "application/pdf"
+            size: 100
+            md5_hash: "hash3"
+            updated_at: "2026-04-25 00:00:00 UTC"
+            extracted_markdown: "前半のテキスト内容です。\n\n*5月のお知らせ情報*\n\n後半のテキスト内容です。"
+    expect:
+      rows:
+        - {document_id: "test_doc_3", chunk_index: 0, chunk_text: "前半のテキスト内容です。"}
+        - {document_id: "test_doc_3", chunk_index: 1, chunk_text: "*5月のお知らせ情報*\n\n後半のテキスト内容です。"}
+
+  - name: test_consecutive_bullets_create_separate_chunks
+    description: "連続する ● ブロックがそれぞれ独立したチャンクとして取り出されること"
+    model: int_extracted_texts__chunked
+    overrides:
+      macros:
+        is_incremental: false
+    given:
+      - input: ref('stg_pdf_uploads__extracted_texts')
+        rows:
+          - document_id: "test_doc_4"
+            uri: "gs://test/test4.pdf"
+            content_type: "application/pdf"
+            size: 100
+            md5_hash: "hash4"
+            updated_at: "2026-04-25 00:00:00 UTC"
+            extracted_markdown: "●最初のセクション内容\n\n●二番目のセクション内容"
+    expect:
+      rows:
+        - {document_id: "test_doc_4", chunk_index: 0, chunk_text: "●最初のセクション内容"}
+        - {document_id: "test_doc_4", chunk_index: 1, chunk_text: "●二番目のセクション内容"}

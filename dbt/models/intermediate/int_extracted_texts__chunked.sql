@@ -8,7 +8,7 @@
 }}
 
 -- Markdown構造を意識した階層チャンク分割
--- Level A: ## / ### 見出しで分割
+-- Level A: ## / ### 見出し、●、▶、*短文* で分割（split_by_headings UDF）
 -- Level B: セクション内を \n\n（段落境界）で分割
 -- Level C: 1500文字超の段落を句点（。）で分割
 -- Rule D: 表（|で始まる行ブロック）は分割しない
@@ -27,14 +27,16 @@ WITH source AS (
     {% if is_incremental() %}
     -- 既存チャンクと同じ (uri, md5_hash) の組み合わせは再処理不要
     -- pre_hook で削除された文書（md5_hash 変化）はここに含まれる
-    WHERE (uri, md5_hash) NOT IN (
-        SELECT DISTINCT uri, md5_hash FROM {{ this }}
-    )
+        WHERE (uri, md5_hash) NOT IN (
+            SELECT DISTINCT
+                t.uri,
+                t.md5_hash
+            FROM {{ this }} AS t
+        )
     {% endif %}
 ),
 
--- Level A: 見出し（## / ###）でセクション分割
--- sentinelを挿入してSPLITする
+-- Level A: split_by_headings UDF でセクション分割
 heading_sections AS (
     SELECT
         document_id,
@@ -47,14 +49,7 @@ heading_sections AS (
         TRIM(section_text) AS section_text
     FROM source,
         UNNEST(
-            SPLIT(
-                REGEXP_REPLACE(
-                    CONCAT('\n', extracted_markdown),
-                    r'\n(#{1,3} )',
-                    '\n<<<HSPLIT>>>\n\\1'
-                ),
-                '<<<HSPLIT>>>'
-            )
+            `{{ var('gcp_project_id') }}.{{ var('dataset_id') }}.split_by_headings`(extracted_markdown)
         ) AS section_text WITH OFFSET AS section_index
     WHERE TRIM(section_text) != ''
 ),
