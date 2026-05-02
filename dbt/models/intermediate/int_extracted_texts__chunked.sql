@@ -15,23 +15,25 @@
 
 WITH source AS (
     SELECT
-        uri,
-        content_type,
-        size,
-        md5_hash,
-        updated_at,
-        document_id,
+        stg.uri,
+        stg.content_type,
+        stg.size,
+        stg.md5_hash,
+        stg.updated_at,
+        stg.document_id,
         -- 改行を正規化（\r\n → \n）
-        REGEXP_REPLACE(extracted_markdown, r'\r\n', '\n') AS extracted_markdown
-    FROM {{ ref('stg_pdf_uploads__extracted_texts') }}
+        REGEXP_REPLACE(stg.extracted_markdown, r'\r\n', '\n') AS extracted_markdown
+    FROM {{ ref('stg_pdf_uploads__extracted_texts') }} AS stg
     {% if is_incremental() %}
     -- 既存チャンクと同じ (uri, md5_hash) の組み合わせは再処理不要
     -- pre_hook で削除された文書（md5_hash 変化）はここに含まれる
-        WHERE (uri, md5_hash) NOT IN (
-            SELECT DISTINCT
-                t.uri,
-                t.md5_hash
+    -- BigQuery は多列 IN サブクエリ非対応のため NOT EXISTS を使用
+        WHERE NOT EXISTS (
+            SELECT 1
             FROM {{ this }} AS t
+            WHERE
+                t.uri = stg.uri
+                AND t.md5_hash = stg.md5_hash
         )
     {% endif %}
 ),
