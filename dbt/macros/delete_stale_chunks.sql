@@ -6,8 +6,11 @@
     SELECT DISTINCT s.document_id
     FROM {{ ref('stg_pdf_uploads__extracted_texts') }} AS s
     WHERE s.uri IN (SELECT DISTINCT uri FROM {{ this }})
-    AND (s.uri, s.md5_hash) NOT IN (
-        SELECT DISTINCT uri, md5_hash FROM {{ this }}
+    AND NOT EXISTS (
+        SELECT 1
+        FROM {{ this }} AS t
+        WHERE t.uri = s.uri
+            AND t.md5_hash = s.md5_hash
     )
   )
   {% endif %}
