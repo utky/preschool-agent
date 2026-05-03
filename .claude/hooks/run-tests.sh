@@ -62,6 +62,11 @@ if echo "$CHANGED_FILES" | grep -q "^dbt/"; then
     echo '{"decision": "block", "reason": "dbt compileが失敗しました。モデル定義を修正してください。"}'
     exit 0
   fi
+  # 変更されたモデル/マクロのcompiled SQLをBigQuery dry runで検証
+  if ! bash dbt/scripts/dry_run_changed_models.sh "$CHANGED_FILES" 2>&1; then
+    echo '{"decision": "block", "reason": "BigQuery dry runが失敗しました。compiledクエリのSQLを修正してください。詳細は上記エラーを確認してください。"}'
+    exit 0
+  fi
 fi
 
 # gas/の変更を検出
