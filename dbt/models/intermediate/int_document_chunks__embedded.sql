@@ -30,11 +30,13 @@ WITH chunks AS (
     FROM {{ ref('int_extracted_texts__chunked') }}
     {% if is_incremental() %}
         -- chunk_id が存在しても md5_hash（文書コンテンツ）が変わっていれば再 embedding
-        WHERE (chunk_id, md5_hash) NOT IN (
-            SELECT
-                t.chunk_id,
-                t.md5_hash
+        -- BigQuery は多列 IN サブクエリ非対応のため NOT EXISTS を使用
+        WHERE NOT EXISTS (
+            SELECT 1
             FROM {{ this }} AS t
+            WHERE
+                t.chunk_id = chunks.chunk_id
+                AND t.md5_hash = chunks.md5_hash
         )
     {% endif %}
 ),
