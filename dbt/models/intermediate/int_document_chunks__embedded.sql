@@ -18,16 +18,16 @@
 
 WITH chunks AS (
     SELECT
-        chunk_id,
-        document_id,
-        uri,
-        chunk_index,
-        chunk_text,
-        content_type,
-        size,
-        md5_hash,
-        updated_at
-    FROM {{ ref('int_extracted_texts__chunked') }}
+        src.chunk_id,
+        src.document_id,
+        src.uri,
+        src.chunk_index,
+        src.chunk_text,
+        src.content_type,
+        src.size,
+        src.md5_hash,
+        src.updated_at
+    FROM {{ ref('int_extracted_texts__chunked') }} AS src
     {% if is_incremental() %}
         -- chunk_id が存在しても md5_hash（文書コンテンツ）が変わっていれば再 embedding
         -- BigQuery は多列 IN サブクエリ非対応のため NOT EXISTS を使用
@@ -35,8 +35,8 @@ WITH chunks AS (
             SELECT 1
             FROM {{ this }} AS t
             WHERE
-                t.chunk_id = chunks.chunk_id
-                AND t.md5_hash = chunks.md5_hash
+                t.chunk_id = src.chunk_id
+                AND t.md5_hash = src.md5_hash
         )
     {% endif %}
 ),
