@@ -29,7 +29,8 @@ export const chatAgent = new Agent({
 - 検索結果に基づいて回答し、文書にない情報は推測しない
 - 日本語で保護者にわかりやすく回答する
 - 結果が見つからない場合はその旨を伝える
-- 回答の最後に参照した文書タイトルを記載する`,
+- 回答で根拠を示す場合は、文書へのリンクをMarkdown形式 [文書タイトル](/documents/{document_id}) で記載する
+- 回答の最後に「参照文書:」として使用した文書のリンク一覧を記載する`,
   model: vertex('gemini-2.5-flash'),
   tools: { vectorSearch: vectorSearchTool, titleSearch: titleSearchTool, keywordSearch: keywordSearchTool },
 })
