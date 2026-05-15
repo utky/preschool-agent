@@ -350,3 +350,26 @@ dbtモデル（5モデル、20テスト）は定義済みだが、BigQuery上で
 ### フェーズ 1.6: 開発環境の改善 - DONE
 
 - [x] OpenTofuの実行環境を構築
+
+---
+
+## 技術的負債・改善メモ
+
+### BigQuery LLMモデルのコスト最適化 - TODO（2026/07以降）
+
+**背景:**
+現在 BigQuery ML で使用中の `gemini-2.5-flash` はサポート終了日が **2026/10/16**。
+コスト削減候補として `gemini-2.5-flash-lite`（約1/6）と `gemini-3.1-flash-lite`（約1/2）を調査したが、
+いずれも現時点（2026/05）では `asia-northeast1` に展開されておらず使用不可。
+
+**アクション:**
+- [ ] **2026/07/01以降**: `gemini-3.1-flash-lite` の `asia-northeast1` 対応を確認する
+  - 価格: 入力 $0.275/1M tokens、出力 $1.65/1M tokens（非グローバル。現行 gemini-2.5-flash の約1/2）
+  - 公式に2026/07/01から非グローバルリージョン課金開始とアナウンスされており、対応展開が見込まれる
+  - 確認方法: `bq_verify/step1_create_lite_model.sql` の ENDPOINT を `gemini-3.1-flash-lite` に変えて実行
+- [ ] asia-northeast1 対応を確認できたら `bq_verify/` のSQLで品質比較を実行
+  - 合格基準: 分類一致率 ≥ 80%、OCR長差 ≤ 20%、イベント件数差 ≤ ±2
+- [ ] 合格後に `dbt/macros/create_ocr_model.sql` の ENDPOINT を変更し、2026/10 廃止前に移行完了させる
+
+**関連ファイル:**
+- `bq_verify/` — 品質比較用SQLクエリ（SELECT のみ、本番データ使用、書き込みなし）

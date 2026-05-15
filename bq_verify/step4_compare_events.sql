@@ -1,0 +1,175 @@
+-- Step 4: イベント抽出の比較（fct_events 相当）
+-- SELECT のみ。テーブルへの書き込みなし。
+-- 評価基準: イベント件数差 ≤ ±2 件、日付パース成功率 100%
+
+WITH sample AS (
+  SELECT
+    s.document_id,
+    CONCAT(
+      '# 文書情報\n',
+      'この文書の発行日: ',
+      FORMAT_DATE('%Y年%m月%d日', COALESCE(d.publish_date, DATE(s.updated_at))),
+      '\n\n',
+      '# 和暦→西暦変換ルール\n',
+      '令和元年=2019年、令和2年=2020年、令和3年=2021年、令和4年=2022年、',
+      '令和5年=2023年、令和6年=2024年、令和7年=2025年、令和8年=2026年、令和9年=2027年\n\n',
+      'PDFから日付が指定されたイベントや予定を全て抽出してください。\n',
+      '\n',
+      '# 抽出条件\n',
+      '以下のキーワードが出現する場合は特に予定に関する記述である可能性が高いです。\n',
+      '来月、日時、行事予定、日にち、令和、提出\n\n',
+      '# 年の補完ルール\n',
+      '月日のみ（例: 「4月7日」）の記述は文書発行日の年を基準に西暦年を補完してください。\n',
+      '日本の学年度は4月始まりです。発行日が属する年度（例: 発行が2026-03-29なら令和7年度=2025年4月〜2026年3月）の範囲内で日付を解釈してください。\n',
+      '発行月より前の月（例: 発行が3月で1月・2月のイベント）は原則として同年と判断してください。\n',
+      '翌年への推定は、文書に「来年」「翌年度」等の明示的な表現がある場合のみ行ってください。\n\n',
+      '# 期間イベントの扱い\n',
+      '「〇月△日〜□月▽日まで春休み」のような期間の記述は以下のように別々のイベントとして抽出してください:\n',
+      '- 開始日: タイトルを「{行事名} 開始」とする\n',
+      '- 終了日: タイトルを「{行事名} 終了」とする\n\n',
+      '# 除外条件\n',
+      '以下の条件に該当する場合は抽出から除外してください。\n',
+      '- 日次の保育内容の表\n',
+      '- 各クラス出席停止人数の表\n',
+      '\n',
+      '# 出力条件\n',
+      '- event_date は必ず YYYY-MM-DD 形式（西暦）で出力してください。\n',
+      '- 時刻が明記されている場合はevent_timeをHH:MM形式（24時間）で抽出してください。時刻がない場合はnullにしてください。\n\n',
+      '# 抽出例\n',
+      '入力: 「春休みは3月17日(火)から4月4日(土)まで。4月7日(火)より半日保育で保育開始。」\n',
+      '発行日が 2026-03-01 の場合の出力例:\n',
+      '{"events": [\n',
+      '  {"event_date": "2026-03-17", "event_time": null, "event_title": "春休み 開始", "event_description": "春休み開始（3/17〜4/4）"},\n',
+      '  {"event_date": "2026-04-04", "event_time": null, "event_title": "春休み 終了", "event_description": "春休み終了（3/17〜4/4）"},\n',
+      '  {"event_date": "2026-04-07", "event_time": null, "event_title": "保育開始（半日保育）", "event_description": "在園児の保育開始。4月7日(火)より半日保育。"}\n',
+      ']}\n\n',
+      '# 抽出対象テキスト\n',
+      s.extracted_markdown
+    ) AS prompt
+  FROM `lofilab.school_agent.stg_pdf_uploads__extracted_texts` AS s
+  LEFT JOIN `lofilab.school_agent.dim_documents` AS d ON s.document_id = d.document_id
+  WHERE s.extracted_markdown IS NOT NULL
+  LIMIT 3
+),
+
+result_flash AS (
+  SELECT document_id, ml_generate_text_llm_result AS flash_result
+  FROM ML.GENERATE_TEXT(
+    MODEL `lofilab.school_agent.gemini_flash_model`,
+    TABLE sample,
+    STRUCT(
+      TRUE AS flatten_json_output,
+      '''
+      {
+        "generationConfig": {
+          "temperature": 0.0,
+          "maxOutputTokens": 8192,
+          "thinkingConfig": {"thinkingBudget": 0},
+          "responseMimeType": "application/json",
+          "responseSchema": {
+            "type": "OBJECT",
+            "properties": {
+              "events": {
+                "type": "ARRAY",
+                "items": {
+                  "type": "OBJECT",
+                  "properties": {
+                    "event_date":        {"type": "STRING"},
+                    "event_time":        {"type": "STRING", "nullable": true},
+                    "event_title":       {"type": "STRING"},
+                    "event_description": {"type": "STRING"}
+                  },
+                  "required": ["event_date", "event_title", "event_description"]
+                }
+              }
+            }
+          }
+        }
+      }
+      ''' AS model_params
+    )
+  )
+  WHERE ml_generate_text_status = ''
+),
+
+result_lite AS (
+  SELECT document_id, ml_generate_text_llm_result AS lite_result
+  FROM ML.GENERATE_TEXT(
+    MODEL `lofilab.school_agent.gemini_flash_lite_model`,
+    TABLE sample,
+    STRUCT(
+      TRUE AS flatten_json_output,
+      '''
+      {
+        "generationConfig": {
+          "temperature": 0.0,
+          "maxOutputTokens": 8192,
+          "thinkingConfig": {"thinkingBudget": 0},
+          "responseMimeType": "application/json",
+          "responseSchema": {
+            "type": "OBJECT",
+            "properties": {
+              "events": {
+                "type": "ARRAY",
+                "items": {
+                  "type": "OBJECT",
+                  "properties": {
+                    "event_date":        {"type": "STRING"},
+                    "event_time":        {"type": "STRING", "nullable": true},
+                    "event_title":       {"type": "STRING"},
+                    "event_description": {"type": "STRING"}
+                  },
+                  "required": ["event_date", "event_title", "event_description"]
+                }
+              }
+            }
+          }
+        }
+      }
+      ''' AS model_params
+    )
+  )
+  WHERE ml_generate_text_status = ''
+),
+
+-- 各モデルのイベント件数・パース成功率を集計
+flash_stats AS (
+  SELECT
+    document_id,
+    ARRAY_LENGTH(JSON_QUERY_ARRAY(flash_result, '$.events')) AS flash_event_count,
+    COUNTIF(SAFE.PARSE_DATE('%Y-%m-%d', JSON_VALUE(ev, '$.event_date')) IS NOT NULL)
+      AS flash_valid_dates,
+    flash_result
+  FROM result_flash,
+    UNNEST(JSON_QUERY_ARRAY(flash_result, '$.events')) AS ev
+  GROUP BY document_id, flash_result
+),
+
+lite_stats AS (
+  SELECT
+    document_id,
+    ARRAY_LENGTH(JSON_QUERY_ARRAY(lite_result, '$.events')) AS lite_event_count,
+    COUNTIF(SAFE.PARSE_DATE('%Y-%m-%d', JSON_VALUE(ev, '$.event_date')) IS NOT NULL)
+      AS lite_valid_dates,
+    lite_result
+  FROM result_lite,
+    UNNEST(JSON_QUERY_ARRAY(lite_result, '$.events')) AS ev
+  GROUP BY document_id, lite_result
+)
+
+SELECT
+  f.document_id,
+  f.flash_event_count,
+  l.lite_event_count,
+  ABS(f.flash_event_count - l.lite_event_count)   AS count_diff,
+  f.flash_valid_dates,
+  l.lite_valid_dates,
+  -- 合否判定
+  ABS(f.flash_event_count - l.lite_event_count) <= 2 AS count_ok,
+  l.lite_valid_dates = l.lite_event_count            AS all_dates_valid,
+  -- 生の JSON（詳細確認用）
+  f.flash_result                                     AS flash_raw,
+  l.lite_result                                      AS lite_raw
+FROM flash_stats AS f
+JOIN lite_stats  AS l USING (document_id)
+ORDER BY count_diff DESC;
