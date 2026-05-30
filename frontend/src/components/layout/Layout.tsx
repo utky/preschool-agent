@@ -1,4 +1,4 @@
-import { Outlet, Navigate } from 'react-router-dom'
+import { Outlet, Navigate, ScrollRestoration } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import Navbar from './Navbar'
 
@@ -19,6 +19,7 @@ export default function Layout() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <ScrollRestoration />
       <Navbar />
       <main className="max-w-7xl mx-auto px-4 py-8">
         <Outlet />
