@@ -52,14 +52,19 @@ npm audit signatures
 
 **CRITICAL/HIGH の脆弱性が出た場合**: アップデートを中断し、ユーザーに報告してから対処方針を確認する。
 
-次に、パッケージ署名の検証を試みる（npmパブリックレジストリからインストールされている場合のみ有効）:
+次に、パッケージ署名の検証を試みる:
 
 ```bash
-npm audit signatures 2>&1 || echo "[INFO] signatures検証スキップ: プライベートレジストリまたはローカルキャッシュからのインストールのため非対応"
+npm audit signatures 2>&1
 ```
 
-署名検証でエラーが出ても、npmレジストリ外からのインストール環境では正常な動作なので続行してよい。
-エラーメッセージが `found no dependencies to audit that were installed from a supported registry` 以外の場合はユーザーに報告する。
+`found no dependencies to audit that were installed from a supported registry` というエラーが出る場合、
+依存パッケージがnpmプロベナンス署名（`--provenance`付き公開）に対応していないことを意味する。
+これはエコシステム全体の普及率の問題であり、2024〜2025年時点ではほとんどのパッケージが非対応。
+この場合は `package-lock.json` の integrity フィールド（SHA-512）によるハッシュ検証が引き続き機能しているため、
+処理を続行してよい（ただし ECDSA 署名による「レジストリ経由公開の証明」層は欠如している点に注意）。
+
+それ以外のエラーが出た場合はユーザーに報告して中断する。
 
 ### Step 3: 差分調査
 
