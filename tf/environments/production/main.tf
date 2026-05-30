@@ -85,11 +85,13 @@ module "cloud_run_job" {
 }
 
 module "monitoring" {
-  source               = "../../modules/monitoring"
-  project_id           = var.project_id
-  frontend_bucket_name = module.app.frontend_bucket_name
-  alert_email          = var.alert_email
-  # デフォルト: 2048 バイト/秒 (2KB/s)
+  source                 = "../../modules/monitoring"
+  project_id             = var.project_id
+  frontend_bucket_name   = module.app.frontend_bucket_name
+  alert_email            = var.alert_email
+  cloud_run_service_name = module.app.service_name
+  # egress_threshold_bytes_per_second デフォルト: 2048 バイト/秒 (2KB/s)
+  # cloud_run_request_threshold デフォルト: 10 req/s
 }
 
 module "crawler" {

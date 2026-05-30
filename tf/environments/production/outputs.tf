@@ -57,3 +57,8 @@ output "gcs_egress_alert_policy_id" {
   value       = module.monitoring.alert_policy_id
   description = "GCS egress alert policy ID."
 }
+
+output "cloud_run_request_alert_policy_id" {
+  value       = module.monitoring.cloud_run_alert_policy_id
+  description = "Cloud Run request rate alert policy ID."
+}

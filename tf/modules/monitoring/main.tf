@@ -63,3 +63,50 @@ resource "google_monitoring_alert_policy" "gcs_egress" {
 
   depends_on = [google_project_service.monitoring]
 }
+
+# Cloud Run リクエスト数アラート（DoS・異常課金検知）
+resource "google_monitoring_alert_policy" "cloud_run_request_rate" {
+  project      = var.project_id
+  display_name = "Cloud Run High Request Rate Alert"
+  combiner     = "OR"
+
+  conditions {
+    display_name = "Cloud Run request rate exceeds threshold"
+
+    condition_threshold {
+      filter = <<-EOT
+        resource.type = "cloud_run_revision"
+        AND resource.labels.service_name = "${var.cloud_run_service_name}"
+        AND metric.type = "run.googleapis.com/request_count"
+      EOT
+
+      comparison      = "COMPARISON_GT"
+      threshold_value = var.cloud_run_request_threshold
+      duration        = "60s"
+
+      aggregations {
+        alignment_period   = "60s"
+        per_series_aligner = "ALIGN_RATE"
+      }
+
+      trigger {
+        count = 1
+      }
+    }
+  }
+
+  notification_channels = [
+    google_monitoring_notification_channel.email.id
+  ]
+
+  alert_strategy {
+    auto_close = "1800s"
+  }
+
+  documentation {
+    content   = "Cloud Run service (${var.cloud_run_service_name}) request rate has exceeded ${var.cloud_run_request_threshold} req/s. This may indicate a DoS attack or unexpected traffic spike causing abnormal billing."
+    mime_type = "text/markdown"
+  }
+
+  depends_on = [google_project_service.monitoring]
+}
