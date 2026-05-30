@@ -52,6 +52,15 @@ npm audit signatures
 
 **CRITICAL/HIGH の脆弱性が出た場合**: アップデートを中断し、ユーザーに報告してから対処方針を確認する。
 
+次に、パッケージ署名の検証を試みる（npmパブリックレジストリからインストールされている場合のみ有効）:
+
+```bash
+npm audit signatures 2>&1 || echo "[INFO] signatures検証スキップ: プライベートレジストリまたはローカルキャッシュからのインストールのため非対応"
+```
+
+署名検証でエラーが出ても、npmレジストリ外からのインストール環境では正常な動作なので続行してよい。
+エラーメッセージが `found no dependencies to audit that were installed from a supported registry` 以外の場合はユーザーに報告する。
+
 ### Step 3: 差分調査
 
 インストールせずにバージョン差分を確認する:
