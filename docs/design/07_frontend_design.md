@@ -114,52 +114,48 @@ export const api = {
 
 ### 7.6. ルーティング設計
 
+`createBrowserRouter`（データルーター）を使用する。`ScrollRestoration` によるスクロール位置の自動復元が有効になる。
+
 ```typescript
 // src/App.tsx
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { useAuth } from './hooks/useAuth'
-import Login from './pages/Login'
-import Dashboard from './pages/Dashboard'
-import Gallery from './pages/Gallery'
-import Unauthorized from './pages/Unauthorized'
+import { createBrowserRouter, createRoutesFromElements, Route, RouterProvider, Outlet } from 'react-router-dom'
+import { AuthProvider } from '@/hooks/useAuth'
+import Layout from '@/components/layout/Layout'
+import Login from '@/pages/Login'
+import Documents from '@/pages/Documents'
+import DocumentDetail from '@/pages/DocumentDetail'
+import Chat from '@/pages/Chat'
+import Events from '@/pages/Events'
 
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isLoading } = useAuth()
-
-  if (isLoading) return <div>Loading...</div>
-  if (!isAuthenticated) return <Navigate to="/login" replace />
-
-  return <>{children}</>
-}
-
-export default function App() {
+function Root() {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="/unauthorized" element={<Unauthorized />} />
-        <Route
-          path="/dashboard"
-          element={
-            <ProtectedRoute>
-              <Dashboard />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/gallery"
-          element={
-            <ProtectedRoute>
-              <Gallery />
-            </ProtectedRoute>
-          }
-        />
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
-      </Routes>
-    </BrowserRouter>
+    <AuthProvider>
+      <Outlet />
+    </AuthProvider>
   )
 }
+
+const router = createBrowserRouter(
+  createRoutesFromElements(
+    <Route element={<Root />}>
+      <Route path="/login" element={<Login />} />
+      <Route element={<Layout />}>
+        <Route path="/" element={<Events />} />
+        <Route path="/documents" element={<Documents />} />
+        <Route path="/documents/:id" element={<DocumentDetail />} />
+        <Route path="/chat" element={<Chat />} />
+        <Route path="/events" element={<Events />} />
+      </Route>
+    </Route>
+  )
+)
+
+export default function App() {
+  return <RouterProvider router={router} />
+}
 ```
+
+`Layout.tsx` に `<ScrollRestoration />` を配置し、ページ遷移前後のスクロール位置を自動管理する。
 
 ### 7.7. ビルドとデプロイ
 
