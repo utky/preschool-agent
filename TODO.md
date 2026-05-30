@@ -371,3 +371,34 @@ dbtモデル（5モデル、20テスト）は定義済みだが、BigQuery上で
 
 **関連ファイル:**
 - `bq_verify/` — 品質比較用SQLクエリ（SELECT のみ、本番データ使用、書き込みなし）
+
+---
+
+### GitHub Actions Node.js 20 廃止対応 - TODO（2026/06/16 期限）
+
+**背景:**
+GitHub Actions ランナーの Node.js 20 サポートが **2026/06/16** に廃止される。
+現在使用中の actions に古いバージョンが残っており、CI/CD で deprecation 警告が出ている。
+対応しない場合、6/16 以降に強制的に Node.js 24 で実行され、動作が不安定になる可能性がある。
+
+**対象ワークフロー:** `.github/workflows/ci.yml`, `cd.yml`, `deploy-crawler.yml`, `deploy-gas.yml`
+
+**アップデート内容:**
+
+| Action | 現在 | 最新 |
+|---|---|---|
+| `actions/checkout` | v4 | **v6** |
+| `actions/setup-node` | v4 | **v6** |
+| `actions/setup-python` | v5 | **v6** |
+| `actions/cache` | v4 | **v5** |
+| `docker/build-push-action` | v5 | **v7** |
+| `docker/setup-buildx-action` | v3 | **v4** |
+| `google-github-actions/auth` | v2 | **v3** |
+| `google-github-actions/setup-gcloud` | v2 | **v3** |
+| `opentofu/setup-opentofu` | v1 | **v2** |
+
+**アクション:**
+- [ ] 上記テーブルの全 action を最新バージョンに一括更新（4ファイル）
+- [ ] CI/CD が通ることを確認（PR を切って CI pass 後マージ）
+
+**期限: 2026/06/16**（この日以降 Node.js 20 がランナーから削除される）
