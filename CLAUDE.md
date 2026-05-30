@@ -135,7 +135,8 @@ cd backend && npm run dev   # ポート3000
 - dbt : `dbt` コマンド
 
 ## 重要ファイル
-- `TODO.md`: スライス計画とタスク管理
-- `docs/design/10_slice_plan.md`: 詳細なスライス計画
-- `docs/design/01_architecture.md`: アーキテクチャ設計
+- `TODO.md`: スライス進捗管理
+- `docs/design/10_slice_plan.md`: スライス状態一覧・アーキテクチャ決定
+- `docs/design/01_architecture.md`: アーキテクチャ現状
 - `docs/design/12_unit_test.md`: ユニットテスト設計
+- `docs/adr/`: 設計上の意思決定履歴（ADR）
