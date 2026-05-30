@@ -311,21 +311,19 @@ dbtモデル（5モデル、20テスト）は定義済みだが、BigQuery上で
 
 ---
 
-## スライス6: 文書種別構造化 - TODO
+## スライス6: 文書種別構造化 - DONE（縮小版）
 
-**目標:** 各文書種別（journal, photo_album等）に特化したテーブルとビューを実装。
+**実装済み:** LLMによる文書分類（`document_type` + `publish_date`）を `dim_documents` に直接埋め込み。Documents UIに種別フィルタ・発行日ソートを追加。
 
-- [ ] **dbt:**
-    - [ ] `marts/document_types/journal.sql` モデル実装
-    - [ ] `marts/document_types/photo_album.sql` モデル実装
-    - [ ] `marts/document_types/monthly_lunch_schedule.sql` モデル実装
-    - [ ] その他の文書種別モデル実装
-    - [ ] API用エクスポートモデル実装
-- [ ] **バックエンド:**
-    - [ ] `GET /api/documents/{type}` エンドポイント実装
-- [ ] **フロントエンド:**
-    - [ ] Journal ページ実装
-    - [ ] LunchSchedule ページ実装
+詳細: `docs/design/10_slice_plan.md` スライス6
+
+**設計上不要と判断済み:**
+- `dbt/models/marts/document_types/journal.sql` 等の種別別テーブル
+  - `fct_events` に正規化済みのためUNION ALLが不要、`dim_documents.document_type` で種別フィルタが完結する
+
+**保留（需要確認待ち）:**
+- `GET /api/documents/{type}` エンドポイント
+- Journal ページ・LunchSchedule ページ等の種別専用フロントエンドページ
 
 ---
 
