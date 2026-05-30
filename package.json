@@ -13,9 +13,6 @@
     "lint": "npm run lint --workspaces --if-present",
     "test": "npm run test --workspaces --if-present"
   },
-  "overrides": {
-    "@hono/node-server": "2.0.4"
-  },
   "devDependencies": {
     "concurrently": "^9.2.1",
     "typescript": "~5.9.3"
