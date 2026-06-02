@@ -1,93 +1,82 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { MemoryRouter } from 'react-router-dom'
-import Chat from './Chat'
+import Search from './Search'
 import { apiPost } from '@/lib/api'
 
 vi.mock('@/lib/api', () => ({
   apiPost: vi.fn(),
 }))
 
-const renderChat = () => {
+const renderSearch = () => {
   return render(
     <MemoryRouter>
-      <Chat />
+      <Search />
     </MemoryRouter>
   )
 }
 
-describe('Chat', () => {
+describe('Search', () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })
 
-  it('should render chat page with title', () => {
-    renderChat()
+  it('should render search page with title', () => {
+    renderSearch()
 
-    expect(screen.getByText('Chat')).toBeInTheDocument()
-    expect(screen.getByPlaceholderText('キーワードを入力...')).toBeInTheDocument()
+    expect(screen.getByText('文書を調べる')).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('キーワードまたは質問を入力...')).toBeInTheDocument()
   })
 
-  it('should send message and display response', async () => {
+  it('should search and display result', async () => {
     vi.mocked(apiPost).mockResolvedValue({
-      response: '1件のチャンクが見つかりました。',
+      response: '給食の情報が見つかりました。',
       sources: [{ document_id: 'doc1', title: '給食だより.pdf', chunk_text: 'テキスト', chunk_index: 0 }],
     })
 
-    renderChat()
+    renderSearch()
 
-    const input = screen.getByPlaceholderText('キーワードを入力...')
+    const input = screen.getByPlaceholderText('キーワードまたは質問を入力...')
     fireEvent.change(input, { target: { value: '給食' } })
     fireEvent.submit(input.closest('form')!)
 
-    // ユーザーメッセージが表示される
-    expect(screen.getByText('給食')).toBeInTheDocument()
-
-    // APIレスポンスが表示される
     await waitFor(() => {
-      expect(screen.getByText('1件のチャンクが見つかりました。')).toBeInTheDocument()
+      expect(screen.getByText('給食の情報が見つかりました。')).toBeInTheDocument()
     })
 
-    expect(apiPost).toHaveBeenCalledWith('/api/chat', { message: '給食', history: [] })
+    expect(apiPost).toHaveBeenCalledWith('/api/chat', { message: '給食' })
   })
 
-  it('should send conversation history on subsequent messages', async () => {
+  it('should not send history on subsequent searches', async () => {
     vi.mocked(apiPost)
       .mockResolvedValueOnce({ response: '給食の情報です。', sources: [] })
-      .mockResolvedValueOnce({ response: '詳細はこちらです。', sources: [] })
+      .mockResolvedValueOnce({ response: '献立の情報です。', sources: [] })
 
-    renderChat()
-    const input = screen.getByPlaceholderText('キーワードを入力...')
+    renderSearch()
+    const input = screen.getByPlaceholderText('キーワードまたは質問を入力...')
 
-    // 1回目の送信
     fireEvent.change(input, { target: { value: '給食' } })
     fireEvent.submit(input.closest('form')!)
     await waitFor(() => {
       expect(screen.getByText('給食の情報です。')).toBeInTheDocument()
     })
 
-    // 2回目の送信 - 1回目の会話が history に含まれる
-    fireEvent.change(input, { target: { value: 'それは何日ですか？' } })
+    fireEvent.change(input, { target: { value: '献立' } })
     fireEvent.submit(input.closest('form')!)
     await waitFor(() => {
-      expect(screen.getByText('詳細はこちらです。')).toBeInTheDocument()
+      expect(screen.getByText('献立の情報です。')).toBeInTheDocument()
     })
 
-    expect(apiPost).toHaveBeenNthCalledWith(2, '/api/chat', {
-      message: 'それは何日ですか？',
-      history: [
-        { role: 'user', content: '給食' },
-        { role: 'assistant', content: '給食の情報です。' },
-      ],
-    })
+    // 各検索は独立してhistoryなしで送信される
+    expect(apiPost).toHaveBeenNthCalledWith(2, '/api/chat', { message: '献立' })
   })
 
   it('should display error message on API failure', async () => {
     vi.mocked(apiPost).mockRejectedValue(new Error('Network error'))
 
-    renderChat()
+    renderSearch()
 
-    const input = screen.getByPlaceholderText('キーワードを入力...')
+    const input = screen.getByPlaceholderText('キーワードまたは質問を入力...')
     fireEvent.change(input, { target: { value: '給食' } })
     fireEvent.submit(input.closest('form')!)
 
@@ -96,29 +85,22 @@ describe('Chat', () => {
     })
   })
 
-  it('should clear error on next successful send', async () => {
+  it('should clear error on next successful search', async () => {
     vi.mocked(apiPost)
       .mockRejectedValueOnce(new Error('Network error'))
-      .mockResolvedValueOnce({
-        response: '結果が見つかりました。',
-        sources: [],
-      })
+      .mockResolvedValueOnce({ response: '結果が見つかりました。', sources: [] })
 
-    renderChat()
-    const input = screen.getByPlaceholderText('キーワードを入力...')
+    renderSearch()
+    const input = screen.getByPlaceholderText('キーワードまたは質問を入力...')
 
-    // 最初の送信 - エラー
     fireEvent.change(input, { target: { value: '給食' } })
     fireEvent.submit(input.closest('form')!)
-
     await waitFor(() => {
       expect(screen.getByText('検索に失敗しました。もう一度お試しください。')).toBeInTheDocument()
     })
 
-    // 2回目の送信 - 成功
     fireEvent.change(input, { target: { value: '献立' } })
     fireEvent.submit(input.closest('form')!)
-
     await waitFor(() => {
       expect(screen.getByText('結果が見つかりました。')).toBeInTheDocument()
     })

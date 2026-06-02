@@ -7,7 +7,6 @@ export default tseslint.config(
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ['**/*.{ts}'],
     languageOptions: {
-      ecmaVersion: 2022,
       parserOptions: {
         tsconfigRootDir: import.meta.dirname,
       },

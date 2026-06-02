@@ -6,7 +6,7 @@
 - **予定一覧** (`/events`): 抽出されたイベント一覧をカード形式で表示。当日以降のイベントのみ表示（過去イベントは非表示）。Googleカレンダー登録リンク。
 - **文書一覧** (`/documents`): PDFドキュメント一覧。種別フィルタ・日付ソート対応。
 - **文書詳細** (`/documents/:id`): チャンク一覧（Markdownレンダリング）。
-- **チャット** (`/chat`): RAGエージェントとの対話。
+- **文書検索** (`/search`): エージェンティックサーチ。キーワードまたは自然文で文書を検索し、AI回答 + 参照文書カード形式で表示。
 - **写真ギャラリー**: 未実装 / スコープ外。
 
 ### 7.2. 技術選定
@@ -33,11 +33,11 @@ frontend/
 │   │   ├── Events.tsx        # 予定一覧
 │   │   ├── Documents.tsx     # 文書一覧
 │   │   ├── DocumentDetail.tsx # 文書詳細
-│   │   └── Chat.tsx          # チャット
+│   │   └── Search.tsx        # 文書検索
 │   ├── components/       # 再利用可能なコンポーネント
 │   │   ├── layout/            # レイアウト
 │   │   ├── auth/              # 認証
-│   │   ├── chat/              # チャットUI
+│   │   ├── search/            # 検索UI（SearchView, SourceCard）
 │   │   ├── events/
 │   │   │   ├── EventCard.tsx      # イベントカード
 │   │   │   └── EventTable.tsx     # イベント表形式
@@ -124,7 +124,7 @@ import Layout from '@/components/layout/Layout'
 import Login from '@/pages/Login'
 import Documents from '@/pages/Documents'
 import DocumentDetail from '@/pages/DocumentDetail'
-import Chat from '@/pages/Chat'
+import Search from '@/pages/Search'
 import Events from '@/pages/Events'
 
 function Root() {
@@ -143,7 +143,7 @@ const router = createBrowserRouter(
         <Route path="/" element={<Events />} />
         <Route path="/documents" element={<Documents />} />
         <Route path="/documents/:id" element={<DocumentDetail />} />
-        <Route path="/chat" element={<Chat />} />
+        <Route path="/search" element={<Search />} />
         <Route path="/events" element={<Events />} />
       </Route>
     </Route>

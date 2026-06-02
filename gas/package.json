@@ -10,13 +10,15 @@
     "test": "jest --passWithNoTests"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@google/clasp": "^2.4.2",
     "@types/google-apps-script": "^1.0.83",
     "@types/jest": "^30.0.0",
     "esbuild": "^0.24.0",
-    "eslint": "^9.21.0",
+    "eslint": "^10.4.1",
     "jest": "^30.4.2",
     "ts-jest": "^29.4.11",
-    "typescript": "~5.7.0"
+    "typescript": "~5.7.0",
+    "typescript-eslint": "^8.60.1"
   }
 }
