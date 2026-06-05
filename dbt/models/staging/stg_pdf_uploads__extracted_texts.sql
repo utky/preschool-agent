@@ -83,7 +83,7 @@ WITH generated AS (
 SELECT
     uri,
     COALESCE(
-        -- GAS（Google Drive）アップロード: drive-file-idを使用
+        -- 旧GAS（Drive）アップロードデータの後方互換: drive-file-idを使用
         (
             SELECT value FROM UNNEST(metadata)
             WHERE name = 'drive-file-id'

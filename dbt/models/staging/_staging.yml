@@ -10,7 +10,7 @@ models:
           - unique
           - not_null
       - name: document_id
-        description: "ドキュメントID（GASアップロード: Google DriveファイルID / クローラーアップロード: WordPressメディアID）"
+        description: "ドキュメントID（WordPressメディアID）"
         data_tests:
           - not_null
       - name: original_filename

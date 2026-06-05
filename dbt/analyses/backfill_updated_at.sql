@@ -8,7 +8,7 @@
 
 -- UPDATE 1: stg_pdf_uploads__extracted_texts の updated_at を修正
 -- raw_documents（GCS Object Table）から modified_gmt メタデータを読み取り、
--- COALESCE で GAS 分（modified_gmt なし）は GCS の updated にフォールバック
+-- COALESCE で modified_gmt なしの場合は GCS の updated にフォールバック
 UPDATE
     `{{ var('gcp_project_id') }}.{{ var('dataset_id') }}.stg_pdf_uploads__extracted_texts`
         AS stg_tgt

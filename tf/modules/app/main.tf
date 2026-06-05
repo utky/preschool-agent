@@ -140,19 +140,6 @@ resource "google_storage_bucket" "pdf_uploads" {
   }
 }
 
-# GAS用サービスアカウント
-resource "google_service_account" "gas" {
-  account_id   = "${var.app_name}-gas-sa"
-  display_name = "Service Account for Google Apps Script"
-}
-
-# GASがPDF Uploadsバケットに書き込む権限
-resource "google_storage_bucket_iam_member" "gas_write_pdf_uploads" {
-  bucket = google_storage_bucket.pdf_uploads.name
-  role   = "roles/storage.objectCreator"
-  member = "serviceAccount:${google_service_account.gas.email}"
-}
-
 # バックエンドがPDF Uploadsバケットを読み取る権限
 resource "google_storage_bucket_iam_member" "backend_read_pdf_uploads" {
   bucket = google_storage_bucket.pdf_uploads.name
