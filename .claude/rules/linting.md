@@ -19,8 +19,6 @@ cd frontend && npx eslint <file_path>
 # backend
 cd backend && npx eslint <file_path>
 
-# gas
-cd gas && npx eslint <file_path>
 ```
 
 - ESLintエラーがある場合は修正してから次に進む

@@ -43,4 +43,4 @@ GCSパス: `web/{YYYY}/{MM}/{media_id}_{sanitized_title}.pdf`
 
 **失うもの / トレードオフ**:
 - WordPressのURL変更・API仕様変更に対する脆弱性
-- GAS（Drive連携）は現状も稼働しているが、クローラーが主系となった
+- GAS（Drive連携）はクローラー移行完了後に削除済み（2026-06-05）

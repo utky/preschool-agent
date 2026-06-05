@@ -10,7 +10,6 @@ TDD（テスト駆動開発）ワークフローを確立し、Claude Codeのhoo
 |--------------|---------------|------|
 | Frontend | Vitest + React Testing Library | Viteと同じ設定を共有、ESM対応が優秀 |
 | Backend | Jest + ts-jest | 広く使われている、TypeScript対応 |
-| GAS | Jest + ts-jest | 既存依存を活用 |
 | IaC (tf/) | `tofu validate/plan` | テスト相当として扱う |
 
 ---
@@ -99,31 +98,6 @@ export default {
 
 ---
 
-## GAS (Jest)
-
-### 依存パッケージ
-
-```json
-"devDependencies": {
-  "jest": "^29.7.0",
-  "@types/jest": "^29.5.0",
-  "ts-jest": "^29.2.0"
-}
-```
-
-### 設定ファイル (`gas/jest.config.js`)
-
-```javascript
-export default {
-  preset: 'ts-jest',
-  testEnvironment: 'node',
-  roots: ['<rootDir>/src'],
-  testMatch: ['**/*.test.ts']
-}
-```
-
----
-
 ## IaC検証
 
 OpenTofu (tf/) の変更時はユニットテストの代わりに以下を実行:
@@ -162,9 +136,6 @@ cd frontend && npm run test
 
 # Backend
 cd backend && npm run test
-
-# GAS
-cd gas && npm run test
 
 # IaC（テスト相当）
 tofu -chdir=tf/environments/production/ validate

@@ -11,7 +11,6 @@ allowed-tools: Bash, Read, Edit
 `/update-packages` を実行すると、npmワークスペースのパッケージを安全な手順でアップデートする。
 
 - **対象**: `frontend/`, `backend/`, `crawler/`（npmワークスペース管理下）
-- **除外**: `gas/`（レガシー・CI未カバーのため対象外）
 
 ---
 
@@ -158,5 +157,4 @@ git commit -m "chore: update dependencies (patch/minor)
 
 - `npm audit signatures` でエラーが出た場合は即座に中断し、当該パッケージの詳細をユーザーに報告する
 - メジャー更新は必ず別のブランチで個別に対応する（一度に複数まとめて更新しない）
-- `gas/` は対象外（CI未カバー・レガシー状態のため手動管理）
 - `npm install` ではなく更新後は必ず `npm ci` でクリーンインストールできることを確認する

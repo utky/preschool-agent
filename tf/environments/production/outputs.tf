@@ -23,11 +23,6 @@ output "pdf_uploads_bucket_name" {
   description = "The name of the PDF uploads GCS bucket."
 }
 
-output "gas_service_account_email" {
-  value       = module.app.gas_service_account_email
-  description = "The email of the GAS service account."
-}
-
 output "document_ai_processor_id" {
   value       = module.document_ai.processor_id
   description = "Document AI OCR processor ID."

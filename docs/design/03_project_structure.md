@@ -108,27 +108,13 @@ tf/
     └── production/       # 本番環境のみ
 ```
 
-### 3.5. Google Apps Script (Drive → GCS連携)
-
-```
-gas/
-├── src/
-│   ├── main.ts           # メインエントリーポイント
-│   ├── drive.ts          # Google Drive API操作
-│   ├── gcs.ts            # GCS転送ロジック
-│   └── config.ts         # 設定管理
-├── appsscript.json       # GASプロジェクト設定
-└── package.json          # 依存関係
-```
-
-### 3.6. プロジェクトルート
+### 3.5. プロジェクトルート
 
 ```
 / (project root)
 ├── frontend/             # Vite + React アプリケーション
 ├── backend/              # Hono + Mastra APIサーバー
 ├── dbt/                  # dbtプロジェクト
-├── gas/                  # Google Apps Script
 ├── tf/                   # OpenTofu (IaC)
 ├── docs/                 # ドキュメント
 │   └── design/           # 設計ドキュメント

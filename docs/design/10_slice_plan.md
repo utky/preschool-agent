@@ -19,7 +19,6 @@
 | # | 内容 | 状態 |
 |---|---|---|
 | 0 | アーキテクチャ移行（Next.js → Vite + Hono + Mastra） | DONE |
-| 7 | Google Drive → GCS自動連携（GAS） | DONE |
 | 1 | BigQuery基盤（Object Table + ML.GENERATE_TEXT） | DONE |
 | 2 | dbtパイプライン（チャンク化・埋め込み・エクスポート） | DONE |
 | 3 | キーワード検索チャット | DONE |

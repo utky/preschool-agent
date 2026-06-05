@@ -10,7 +10,6 @@
 | バックエンド | Hono (Cloud Run) + Mastra (AI エージェント) |
 | データパイプライン | dbt + BigQuery + Document AI |
 | インフラ | OpenTofu (IaC) + Google Cloud |
-| Drive 連携 | Google Apps Script |
 
 ## プロジェクト構成
 
@@ -19,7 +18,6 @@
 ├── frontend/       # Vite + React フロントエンド
 ├── backend/        # Hono API サーバー + Mastra エージェント
 ├── dbt/            # BigQuery データパイプライン
-├── gas/            # Google Apps Script (Drive → GCS 連携)
 └── tf/             # OpenTofu インフラ定義
 ```
 
