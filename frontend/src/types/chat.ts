@@ -27,3 +27,8 @@ export interface ChatMessage {
   readonly content: string
   readonly sources?: readonly ChatSource[]
 }
+
+export interface SearchResult {
+  readonly answer: string
+  readonly sources: readonly ChatSource[]
+}

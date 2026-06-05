@@ -4,7 +4,7 @@ import Layout from '@/components/layout/Layout'
 import Login from '@/pages/Login'
 import Documents from '@/pages/Documents'
 import DocumentDetail from '@/pages/DocumentDetail'
-import Chat from '@/pages/Chat'
+import Search from '@/pages/Search'
 import Events from '@/pages/Events'
 
 function Root() {
@@ -23,7 +23,7 @@ const router = createBrowserRouter(
         <Route path="/" element={<Events />} />
         <Route path="/documents" element={<Documents />} />
         <Route path="/documents/:id" element={<DocumentDetail />} />
-        <Route path="/chat" element={<Chat />} />
+        <Route path="/search" element={<Search />} />
         <Route path="/events" element={<Events />} />
       </Route>
     </Route>
