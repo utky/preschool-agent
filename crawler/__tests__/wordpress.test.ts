@@ -52,6 +52,7 @@ describe('wordpress', () => {
       // 1回目のfetch URLにmodified_afterが含まれること
       const firstCallUrl = fetchMock.mock.calls[0][0] as string
       expect(firstCallUrl).toContain('modified_after=')
+      expect(firstCallUrl).toContain(encodeURIComponent('2026-03-01T00:00:00.000Z'))
       expect(firstCallUrl).toContain('per_page=100')
       expect(firstCallUrl).toContain('page=1')
     })

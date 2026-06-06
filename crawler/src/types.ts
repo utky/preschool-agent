@@ -30,4 +30,5 @@ export interface UploadResult {
   mediaId: number;
   gcsPath: string;
   skipped: boolean;
+  error?: boolean;
 }
