@@ -91,6 +91,23 @@ EOF
 gh pr create
 ```
 
+#### 4. CI確認（必須）
+PR作成後、すべての CI ジョブがパスすることを確認する：
+```bash
+gh pr checks <PR番号>
+```
+- 全ジョブ pass を確認してからマージすること
+- fail があれば原因を調査して修正する
+
+#### 5. CD確認（マージ後・必須）
+PR がマージされたら、CD ワークフローの成功を確認する：
+```bash
+gh run list --workflow=cd.yml --limit=3
+gh run view <run_id>
+```
+- CD が成功するまで次のタスクに移らない
+- fail があれば原因を調査して修正する
+
 ## コマンドリファレンス
 
 ### テスト
