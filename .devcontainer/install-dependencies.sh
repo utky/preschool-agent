@@ -20,7 +20,3 @@ tenv tofu install
 # dbt
 pip install dbt-core dbt-bigquery sqlfluff sqlfluff-templater-dbt
 cd dbt/; dbt deps; cd -
-
-# gcloud認証
-gcloud auth login --no-launch-browser
-gcloud auth application-default login --no-launch-browser
