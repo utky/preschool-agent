@@ -24,6 +24,11 @@ variable "api_data_bucket_name" {
   description = "API DataバケットのGCS名"
 }
 
+variable "pdf_uploads_bucket_name" {
+  type        = string
+  description = "PDF UploadsバケットのGCS名"
+}
+
 variable "dataset_id" {
   type        = string
   description = "BigQueryデータセットID"
