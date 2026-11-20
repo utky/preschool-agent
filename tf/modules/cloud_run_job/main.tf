@@ -60,6 +60,14 @@ resource "google_storage_bucket_iam_member" "dbt_write_api_data" {
   member = "serviceAccount:${google_service_account.dbt.email}"
 }
 
+# PDF Uploadsバケットの読み取り権限
+# Object Table 経由の ML.GENERATE_TEXT はクエリ実行者の storage.objects.get も検査するため必要
+resource "google_storage_bucket_iam_member" "dbt_read_pdf_uploads" {
+  bucket = var.pdf_uploads_bucket_name
+  role   = "roles/storage.objectViewer"
+  member = "serviceAccount:${google_service_account.dbt.email}"
+}
+
 # Cloud Run Job
 resource "google_cloud_run_v2_job" "dbt" {
   name                = "${var.app_name}-dbt"

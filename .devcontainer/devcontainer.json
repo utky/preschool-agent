@@ -2,7 +2,8 @@
   "name": "TypeScript + Google Cloud DevContainer",
   "build": { "dockerfile": "Dockerfile", "context": ".." },
   "mounts": [
-    "source=devcontainer-config,target=/opt/vscode/config,type=volume"
+    "source=gh-cli-config,target=/home/node/.config/gh,type=volume",
+    "source=gcloud-config,target=/home/node/.config/gcloud,type=volume"
   ],
   "features": {
     "ghcr.io/devcontainers/features/github-cli:1": {},
@@ -29,5 +30,5 @@
     "GOOGLE_CLOUD_LOCATION": "global",
     "DBT_PROFILES_DIR": "${containerWorkspaceFolder}/dbt"
   },
-  "postCreateCommand": "ln -s /opt/vscode/config/gcloud /home/node/.config/gcloud && /bin/sh .devcontainer/install-dependencies.sh"
+  "postCreateCommand": "/bin/sh .devcontainer/install-dependencies.sh"
 }

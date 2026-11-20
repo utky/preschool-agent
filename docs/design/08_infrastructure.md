@@ -30,6 +30,13 @@ Cloud Run Job で dbt を実行するサービスアカウント（`{app_name}-d
 | `roles/bigquery.connectionAdmin` | seeds 接続リソース | `CREATE EXTERNAL TABLE ... WITH CONNECTION`（BigLake）に必要な `bigquery.connections.delegate` 権限 |
 | `roles/bigquery.connectionAdmin` | vertex 接続リソース | `CREATE MODEL ... REMOTE WITH CONNECTION`（Vertex AI）に必要な `bigquery.connections.delegate` 権限 |
 | `roles/storage.objectAdmin` | API Data バケット | dbt エクスポートの GCS 書き込み |
+| `roles/storage.objectViewer` | PDF Uploads バケット | Object Table 経由で `ML.GENERATE_TEXT` が PDF 本体を読む際の `storage.objects.get`（後述） |
+
+#### PDF Uploads バケットの objectViewer が必要な理由
+
+Object Table（`raw_documents`）を `ML.GENERATE_TEXT` に渡すと、接続 SA（`bqcx-...`）の権限だけでなく**クエリ実行者自身**の `storage.objects.get` も検査される。
+dbt SA にこの権限がないと各行が `FAILED_PRECONDITION: ... you don't have the 'storage.objects.get' permission` で失敗し、
+`ml_generate_text_status = ''` フィルタで黙って除外される（2026-10-16 〜 2026-11-20 の PDF 取り込み停止の原因）。
 
 #### connectionAdmin をリソースレベルで付与する理由
 
