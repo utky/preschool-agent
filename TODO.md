@@ -385,7 +385,7 @@ GitHub Actions ランナーの Node.js 20 サポートが **2026/06/16** に廃�
 - [x] typescript v5 → v6（frontend/backend/crawler/root）
 - [x] eslint v9 → v10（frontend/backend/crawler/gas）
 - [x] jest v29 → v30（backend/crawler/gas）
-- [ ] zod v3 → v4（backend）— @mastra/core が zod v3 compat 層（zod-from-json-schema-v3）を廃止後に対応
+- [x] zod v3 → v4（backend）
 - [ ] npm → pnpm 移行（推移的バージョン衝突の早期検出のため）
 - [x] pino v9 → v10（backend）
 - [x] concurrently v9 → v10（root）
