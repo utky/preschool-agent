@@ -55,7 +55,11 @@
 - `GET /api/documents/download`: 署名付きURLを生成してCloud Storage上のPDFをダウンロード
   - **Query Parameters**:
     - `uri: string`: ダウンロード対象のCloud Storage URI（必須）
-  - **Response**: 一時署名付きURL（リダイレクト）
+  - **Response**: `{ "url": "<15分有効のV4署名付きURL>" }`
+  - **署名対象の制限**: `uri` のバケットが環境変数 `PDF_BUCKET_NAME`（PDF格納バケット）と一致する場合のみ署名する
+    - `uri` 未指定・`gs://<bucket>/<object>` 形式でない → `400`
+    - バケットが許可外、または `PDF_BUCKET_NAME` 未設定 → `403`（fail-closed）
+  - `GET /api/documents/:id` の `signed_url` も同じ制限を適用し、許可外のバケットの場合は `signed_url` を付与しない
 
 ### 6.7. RAGエージェント（チャット）
 

@@ -142,8 +142,10 @@ Cloud Runサービスに以下の環境変数を設定し、Secret Managerから
 - `AUTH_GOOGLE_ID`: Google OAuthクライアントID
 - `AUTH_GOOGLE_SECRET`: Google OAuthクライアントシークレット
 - `ALLOWED_USER_EMAILS`: アクセスを許可するメールアドレスのカンマ区切りリスト
+  - **未設定・空の場合は全員を拒否する**（fail-closed）。開発環境でも `.env` に設定が必要
 - `AUTH_SECRET`: JWT署名用シークレット（256ビット以上のランダム文字列）
 - `FRONTEND_BUCKET_NAME`: フロントエンド静的ファイル用GCSバケット名（index.html取得用）
+- `PDF_BUCKET_NAME`: PDF格納用GCSバケット名。署名付きURLの発行はこのバケットのオブジェクトに限定する（未設定時は発行しない）
 
 > **Note**: `FRONTEND_URL` は不要です。backendがindex.htmlを配信する同一オリジン構成のため、OAuth callback後のリダイレクトは相対パス（`/`, `/login`）で行います。開発時のみ `FRONTEND_URL` を `.env` に設定し、Vite dev server (`http://localhost:5173`) にリダイレクトします。
 
