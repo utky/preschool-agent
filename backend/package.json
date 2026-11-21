@@ -16,7 +16,7 @@
     "@ai-sdk/google-vertex": "^4.0.234",
     "@google-cloud/bigquery": "^8.3.1",
     "@google-cloud/run": "^3.3.0",
-    "@google-cloud/storage": "^7.22.0",
+    "@google-cloud/storage": "^9.0.0",
     "@googleapis/calendar": "^15.0.0",
     "@hono/node-server": "^2.1.11",
     "@mastra/core": "^1.85.0",
