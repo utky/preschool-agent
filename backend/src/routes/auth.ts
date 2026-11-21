@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { setCookie, deleteCookie, getCookie } from 'hono/cookie'
 import { createToken, verifyToken, getUserFromPayload } from '../lib/jwt.js'
 import { logger } from '../lib/logger.js'
+import { parseAllowedEmails, isEmailAllowed } from '../lib/access-policy.js'
 import type { GoogleUserInfo, User } from '../types/auth.js'
 
 const auth = new Hono()
@@ -15,10 +16,10 @@ function getFrontendUrl(path: string = '/'): string {
 
 const GOOGLE_CLIENT_ID = process.env.AUTH_GOOGLE_ID || ''
 const GOOGLE_CLIENT_SECRET = process.env.AUTH_GOOGLE_SECRET || ''
-const ALLOWED_USER_EMAILS = (process.env.ALLOWED_USER_EMAILS || '')
-  .split(',')
-  .map((e) => e.trim())
-  .filter(Boolean)
+const ALLOWED_USER_EMAILS = parseAllowedEmails(process.env.ALLOWED_USER_EMAILS)
+if (ALLOWED_USER_EMAILS.length === 0) {
+  logger.warn('ALLOWED_USER_EMAILS is empty: all sign-ins will be rejected')
+}
 
 function getBaseUrl(c: { req: { url: string; header: (name: string) => string | undefined } }): string {
   const url = new URL(c.req.url)
@@ -102,10 +103,8 @@ auth.get('/callback/google', async (c) => {
       return c.redirect(getFrontendUrl('/login?error=email_not_verified'))
     }
 
-    if (
-      ALLOWED_USER_EMAILS.length > 0 &&
-      !ALLOWED_USER_EMAILS.includes(googleUser.email)
-    ) {
+    // 許可リストが空の場合は全員拒否（fail-closed）
+    if (!isEmailAllowed(googleUser.email, ALLOWED_USER_EMAILS)) {
       logger.warn({ reason: 'user_not_in_allowed_list' }, 'Authorization rejected')
       return c.redirect(getFrontendUrl('/login?error=not_allowed'))
     }

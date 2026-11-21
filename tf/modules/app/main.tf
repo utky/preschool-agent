@@ -425,6 +425,12 @@ resource "google_cloud_run_v2_service" "default" {
         value = google_storage_bucket.api_data.name
       }
 
+      # 署名付きURLの発行対象を PDF 格納バケットに限定するために使用
+      env {
+        name  = "PDF_BUCKET_NAME"
+        value = google_storage_bucket.pdf_uploads.name
+      }
+
       env {
         name  = "GCP_PROJECT_ID"
         value = var.project_id
