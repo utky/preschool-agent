@@ -126,6 +126,10 @@ jobs:
 
   deploy:
     needs: [build_backend, build_dbt, build_frontend]
+    # 同じ tfstate に apply する CD / Deploy Crawler の deploy ジョブを直列化し、state lock の競合を防ぐ
+    concurrency:
+      group: tofu-production
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     environment: prod
     permissions:
