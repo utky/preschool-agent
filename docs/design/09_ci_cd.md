@@ -240,6 +240,11 @@ jobs:
 1. **OpenTofu Plan**: 変更内容を確認
 2. **OpenTofu Apply**: インフラストラクチャを更新（手動承認後）
 
+#### apply の直列化
+`cd.yml`（backend / dbt / frontend）と `deploy-crawler.yml`（crawler）の `deploy` ジョブは、どちらも同じ production の tfstate に `tofu apply` を実行する。
+backend と crawler の両方を変更するコミットが main にマージされると2つが同時に動き、state lock の取得に失敗する（Error 412 `conditionNotMet`）。
+これを防ぐため、両方の `deploy` ジョブに共通のジョブ単位 concurrency グループ `tofu-production`（`cancel-in-progress: false`）を設定し、後から来た apply は先行の apply が終わるまで待機させる。
+
 #### GitHub Actions ワークフロー例
 
 ```yaml
