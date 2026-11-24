@@ -29,3 +29,8 @@ variable "cloud_run_request_threshold" {
   description = "Cloud Runリクエスト数の閾値（リクエスト/秒）。この値を超えたらアラート"
   default     = 10 # 10 req/s = 600 req/min
 }
+
+variable "dbt_job_name" {
+  type        = string
+  description = "監視対象の dbt Cloud Run Job 名（PDF抽出漏れアラート用）"
+}

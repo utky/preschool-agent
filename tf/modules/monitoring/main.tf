@@ -110,3 +110,47 @@ resource "google_monitoring_alert_policy" "cloud_run_request_rate" {
 
   depends_on = [google_project_service.monitoring]
 }
+
+# PDF抽出漏れアラート（dbt の assert_all_pdfs_extracted テストが WARN を出したら通知）
+# テストは severity: warn のため dbt Job 自体は成功する。ログの WARN 行を検知して通知する
+resource "google_monitoring_alert_policy" "pdf_extraction_failure" {
+  project      = var.project_id
+  display_name = "PDF Extraction Failure Alert"
+  combiner     = "OR"
+
+  conditions {
+    display_name = "dbt test assert_all_pdfs_extracted reported WARN"
+
+    condition_matched_log {
+      filter = <<-EOT
+        resource.type = "cloud_run_job"
+        AND resource.labels.job_name = "${var.dbt_job_name}"
+        AND textPayload =~ "WARN [0-9]+ assert_all_pdfs_extracted"
+      EOT
+    }
+  }
+
+  notification_channels = [
+    google_monitoring_notification_channel.email.id
+  ]
+
+  alert_strategy {
+    # dbt は 6 時間ごとに実行されるため、通知も最大 6 時間に 1 通に抑える
+    notification_rate_limit {
+      period = "21600s"
+    }
+    auto_close = "86400s"
+  }
+
+  documentation {
+    content   = <<-EOT
+      dbt test `assert_all_pdfs_extracted` detected PDFs that were not extracted (dbt job: ${var.dbt_job_name}).
+      Check failed rows with:
+      `SELECT uri, ml_generate_text_status, processed_at FROM school_agent.stg_pdf_uploads__extracted_texts WHERE NOT is_extracted`
+      Unprocessed PDFs (in raw_documents but not in staging) need a manual backfill with start_datetime / end_datetime vars.
+    EOT
+    mime_type = "text/markdown"
+  }
+
+  depends_on = [google_project_service.monitoring]
+}
