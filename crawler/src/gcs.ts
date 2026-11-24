@@ -55,7 +55,7 @@ export const uploadToGcs = async (
 ): Promise<void> => {
   const file = storage.bucket(bucketName).file(gcsPath)
 
-  // @google-cloud/storage v7 ではカスタムメタデータは metadata.metadata に格納する
+  // @google-cloud/storage（v7 以降）ではカスタムメタデータは metadata.metadata に格納する
   await file.save(content, {
     metadata: {
       contentType: 'application/pdf',
