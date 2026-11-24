@@ -46,7 +46,11 @@ WITH generated AS (
 
                 {% endif %}
                 {% if is_incremental() %}
-                    AND uri NOT IN (SELECT existing.uri FROM {{ this }} AS existing)
+                    -- 抽出成功済みの URI のみ除外する（失敗行はウィンドウ内なら再試行し merge で上書き）
+                    AND uri NOT IN (
+                        SELECT existing.uri FROM {{ this }} AS existing
+                        WHERE existing.is_extracted
+                    )
                 {% endif %}
         ),
         STRUCT(
@@ -115,10 +119,13 @@ SELECT
             )
         ),
         updated
-    ) AS updated_at
+    ) AS updated_at,
+    -- 抽出成否（成功ステータスでも Markdown が NULL のケースは失敗扱い）
+    COALESCE(
+        ml_generate_text_status = ''
+        AND JSON_VALUE(ml_generate_text_llm_result, '$.extracted_markdown') IS NOT NULL,
+        FALSE
+    ) AS is_extracted,
+    CURRENT_TIMESTAMP() AS processed_at
+-- 失敗行も残す（ml_generate_text_status にエラー文言を保持し、検知テストで通知する）
 FROM generated
-WHERE
-    ml_generate_text_status = ''
-    AND JSON_VALUE(
-        ml_generate_text_llm_result, '$.extracted_markdown'
-    ) IS NOT NULL

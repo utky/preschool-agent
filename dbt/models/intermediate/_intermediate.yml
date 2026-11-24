@@ -63,6 +63,7 @@ unit_tests:
             size: 100
             md5_hash: "hash1"
             updated_at: "2026-04-25 00:00:00 UTC"
+            is_extracted: true
             extracted_markdown: "イントロのテキストです。\n\n●セクションの詳細内容"
     expect:
       rows:
@@ -84,6 +85,7 @@ unit_tests:
             size: 100
             md5_hash: "hash2"
             updated_at: "2026-04-25 00:00:00 UTC"
+            is_extracted: true
             extracted_markdown: "冒頭のテキストです。\n\n▶イベント予告の詳細内容"
     expect:
       rows:
@@ -105,6 +107,7 @@ unit_tests:
             size: 100
             md5_hash: "hash3"
             updated_at: "2026-04-25 00:00:00 UTC"
+            is_extracted: true
             extracted_markdown: "前半のテキスト内容です。\n\n*5月のお知らせ情報*\n\n後半のテキスト内容です。"
     expect:
       rows:
@@ -126,8 +129,74 @@ unit_tests:
             size: 100
             md5_hash: "hash4"
             updated_at: "2026-04-25 00:00:00 UTC"
+            is_extracted: true
             extracted_markdown: "●最初のセクション内容\n\n●二番目のセクション内容"
     expect:
       rows:
         - {document_id: "test_doc_4", chunk_index: 0, chunk_text: "●最初のセクション内容"}
         - {document_id: "test_doc_4", chunk_index: 1, chunk_text: "●二番目のセクション内容"}
+
+  - name: test_failed_extraction_rows_are_excluded
+    description: "is_extracted = false の抽出失敗行はチャンク化されず、成功行のみチャンクになること"
+    model: int_extracted_texts__chunked
+    overrides:
+      macros:
+        is_incremental: false
+    given:
+      - input: ref('stg_pdf_uploads__extracted_texts')
+        rows:
+          - document_id: "test_doc_ok"
+            uri: "gs://test/ok.pdf"
+            content_type: "application/pdf"
+            size: 100
+            md5_hash: "hash_ok"
+            updated_at: "2026-04-25 00:00:00 UTC"
+            is_extracted: true
+            extracted_markdown: "成功した文書のテキストです。"
+          - document_id: "test_doc_failed"
+            uri: "gs://test/failed.pdf"
+            content_type: "application/pdf"
+            size: 100
+            md5_hash: "hash_failed"
+            updated_at: "2026-04-25 00:00:00 UTC"
+            is_extracted: false
+            extracted_markdown: "失敗行に残っていたテキストです。"
+    expect:
+      rows:
+        - {document_id: "test_doc_ok", chunk_index: 0, chunk_text: "成功した文書のテキストです。"}
+
+  - name: test_retried_extraction_is_chunked_incrementally
+    description: "incremental 実行時、再試行で成功に変わった行（既存チャンクなし）はチャンク化され、失敗のままの行は対象外であること"
+    model: int_extracted_texts__chunked
+    overrides:
+      macros:
+        is_incremental: true
+    given:
+      - input: ref('stg_pdf_uploads__extracted_texts')
+        rows:
+          - document_id: "test_doc_retried"
+            uri: "gs://test/retried.pdf"
+            content_type: "application/pdf"
+            size: 100
+            md5_hash: "hash_retried"
+            updated_at: "2026-04-25 00:00:00 UTC"
+            is_extracted: true
+            extracted_markdown: "再試行で抽出に成功した文書です。"
+          - document_id: "test_doc_still_failed"
+            uri: "gs://test/still_failed.pdf"
+            content_type: "application/pdf"
+            size: 100
+            md5_hash: "hash_still_failed"
+            updated_at: "2026-04-25 00:00:00 UTC"
+            is_extracted: false
+            extracted_markdown: null
+      - input: this
+        rows:
+          - document_id: "test_doc_existing"
+            uri: "gs://test/existing.pdf"
+            chunk_index: 0
+            chunk_text: "既存文書のチャンクです。"
+            md5_hash: "hash_existing"
+    expect:
+      rows:
+        - {document_id: "test_doc_retried", chunk_index: 0, chunk_text: "再試行で抽出に成功した文書です。"}

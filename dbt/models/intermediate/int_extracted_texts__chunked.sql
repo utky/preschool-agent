@@ -24,18 +24,21 @@ WITH source AS (
         -- 改行を正規化（\r\n → \n）
         REGEXP_REPLACE(stg.extracted_markdown, r'\r\n', '\n') AS extracted_markdown
     FROM {{ ref('stg_pdf_uploads__extracted_texts') }} AS stg
-    {% if is_incremental() %}
-    -- 既存チャンクと同じ (uri, md5_hash) の組み合わせは再処理不要
-    -- pre_hook で削除された文書（md5_hash 変化）はここに含まれる
-    -- BigQuery は多列 IN サブクエリ非対応のため NOT EXISTS を使用
-        WHERE NOT EXISTS (
-            SELECT 1
-            FROM {{ this }} AS t
-            WHERE
-                t.uri = stg.uri
-                AND t.md5_hash = stg.md5_hash
-        )
-    {% endif %}
+    -- 抽出失敗行は staging に残るが、チャンク化の対象は成功行のみ
+    WHERE
+        stg.is_extracted
+        {% if is_incremental() %}
+            -- 既存チャンクと同じ (uri, md5_hash) の組み合わせは再処理不要
+            -- pre_hook で削除された文書（md5_hash 変化）はここに含まれる
+            -- BigQuery は多列 IN サブクエリ非対応のため NOT EXISTS を使用
+            AND NOT EXISTS (
+                SELECT 1
+                FROM {{ this }} AS t
+                WHERE
+                    t.uri = stg.uri
+                    AND t.md5_hash = stg.md5_hash
+            )
+        {% endif %}
 ),
 
 -- Level A: split_by_headings UDF でセクション分割
@@ -186,7 +189,7 @@ sentence_groups AS (
             ) AS cumulative_len
         FROM final_chunks
         WHERE sub_index > 0 OR (sub_index = 0 AND section_index >= 0)
-    )
+    ) AS cumulated
 ),
 
 reaggregated_chunks AS (

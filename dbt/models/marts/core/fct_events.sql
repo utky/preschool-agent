@@ -71,8 +71,11 @@ WITH source AS (  -- noqa: ST03
     FROM {{ ref('stg_pdf_uploads__extracted_texts') }} AS s
     -- dim_documents から発行日を取得（まだ処理されていない文書は NULL → updated_at にフォールバック）
     LEFT JOIN {{ ref('dim_documents') }} AS d ON s.document_id = d.document_id
+    -- 抽出失敗行は staging に残るが、イベント抽出の対象は成功行のみ
+    WHERE
+        s.is_extracted
     {% if is_incremental() %}
-        WHERE s.document_id NOT IN (SELECT DISTINCT document_id FROM {{ this }})  -- noqa: RF02
+        AND s.document_id NOT IN (SELECT DISTINCT document_id FROM {{ this }})  -- noqa: RF02
     {% endif %}
 ),
 
