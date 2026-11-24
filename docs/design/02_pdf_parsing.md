@@ -187,3 +187,8 @@ dbt/models/
 
 **dbt実行スケジュール**: Cloud Scheduler `0 0,6,12,18 * * *`（6時間間隔）
 **増分処理**: `start_datetime`/`end_datetime` 変数でフィルタリング
+
+**抽出失敗の扱い**: `stg_pdf_uploads__extracted_texts` は成功・失敗とも 1 URI 1 行で保存する。
+`is_extracted`（`status = '' AND extracted_markdown IS NOT NULL`）が FALSE の行は失敗で、`ml_generate_text_status` にエラー文言が残る。
+incremental は成功済み URI のみ除外するため、ウィンドウ内の失敗行は再試行される。下流は `WHERE is_extracted` で成功行のみ読む。
+未抽出の PDF は `tests/assert_all_pdfs_extracted.sql`（warn）で検知し、ログベースアラートでメール通知する。

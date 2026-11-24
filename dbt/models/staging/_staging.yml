@@ -16,13 +16,15 @@ models:
       - name: original_filename
         description: "オリジナルファイル名（メタデータからURLデコード済み）"
       - name: extracted_markdown
-        description: "Gemini 2.5 FlashでMarkdown形式で抽出されたテキスト"
+        description: "Gemini 2.5 FlashでMarkdown形式で抽出されたテキスト（抽出失敗行はNULL）"
         data_tests:
-          - not_null
+          - not_null:
+              config:
+                where: "is_extracted"
       - name: ml_generate_text_llm_result
         description: "Gemini生レスポンスJSON（デバッグ用）"
       - name: ml_generate_text_status
-        description: "ML.GENERATE_TEXTのステータス（空文字列=成功）"
+        description: "ML.GENERATE_TEXTのステータス（空文字列=成功、失敗時はエラー文言）"
       - name: content_type
         description: "MIMEタイプ"
       - name: size
@@ -31,4 +33,10 @@ models:
         description: "MD5ハッシュ"
       - name: updated_at
         description: "GCSオブジェクトの最終更新日時"
+      - name: is_extracted
+        description: "抽出成否（status が空文字列かつ extracted_markdown が非NULLなら TRUE）。下流は TRUE の行のみ読む"
+        data_tests:
+          - not_null
+      - name: processed_at
+        description: "ML.GENERATE_TEXT で処理した時刻（失敗行の再試行時は上書き）"
 
