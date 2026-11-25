@@ -13,26 +13,26 @@
     "test:coverage": "NODE_OPTIONS='--experimental-vm-modules' jest --coverage"
   },
   "dependencies": {
-    "@ai-sdk/google-vertex": "^4.0.234",
+    "@ai-sdk/google-vertex": "^4.0.237",
     "@google-cloud/bigquery": "^9.6.1",
     "@google-cloud/run": "^4.2.0",
     "@google-cloud/storage": "^9.0.0",
     "@hono/node-server": "^2.1.11",
-    "@mastra/core": "^1.85.0",
+    "@mastra/core": "^1.86.0",
     "dotenv": "^17.4.2",
-    "hono": "^4.13.19",
+    "hono": "^4.13.22",
     "pino": "^10.4.0",
     "zod": "^4.6.7"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@types/jest": "^30.0.0",
-    "@types/node": "^25.9.9",
+    "@types/node": "^25.9.12",
     "eslint": "^10.15.0",
     "jest": "^30.5.2",
     "ts-jest": "^29.4.15",
     "tsx": "^4.23.15",
     "typescript": "~6.0.3",
-    "typescript-eslint": "^8.73.0"
+    "typescript-eslint": "^8.74.0"
   }
 }
